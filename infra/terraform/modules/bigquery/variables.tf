@@ -17,7 +17,7 @@ variable "location" {
 
 variable "layers" {
   type    = list(string)
-  default = ["staging", "marts"]
+  default = ["raw", "staging", "marts"]
 }
 
 variable "default_partition_expiration_days" {

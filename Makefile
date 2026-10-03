@@ -1,4 +1,4 @@
-.PHONY: setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run
+.PHONY: data-dev dbt-build data-check setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run
 
 setup:
 	uv sync
@@ -37,6 +37,31 @@ frontend-check:
 	cd frontend && npm run typecheck && npm run lint
 
 check: lint typecheck test schemas secrets frontend-check tf-check
+
+# --- Phase 2 data platform (local DuckDB; no cloud resources) -----------------------------
+SIM_DIR ?= data/sim
+SIM_CUSTOMERS ?= 1000
+SIM_DAYS ?= 56
+SIM_START ?= 2026-01-05
+SIM_END ?= 2026-03-01
+DBT = DBT_TARGET_PATH=data/dbt/target DBT_LOG_PATH=data/dbt/logs \
+	PRAXIS_DUCKDB_PATH=$${PRAXIS_DUCKDB_PATH:-data/warehouse/praxis.duckdb} \
+	.venv/bin/dbt
+
+dbt-build:
+	$(DBT) build --project-dir dbt --profiles-dir dbt
+
+# One command: simulate -> load raw -> ingest external signals -> dbt build -> freshness report.
+# Sources that are down or lack an API key are reported and skipped; the build still completes.
+data-dev:
+	.venv/bin/python -m praxis.simulator --customers $(SIM_CUSTOMERS) --days $(SIM_DAYS) --seed 42 --validate --out $(SIM_DIR)
+	.venv/bin/python -m praxis.data load-sim --dir $(SIM_DIR)
+	.venv/bin/python -m praxis.data ingest --start $(SIM_START) --end $(SIM_END)
+	$(MAKE) dbt-build
+	-.venv/bin/python -m praxis.data freshness
+
+data-check:
+	.venv/bin/pytest tests/data -q
 
 run:
 	.venv/bin/uvicorn --factory praxis.api.app:create_app --reload

@@ -1,0 +1,69 @@
+# Praxis external signals: stable source and location definition.
+# Real external data, joined to SYNTHETIC simulator regions by an explicit, documented
+# context mapping (a region label is not a claim that simulated customers are real).
+# API keys never live here; they come from PRAXIS_FRED_API_KEY / PRAXIS_EIA_API_KEY.
+
+[freshness]
+# Maximum tolerated age of the newest observation, in hours. Reflects each source's
+# own publication delay (Open-Meteo archive lags ~5 days; FRED monthly series lag ~2 months).
+open_meteo = 168
+carbon_intensity = 48
+eia = 120
+fred = 1800
+
+[[locations]]
+region_id = "eu_west"
+name = "London"
+latitude = 51.5074
+longitude = -0.1278
+carbon_area = "gb"
+
+[[locations]]
+region_id = "us_east"
+name = "New York"
+latitude = 40.7128
+longitude = -74.0060
+eia_respondent = "NY"
+
+[[locations]]
+region_id = "us_west"
+name = "California"
+latitude = 37.7749
+longitude = -122.4194
+eia_respondent = "CAL"
+
+[[locations]]
+region_id = "ap_southeast"
+name = "Singapore"
+latitude = 1.3521
+longitude = 103.8198
+
+[[locations]]
+region_id = "eu_central"
+name = "Frankfurt"
+latitude = 50.1109
+longitude = 8.6821
+
+[open_meteo]
+hourly = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "cloud_cover", "precipitation"]
+max_days_per_request = 31
+
+[carbon_intensity]
+max_days_per_request = 13      # API maximum is 14 days
+
+[eia]
+route = "electricity/rto/region-data/data"
+type = "D"                     # demand
+max_days_per_request = 30      # 30 x 24 = 720 rows per respondent, below the 5,000 row cap
+
+[[fred.series]]
+id = "CPIAUCSL"
+unit = "index_1982_84_100"
+
+[[fred.series]]
+id = "FEDFUNDS"
+unit = "percent"
+
+[[fred.series]]
+id = "PPIACO"
+unit = "index_1982_100"

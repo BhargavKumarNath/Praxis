@@ -1,0 +1,23 @@
+# Default target is local DuckDB. The bigquery target below has only ever been compiled, never run.
+praxis:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('PRAXIS_DUCKDB_PATH', 'data/warehouse/praxis.duckdb') }}"
+      threads: 4
+      settings:
+        TimeZone: UTC
+    # BigQuery target: compile-only until a praxis-* project is approved and provisioned
+    # (CLAUDE.md section 14). The bytes-billed cap makes an accidental scan fail, not bill.
+    bigquery:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('PRAXIS_GCP_PROJECT_ID', 'praxis-placeholder') }}"
+      dataset: "{{ env_var('PRAXIS_BQ_SCHEMA_PREFIX', 'praxis_dev_') }}staging"
+      location: "{{ env_var('PRAXIS_GCP_REGION', 'europe-west2') }}"
+      threads: 4
+      priority: interactive
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      maximum_bytes_billed: 1000000000

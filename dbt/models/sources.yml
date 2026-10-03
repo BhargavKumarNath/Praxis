@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw layer loaded by `python -m praxis.data`. Simulator events are SYNTHETIC; external
+      signals are real third-party data.
+    schema: "{{ env_var('PRAXIS_BQ_SCHEMA_PREFIX', '') }}raw"
+    tables:
+      - name: sim_events
+        description: Internal events (SYNTHETIC). event_id is the idempotency key.
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 7, period: day}
+          error_after: {count: 30, period: day}
+        columns:
+          - name: event_id
+            data_tests: [unique, not_null]
+          - name: is_synthetic
+            data_tests:
+              - accepted_values: {arguments: {values: [true], quote: false}}
+      - name: external_signals
+        description: Normalised third-party observations, one row per logical record.
+        columns:
+          - name: record_key
+            data_tests: [unique, not_null]
+      - name: ingest_batches
+        description: One provenance row per fetched body.
+        loaded_at_field: retrieved_at
+        freshness:
+          warn_after: {count: 3, period: day}
+          error_after: {count: 14, period: day}
+        columns:
+          - name: batch_id
+            data_tests: [unique, not_null]
+      - name: region_locations
+        description: Context mapping from simulator regions to real signal anchors.

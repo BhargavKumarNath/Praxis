@@ -32,3 +32,8 @@
 | Capacity shock | Scheduled reduction (or increase) of a region's capacity. |
 | Demand spike | Scheduled multiplier on a region's (optionally one product's) demand. |
 | Golden checksum | Pinned canonical-stream hash that detects any unintended change to simulator output. |
+| Raw batch | One fetched response body, archived unmodified and content-addressed; identified by `batch_id`. |
+| Quarantine | Archiving a batch whose response broke the source contract, without producing normalised rows. |
+| Batch fingerprint | Body content minus volatile fields (e.g. server timings); the basis of `batch_id`. |
+| Release lag | Delay between the period a macro value describes and when it is published; features must respect it. |
+| Feature view | Region-day dbt view of information available at the end of the feature day. |

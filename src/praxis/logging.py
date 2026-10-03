@@ -55,3 +55,6 @@ def configure_logging(service: str, level: str = "INFO") -> None:
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(level)
+    # Library request logs carry full URLs (query-string credentials); keep them quiet.
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

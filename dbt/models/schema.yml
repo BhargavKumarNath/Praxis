@@ -1,0 +1,159 @@
+version: 2
+
+models:
+  - name: stg_sim_events
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: event_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - churn.observed
+                  - conversion.observed
+                  - customer.created
+                  - invoice.created
+                  - payment.attempted
+                  - payment.failed
+                  - payment.succeeded
+                  - price.exposed
+                  - request.completed
+                  - service.metric_observed
+                  - subscription.changed
+                  - subscription.started
+                  - usage.observed
+      - name: schema_version
+        data_tests:
+          - accepted_values: {arguments: {values: [1], quote: false}}
+      - name: is_synthetic
+        data_tests:
+          - accepted_values: {arguments: {values: [true], quote: false}}
+
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+  - name: stg_invoices
+    columns:
+      - name: invoice_id
+        data_tests: [unique, not_null]
+      - name: currency
+        data_tests: [{accepted_values: {arguments: {values: [GBP]}}}]
+
+  - name: dim_region
+    columns:
+      - name: region_id
+        data_tests: [unique, not_null]
+
+  - name: dim_customer
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: region_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_region'), field: region_id}}
+      - name: initial_tier
+        data_tests: [{accepted_values: {arguments: {values: [starter, growth, enterprise]}}}]
+      - name: current_tier
+        data_tests: [{accepted_values: {arguments: {values: [starter, growth, enterprise]}}}]
+      - name: preferred_payment_method
+        data_tests: [{accepted_values: {arguments: {values: [card, direct_debit, wallet]}}}]
+      - name: churn_reason
+        data_tests:
+          - accepted_values:
+              arguments: {values: [voluntary, involuntary_payment]}
+
+  - name: dim_product
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+
+  - name: fct_usage_daily
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_customer'), field: customer_id}}
+      - name: product
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_product'), field: product_id}}
+      - name: region_id
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_region'), field: region_id}}
+    data_tests:
+      - unique_grain:
+          arguments: {columns: [event_date, customer_id, product, region_id]}
+
+  - name: fct_payments
+    columns:
+      - name: payment_key
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_customer'), field: customer_id}}
+      - name: invoice_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('stg_invoices'), field: invoice_id}}
+      - name: outcome
+        data_tests: [{accepted_values: {arguments: {values: [succeeded, failed, pending]}}}]
+      - name: failure_reason
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - authentication_required
+                  - card_declined
+                  - expired_card
+                  - insufficient_funds
+                  - processor_error
+
+  - name: fct_price_exposures
+    columns:
+      - name: exposure_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_customer'), field: customer_id}}
+      - name: product
+        data_tests:
+          - relationships: {arguments: {to: ref('dim_product'), field: product_id}}
+      - name: arm
+        data_tests: [{accepted_values: {arguments: {values: [control, treatment]}}}]
+
+  - name: fct_service_metrics_hourly
+    columns:
+      - name: metric_id
+        data_tests: [unique, not_null]
+      - name: region_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_region'), field: region_id}}
+
+  - name: fct_external_signals
+    columns:
+      - name: record_key
+        data_tests: [unique, not_null]
+      - name: source
+        data_tests:
+          - accepted_values:
+              arguments: {values: [open_meteo, carbon_intensity, eia, fred]}
+      - name: quality_status
+        data_tests: [{accepted_values: {arguments: {values: [ok, partial]}}}]
+      - name: value
+        data_tests: [not_null]
+
+  - name: feat_region_daily
+    columns:
+      - name: region_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_region'), field: region_id}}
+    data_tests:
+      - unique_grain:
+          arguments: {columns: [region_id, feature_date]}

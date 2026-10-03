@@ -9,5 +9,6 @@
 | [0005](0005-continuous-training-without-automatic-promotion.md) | Continuous training does not imply automatic promotion |
 | [0006](0006-separate-synthetic-scale-from-stripe-integration.md) | Separate synthetic scale from real Stripe integration |
 | [0007](0007-deterministic-daily-step-simulator.md) | Deterministic daily-step simulator with retained ground truth |
+| [0008](0008-local-first-data-platform.md) | Local-first data platform (DuckDB + dbt), raw archive first |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
 
+    # External data API keys (Phase 2). Open-Meteo and NESO Carbon Intensity need none.
+    fred_api_key: SecretStr | None = None
+    eia_api_key: SecretStr | None = None
+
     @model_validator(mode="after")
     def _require_cloud_identity_outside_local(self) -> Self:
         if self.environment is not Environment.LOCAL and not self.gcp_project_id:
