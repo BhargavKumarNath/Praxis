@@ -19,6 +19,7 @@ jobs:
       - run: .venv/bin/ruff format --check .
       - run: .venv/bin/mypy
       - run: .venv/bin/pytest --cov
+      - run: .venv/bin/python scripts/export_payload_schemas.py --check
       - run: .venv/bin/python scripts/secret_scan.py
       - run: uv export --no-hashes --no-emit-project -o /tmp/req.txt && .venv/bin/pip-audit -r /tmp/req.txt
 

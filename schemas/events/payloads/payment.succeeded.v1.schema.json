@@ -1,0 +1,34 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/payment.succeeded.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "attempt_number": {
+      "minimum": 1,
+      "title": "Attempt Number",
+      "type": "integer"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "invoice_id": {
+      "title": "Invoice Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "invoice_id",
+    "attempt_number",
+    "amount_minor",
+    "currency"
+  ],
+  "title": "PaymentSucceeded",
+  "type": "object"
+}

@@ -25,3 +25,10 @@
 | CLV | Customer lifetime value, used as a long-horizon guardrail. |
 | SLO | Measurable service objective (latency, freshness, availability). |
 | AI Revenue Operator | LLM agent that observes and orchestrates via typed, audited tools. |
+| Intervention | Controlled simulator price change applied to a hashed, deterministic subset of customers. |
+| Treatment / control arm | Customers who receive the intervention price versus those who keep the list price. |
+| Throttled units | Requested units the infrastructure could not serve because of overload or outage. |
+| Utilisation | Regional load divided by capacity; drives latency, errors, throttling and marginal cost. |
+| Capacity shock | Scheduled reduction (or increase) of a region's capacity. |
+| Demand spike | Scheduled multiplier on a region's (optionally one product's) demand. |
+| Golden checksum | Pinned canonical-stream hash that detects any unintended change to simulator output. |

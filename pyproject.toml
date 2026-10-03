@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn>=0.30",
     "pydantic>=2.8",
     "pydantic-settings>=2.4",
+    "numpy>=2.5.3",
 ]
 
 [dependency-groups]
@@ -55,7 +56,10 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers --strict-config"
 asyncio_mode = "auto"
-markers = ["integration: touches a real boundary (never run in unit CI)"]
+markers = [
+    "integration: touches a real boundary (never run in unit CI)",
+    "slow: long-running scale smoke test",
+]
 
 [tool.coverage.run]
 branch = true

@@ -1,0 +1,52 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/customer.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "industry": {
+      "title": "Industry",
+      "type": "string"
+    },
+    "is_existing": {
+      "title": "Is Existing",
+      "type": "boolean"
+    },
+    "preferred_payment_method": {
+      "enum": [
+        "card",
+        "direct_debit",
+        "wallet"
+      ],
+      "title": "Preferred Payment Method",
+      "type": "string"
+    },
+    "region_id": {
+      "title": "Region Id",
+      "type": "string"
+    },
+    "tenure_days": {
+      "minimum": 0,
+      "title": "Tenure Days",
+      "type": "integer"
+    },
+    "tier": {
+      "enum": [
+        "starter",
+        "growth",
+        "enterprise"
+      ],
+      "title": "Tier",
+      "type": "string"
+    }
+  },
+  "required": [
+    "region_id",
+    "industry",
+    "tier",
+    "preferred_payment_method",
+    "is_existing",
+    "tenure_days"
+  ],
+  "title": "CustomerCreated",
+  "type": "object"
+}

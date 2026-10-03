@@ -1,4 +1,4 @@
-.PHONY: setup lint typecheck test secrets tf-check frontend-check check run
+.PHONY: setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run
 
 setup:
 	uv sync
@@ -14,6 +14,15 @@ typecheck:
 test:
 	.venv/bin/pytest --cov
 
+test-fast:
+	.venv/bin/pytest -m 'not slow' -q
+
+schemas:
+	.venv/bin/python scripts/export_payload_schemas.py --check
+
+sim-smoke:
+	.venv/bin/python -m praxis.simulator --customers 10000 --days 28 --seed 42 --validate --schema-every 50
+
 secrets:
 	.venv/bin/python scripts/secret_scan.py
 
@@ -27,7 +36,7 @@ tf-check:
 frontend-check:
 	cd frontend && npm run typecheck && npm run lint
 
-check: lint typecheck test secrets frontend-check tf-check
+check: lint typecheck test schemas secrets frontend-check tf-check
 
 run:
 	.venv/bin/uvicorn --factory praxis.api.app:create_app --reload

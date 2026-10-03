@@ -1,0 +1,51 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/subscription.started.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "base_fee_minor": {
+      "minimum": 0,
+      "title": "Base Fee Minor",
+      "type": "integer"
+    },
+    "billing_period_days": {
+      "exclusiveMinimum": 0,
+      "title": "Billing Period Days",
+      "type": "integer"
+    },
+    "origin": {
+      "enum": [
+        "new",
+        "existing"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "products": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Products",
+      "type": "array"
+    },
+    "tier": {
+      "enum": [
+        "starter",
+        "growth",
+        "enterprise"
+      ],
+      "title": "Tier",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tier",
+    "products",
+    "origin",
+    "base_fee_minor",
+    "billing_period_days"
+  ],
+  "title": "SubscriptionStarted",
+  "type": "object"
+}

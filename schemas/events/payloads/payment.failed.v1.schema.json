@@ -1,0 +1,51 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/payment.failed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "attempt_number": {
+      "minimum": 1,
+      "title": "Attempt Number",
+      "type": "integer"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "final": {
+      "title": "Final",
+      "type": "boolean"
+    },
+    "invoice_id": {
+      "title": "Invoice Id",
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "insufficient_funds",
+        "card_declined",
+        "expired_card",
+        "processor_error",
+        "authentication_required"
+      ],
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "invoice_id",
+    "attempt_number",
+    "amount_minor",
+    "currency",
+    "reason",
+    "final"
+  ],
+  "title": "PaymentFailed",
+  "type": "object"
+}

@@ -1,0 +1,22 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/conversion.observed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "converted": {
+      "title": "Converted",
+      "type": "boolean"
+    },
+    "price_index_milli": {
+      "exclusiveMinimum": 0,
+      "title": "Price Index Milli",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "converted",
+    "price_index_milli"
+  ],
+  "title": "ConversionObserved",
+  "type": "object"
+}

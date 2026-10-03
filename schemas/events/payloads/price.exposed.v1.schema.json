@@ -1,0 +1,56 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/price.exposed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "arm": {
+      "anyOf": [
+        {
+          "enum": [
+            "control",
+            "treatment"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arm"
+    },
+    "experiment_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Experiment Id"
+    },
+    "list_price_micros": {
+      "exclusiveMinimum": 0,
+      "title": "List Price Micros",
+      "type": "integer"
+    },
+    "product": {
+      "title": "Product",
+      "type": "string"
+    },
+    "unit_price_micros": {
+      "exclusiveMinimum": 0,
+      "title": "Unit Price Micros",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "product",
+    "unit_price_micros",
+    "list_price_micros"
+  ],
+  "title": "PriceExposed",
+  "type": "object"
+}

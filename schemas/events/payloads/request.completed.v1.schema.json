@@ -1,0 +1,40 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/request.completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error_count": {
+      "minimum": 0,
+      "title": "Error Count",
+      "type": "integer"
+    },
+    "latency_p50_ms": {
+      "exclusiveMinimum": 0,
+      "title": "Latency P50 Ms",
+      "type": "number"
+    },
+    "latency_p95_ms": {
+      "exclusiveMinimum": 0,
+      "title": "Latency P95 Ms",
+      "type": "number"
+    },
+    "region_id": {
+      "title": "Region Id",
+      "type": "string"
+    },
+    "request_count": {
+      "minimum": 1,
+      "title": "Request Count",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "region_id",
+    "request_count",
+    "error_count",
+    "latency_p50_ms",
+    "latency_p95_ms"
+  ],
+  "title": "RequestCompleted",
+  "type": "object"
+}

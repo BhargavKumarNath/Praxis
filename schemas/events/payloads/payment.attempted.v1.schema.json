@@ -1,0 +1,44 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/payment.attempted.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "attempt_number": {
+      "minimum": 1,
+      "title": "Attempt Number",
+      "type": "integer"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "invoice_id": {
+      "title": "Invoice Id",
+      "type": "string"
+    },
+    "payment_method": {
+      "enum": [
+        "card",
+        "direct_debit",
+        "wallet"
+      ],
+      "title": "Payment Method",
+      "type": "string"
+    }
+  },
+  "required": [
+    "invoice_id",
+    "attempt_number",
+    "amount_minor",
+    "currency",
+    "payment_method"
+  ],
+  "title": "PaymentAttempted",
+  "type": "object"
+}

@@ -1,0 +1,41 @@
+{
+  "batch_id": "42-001246d59d2d",
+  "code_revision": "2017cf0",
+  "config_hash": "001246d59d2d43a23559ba189e28117f345091ae283128c59776953d939ba134",
+  "dataset": "praxis-simulator-events",
+  "elapsed_s": 17.04,
+  "event_count": 977754,
+  "event_counts": {
+    "churn.observed": 343,
+    "conversion.observed": 1441,
+    "customer.created": 10000,
+    "invoice.created": 7603,
+    "payment.attempted": 8366,
+    "payment.failed": 936,
+    "payment.succeeded": 7430,
+    "price.exposed": 33457,
+    "request.completed": 187833,
+    "service.metric_observed": 3360,
+    "subscription.changed": 1032,
+    "subscription.started": 9385,
+    "usage.observed": 706568
+  },
+  "event_schema_version": 1,
+  "ground_truth_checksum_sha256": "252ec29bc4d787508de1de0b5c9d7c127e47f138a12242b0bbc284e5e76ad890",
+  "is_synthetic": true,
+  "n_customers": 10000,
+  "numpy_version": "2.5.3",
+  "payload_schema_version": 1,
+  "peak_rss_mb": 218.9,
+  "praxis_version": "0.0.1",
+  "python_version": "3.12.14",
+  "quality_status": "validated",
+  "retrieved_at": "2026-10-03T19:15:40.218440+00:00",
+  "seed": 42,
+  "source": "praxis.simulator",
+  "source_period": {
+    "days": 28,
+    "start_date": "2026-01-05"
+  },
+  "stream_checksum_sha256": "46c8bb7e1037fea042eb475a6f034ebfac502d0f840d7bc0b41f71daf8cf9675"
+}

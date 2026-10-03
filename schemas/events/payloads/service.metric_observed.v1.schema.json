@@ -1,0 +1,63 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/service.metric_observed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "available_products": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Available Products",
+      "type": "array"
+    },
+    "capacity_units": {
+      "exclusiveMinimum": 0,
+      "title": "Capacity Units",
+      "type": "integer"
+    },
+    "error_rate": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Error Rate",
+      "type": "number"
+    },
+    "latency_p50_ms": {
+      "exclusiveMinimum": 0,
+      "title": "Latency P50 Ms",
+      "type": "number"
+    },
+    "latency_p95_ms": {
+      "exclusiveMinimum": 0,
+      "title": "Latency P95 Ms",
+      "type": "number"
+    },
+    "marginal_cost_micros": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Marginal Cost Micros",
+      "type": "object"
+    },
+    "region_id": {
+      "title": "Region Id",
+      "type": "string"
+    },
+    "utilization": {
+      "minimum": 0,
+      "title": "Utilization",
+      "type": "number"
+    }
+  },
+  "required": [
+    "region_id",
+    "capacity_units",
+    "utilization",
+    "latency_p50_ms",
+    "latency_p95_ms",
+    "error_rate",
+    "available_products",
+    "marginal_cost_micros"
+  ],
+  "title": "ServiceMetricObserved",
+  "type": "object"
+}

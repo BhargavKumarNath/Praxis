@@ -58,9 +58,11 @@ The loop is only complete when outcomes flow back into ingestion (right to left 
 ## Repository layout
 
 ```text
-src/praxis/        Python package (FastAPI backend, config, logging, tracing, events)
+src/praxis/        Python package: api, config, logging, tracing, events, domain (state machines),
+                   simulator (Phase 1)
 tests/             unit/ and contract/ now; integration/ and others as phases land
-schemas/events/    Versioned JSON Schemas (source of truth for event contracts)
+schemas/events/    Versioned JSON Schemas: envelope and per-event payloads (payloads/)
+configs/simulator/ Stable simulator world definition (TOML)
 frontend/          Next.js + TypeScript dashboard (placeholder in Phase 0)
 infra/terraform/   modules/ (storage, pubsub, bigquery) and envs/dev
 docs/              architecture, glossary, conventions, cost guard, ADRs, phase evidence

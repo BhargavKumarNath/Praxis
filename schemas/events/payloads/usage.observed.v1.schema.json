@@ -1,0 +1,39 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/usage.observed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "product": {
+      "title": "Product",
+      "type": "string"
+    },
+    "region_id": {
+      "title": "Region Id",
+      "type": "string"
+    },
+    "throttled_units": {
+      "minimum": 0,
+      "title": "Throttled Units",
+      "type": "integer"
+    },
+    "unit_price_micros": {
+      "exclusiveMinimum": 0,
+      "title": "Unit Price Micros",
+      "type": "integer"
+    },
+    "units": {
+      "minimum": 1,
+      "title": "Units",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "product",
+    "region_id",
+    "units",
+    "throttled_units",
+    "unit_price_micros"
+  ],
+  "title": "UsageObserved",
+  "type": "object"
+}

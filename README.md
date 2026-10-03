@@ -15,4 +15,4 @@ make check             # lint, types, tests, secret scan, frontend, terraform
 make run               # http://127.0.0.1:8000/healthz
 ```
 
-Status: Phase 0 (foundation). See `docs/evidence/` for phase reports.
+Status: Phase 1 complete (deterministic simulator, see `docs/simulator.md`). Progress: `project_progress.md`; evidence: `docs/evidence/`.

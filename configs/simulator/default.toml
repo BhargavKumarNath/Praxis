@@ -1,0 +1,233 @@
+# Praxis simulator: stable world definition. SYNTHETIC. Change deliberately; any change
+# alters config_hash and therefore every run's identity and golden checksum.
+# Do not tune these values to flatter a downstream model; keep difficult cohorts.
+
+[run]
+start_date = "2026-01-05"   # a Monday
+days = 56
+
+[population]
+n_customers = 1000
+new_customer_fraction = 0.15
+existing_tenure_mean_days = 400.0
+churn_sens_beta = [2.0, 5.0]
+service_sens_beta = [2.0, 3.0]
+growth_mean = 0.002
+growth_sd = 0.004
+compute_intensity_sigma = 0.4
+elasticity_clip = [0.05, 5.0]      # |elasticity|
+dispersion_typical = 8.0           # gamma shape: larger = less noisy
+dispersion_noisy = 1.5
+noisy_volume_fraction = 0.10       # difficult cohort: very noisy usage
+method_shares = [0.60, 0.25, 0.15] # card, direct_debit, wallet
+risky_payer_fraction = 0.08        # difficult cohort: unreliable payers
+risky_beta = [4.0, 3.0]
+min_mix_share = 0.05
+
+[population.method_beta]
+card = [18.0, 1.5]
+direct_debit = [40.0, 1.5]
+wallet = [12.0, 1.2]
+
+[[products]]
+id = "api_requests"          # per 1,000 calls
+ref_price_micros = 400000
+base_cost_micros = 120000
+load_weight = 1.0
+emits_requests = true
+
+[[products]]
+id = "cpu_minutes"
+ref_price_micros = 12000
+base_cost_micros = 5000
+load_weight = 0.05
+compute_intensive = true
+
+[[products]]
+id = "gpu_minutes"
+ref_price_micros = 45000
+base_cost_micros = 30000
+load_weight = 0.5
+compute_intensive = true
+
+[[products]]
+id = "data_transfer_gb"
+ref_price_micros = 70000
+base_cost_micros = 40000
+load_weight = 0.2
+
+[[products]]
+id = "premium_latency"       # per 1,000 premium-tier calls
+ref_price_micros = 900000
+base_cost_micros = 350000
+load_weight = 1.5
+
+[[regions]]
+id = "eu_west"
+share = 0.35
+utc_offset_hours = 0
+base_latency_ms = 38.0
+base_error_rate = 0.0008
+cost_multiplier = 1.00
+target_utilization = 0.60
+
+[[regions]]
+id = "us_east"
+share = 0.30
+utc_offset_hours = -5
+base_latency_ms = 32.0
+base_error_rate = 0.0006
+cost_multiplier = 0.92
+target_utilization = 0.62
+
+[[regions]]
+id = "us_west"
+share = 0.15
+utc_offset_hours = -8
+base_latency_ms = 35.0
+base_error_rate = 0.0007
+cost_multiplier = 0.95
+target_utilization = 0.60
+
+[[regions]]
+id = "ap_southeast"
+share = 0.12
+utc_offset_hours = 8
+base_latency_ms = 55.0
+base_error_rate = 0.0015
+cost_multiplier = 1.10
+target_utilization = 0.55
+unavailable_products = ["gpu_minutes"]
+
+[[regions]]
+id = "eu_central"
+share = 0.08
+utc_offset_hours = 1
+base_latency_ms = 42.0
+base_error_rate = 0.0010
+cost_multiplier = 1.04
+target_utilization = 0.65
+
+# mix_alpha order: api_requests, cpu_minutes, gpu_minutes, data_transfer_gb, premium_latency
+[[industries]]
+id = "fintech"
+share = 0.20
+season_amp = 0.25
+season_peak_dow = 2.0
+elasticity_scale = 0.85
+mix_alpha = [2.0, 0.6, 0.2, 0.5, 1.2]
+
+[[industries]]
+id = "ecommerce"
+share = 0.22
+season_amp = 0.22
+season_peak_dow = 4.0
+elasticity_scale = 1.15
+mix_alpha = [2.0, 0.5, 0.1, 1.0, 0.7]
+
+[[industries]]
+id = "media"
+share = 0.15
+season_amp = 0.30
+season_peak_dow = 5.5
+elasticity_scale = 1.20
+mix_alpha = [0.8, 0.6, 0.8, 2.0, 0.2]
+
+[[industries]]
+id = "saas"
+share = 0.25
+season_amp = 0.20
+season_peak_dow = 2.0
+elasticity_scale = 1.00
+mix_alpha = [1.5, 1.5, 0.3, 0.6, 0.6]
+
+[[industries]]
+id = "gaming"
+share = 0.10
+season_amp = 0.35
+season_peak_dow = 5.5
+elasticity_scale = 1.25
+mix_alpha = [1.2, 1.0, 0.2, 1.5, 1.0]
+
+[[industries]]
+id = "health"
+share = 0.08
+season_amp = 0.15
+season_peak_dow = 2.0
+elasticity_scale = 0.75
+mix_alpha = [1.5, 1.0, 0.8, 0.8, 0.3]
+
+[[tiers]]
+id = "starter"
+share = 0.50
+base_load_median = 4.0
+base_load_sigma = 0.9
+elasticity_log_mu = 0.5306     # ln(1.7)
+elasticity_log_sigma = 0.35
+base_fee_minor = 900
+churn_hazard_daily = 0.0015
+conversion_base = 0.55
+
+[[tiers]]
+id = "growth"
+share = 0.35
+base_load_median = 40.0
+base_load_sigma = 0.7
+elasticity_log_mu = 0.0953     # ln(1.1)
+elasticity_log_sigma = 0.35
+base_fee_minor = 9900
+churn_hazard_daily = 0.0010
+conversion_base = 0.65
+
+[[tiers]]
+id = "enterprise"
+share = 0.15
+base_load_median = 400.0
+base_load_sigma = 0.5
+elasticity_log_mu = -0.4308    # ln(0.65)
+elasticity_log_sigma = 0.35
+base_fee_minor = 99900
+churn_hazard_daily = 0.0004
+conversion_base = 0.50
+
+[infrastructure]
+diurnal_amplitude = 0.35
+diurnal_peak_local_hour = 14.0
+hourly_noise_sigma = 0.03
+latency_load_coeff = 2.0
+latency_overload_coeff = 5.0
+p95_base_ratio = 1.8
+p95_load_coeff = 2.0
+error_knee = 0.85
+error_slope = 0.15
+cost_scarcity_coeff = 0.25
+
+[pricing]
+# price_changes / interventions / infrastructure shocks are empty in the default world;
+# scenario configs (tests, Phase 5) add them.
+
+[billing]
+period_days = 30
+max_attempts = 3
+retry_offsets_days = [3, 7]
+retry_success_base = 0.35
+retry_success_slope = 0.50
+
+[billing.failure_reason_weights]
+insufficient_funds = 0.40
+card_declined = 0.30
+expired_card = 0.15
+processor_error = 0.10
+authentication_required = 0.05
+
+[behaviour]
+churn_price_beta = 6.0
+churn_latency_beta = 0.8
+churn_error_beta = 30.0
+churn_failure_beta = 0.3
+burden_decay = 0.95
+churn_hazard_cap = 0.5
+demand_service_beta = 0.3
+conversion_price_beta = 0.5
+conversion_clip = [0.02, 0.98]
+tier_change_daily = 0.004

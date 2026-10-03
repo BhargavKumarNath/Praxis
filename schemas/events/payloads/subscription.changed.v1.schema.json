@@ -1,0 +1,37 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/subscription.changed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "base_fee_minor": {
+      "minimum": 0,
+      "title": "Base Fee Minor",
+      "type": "integer"
+    },
+    "from_tier": {
+      "enum": [
+        "starter",
+        "growth",
+        "enterprise"
+      ],
+      "title": "From Tier",
+      "type": "string"
+    },
+    "to_tier": {
+      "enum": [
+        "starter",
+        "growth",
+        "enterprise"
+      ],
+      "title": "To Tier",
+      "type": "string"
+    }
+  },
+  "required": [
+    "from_tier",
+    "to_tier",
+    "base_fee_minor"
+  ],
+  "title": "SubscriptionChanged",
+  "type": "object"
+}

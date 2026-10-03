@@ -1,0 +1,50 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/invoice.created.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "invoice_id": {
+      "title": "Invoice Id",
+      "type": "string"
+    },
+    "period_end": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "title": "Period End",
+      "type": "string"
+    },
+    "period_start": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "title": "Period Start",
+      "type": "string"
+    },
+    "tier": {
+      "enum": [
+        "starter",
+        "growth",
+        "enterprise"
+      ],
+      "title": "Tier",
+      "type": "string"
+    }
+  },
+  "required": [
+    "invoice_id",
+    "amount_minor",
+    "currency",
+    "period_start",
+    "period_end",
+    "tier"
+  ],
+  "title": "InvoiceCreated",
+  "type": "object"
+}

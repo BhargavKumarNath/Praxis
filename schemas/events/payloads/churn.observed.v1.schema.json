@@ -1,0 +1,26 @@
+{
+  "$id": "https://praxis.local/schemas/events/payloads/churn.observed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "reason": {
+      "enum": [
+        "voluntary",
+        "involuntary_payment"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "tenure_days": {
+      "minimum": 0,
+      "title": "Tenure Days",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "reason",
+    "tenure_days"
+  ],
+  "title": "ChurnObserved",
+  "type": "object"
+}
