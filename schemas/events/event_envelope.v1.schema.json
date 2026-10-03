@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://praxis.local/schemas/events/event_envelope.v1.schema.json",
+  "title": "PraxisEventEnvelope",
+  "description": "Versioned envelope for every Praxis event. Delivery is at-least-once; event_id is the idempotency key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "event_type",
+    "source",
+    "occurred_at",
+    "published_at",
+    "trace_id",
+    "correlation_id",
+    "is_synthetic",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(Z|[+-]00:00)$",
+      "description": "Event time in UTC."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(Z|[+-]00:00)$",
+      "description": "Time the producer emitted the event, in UTC."
+    },
+    "trace_id": {
+      "type": "string",
+      "pattern": "^(?!0{32}$)[0-9a-f]{32}$",
+      "description": "W3C / OpenTelemetry compatible trace id."
+    },
+    "correlation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "causation_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "event_id of the event that caused this one, if any."
+    },
+    "entity_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Synthetic entity identifier. No semantics may be inferred from its format."
+    },
+    "is_synthetic": { "type": "boolean" },
+    "payload": { "type": "object" }
+  }
+}
