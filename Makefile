@@ -1,4 +1,4 @@
-.PHONY: data-dev dbt-build data-check setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run
+.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run
 
 setup:
 	uv sync
@@ -44,7 +44,7 @@ SIM_CUSTOMERS ?= 1000
 SIM_DAYS ?= 56
 SIM_START ?= 2026-01-05
 SIM_END ?= 2026-03-01
-DBT = DBT_TARGET_PATH=data/dbt/target DBT_LOG_PATH=data/dbt/logs \
+DBT = DBT_TARGET_PATH=$(CURDIR)/data/dbt/target DBT_LOG_PATH=$(CURDIR)/data/dbt/logs \
 	PRAXIS_DUCKDB_PATH=$${PRAXIS_DUCKDB_PATH:-data/warehouse/praxis.duckdb} \
 	.venv/bin/dbt
 
@@ -59,6 +59,28 @@ data-dev:
 	.venv/bin/python -m praxis.data ingest --start $(SIM_START) --end $(SIM_END)
 	$(MAKE) dbt-build
 	-.venv/bin/python -m praxis.data freshness
+
+# --- BigQuery verification (sandbox project, no billing; needs `gcloud auth application-default login`)
+# A recent 42-day window: the sandbox expires partitions older than 60 days.
+BQ_PROJECT ?=
+BQ_END ?= $(shell date -u -d '-7 days' +%F)
+BQ_START ?= $(shell date -u -d '-48 days' +%F)
+BQ_DB = $(CURDIR)/data/warehouse/bq_source.duckdb
+BQ_VARS = {start_date: '$(BQ_START)', end_date: '$(BQ_END)'}
+BQ_DBT = DBT_LOG_PATH=$(CURDIR)/data/dbt/bq_logs .venv/bin/dbt
+
+bq-verify:
+	@test -n "$(BQ_PROJECT)" || (echo "usage: make bq-verify BQ_PROJECT=<sandbox project id>" && exit 1)
+	rm -f $(BQ_DB)
+	.venv/bin/python -m praxis.simulator --customers 1000 --days 42 --seed 42 --start-date $(BQ_START) --validate --out data/sim_bq >/dev/null
+	.venv/bin/python -m praxis.data --db $(BQ_DB) --raw data/raw_bq load-sim --dir data/sim_bq
+	.venv/bin/python -m praxis.data --db $(BQ_DB) --raw data/raw_bq ingest --start $(BQ_START) --end $(BQ_END)
+	PRAXIS_DUCKDB_PATH=$(BQ_DB) DBT_TARGET_PATH=$(CURDIR)/data/dbt/bq_local $(BQ_DBT) build --project-dir dbt --profiles-dir dbt --vars "$(BQ_VARS)"
+	.venv/bin/python -m praxis.data --db $(BQ_DB) bq-load --project $(BQ_PROJECT)
+	PRAXIS_GCP_PROJECT_ID=$(BQ_PROJECT) PRAXIS_BQ_SCHEMA_PREFIX=praxis_dev_ DBT_TARGET_PATH=$(CURDIR)/data/dbt/bq_target \
+		$(BQ_DBT) build --target bigquery --project-dir dbt --profiles-dir dbt --vars "$(BQ_VARS)"
+	PRAXIS_BQ_LIVE_PROJECT=$(BQ_PROJECT) PRAXIS_BQ_PARITY_DB=$(BQ_DB) PRAXIS_BQ_DBT_RESULTS=$(CURDIR)/data/dbt/bq_target/run_results.json \
+		.venv/bin/pytest tests/data/test_bigquery_live.py -m bigquery_live -v -s -p no:cacheprovider --no-cov
 
 data-check:
 	.venv/bin/pytest tests/data -q

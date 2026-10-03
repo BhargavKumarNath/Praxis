@@ -21,6 +21,7 @@ source API ──> raw archive (data/raw/<source>/<batch>.body + .meta.json, app
 make data-dev        # simulate -> load -> ingest external signals -> dbt build -> freshness
 make dbt-build       # dbt only (92 models + tests on 1K x 56d)
 make data-check      # pytest tests/data (includes dbt integration and negative controls)
+make bq-verify BQ_PROJECT=praxis-dev-510522   # live BigQuery sandbox: load, dbt build, 28 checks
 .venv/bin/python -m praxis.data {migrate|ingest|replay|load-sim|freshness} --help
 ```
 
@@ -51,5 +52,4 @@ time, source timestamp range, schema version, SHA-256 checksum, HTTP status, qua
 
 ## Not done here
 
-A BigQuery loader and any real BigQuery run or dry run (only offline compile and static checks
-exist: `tests/data/test_bigquery_static.py`), GCS upload, ONS and World Bank backfill. See ADR 0008.
+GCS upload, ONS and World Bank backfill, and anything beyond the BigQuery sandbox. See ADR 0008.

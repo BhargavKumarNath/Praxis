@@ -63,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
     sim = sub.add_parser("load-sim")
     sim.add_argument("--dir", type=Path, required=True)
     sub.add_parser("freshness")
+    bq = sub.add_parser("bq-load", help="mirror the raw layer into BigQuery (load jobs only)")
+    bq.add_argument("--project", required=True)
+    bq.add_argument("--prefix", default="praxis_dev_")
+    bq.add_argument("--location", default="europe-west2")
+    bq.add_argument("--workdir", type=Path, default=Path("data/bq_export"))
     args = ap.parse_args(argv)
 
     configure_logging("praxis-data", get_settings().log_level.value)
@@ -78,6 +83,20 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(
                 json.dumps({"new_events": new, "batch_id": manifest["batch_id"]}) + "\n"
             )
+            return 0
+        if args.cmd == "bq-load":
+            from google.cloud import bigquery
+
+            from praxis.data.bigquery import BigQueryLoader
+
+            loader = BigQueryLoader(
+                bigquery.Client(project=args.project, location=args.location),
+                project=args.project,
+                prefix=args.prefix,
+                location=args.location,
+            )
+            for result in loader.load_raw(wh, args.workdir):
+                sys.stdout.write(json.dumps(result.__dict__) + "\n")
             return 0
         if args.cmd == "freshness":
             now = datetime.now(UTC)

@@ -12,7 +12,7 @@ import sys
 import time
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -149,11 +149,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--customers", type=int, default=None)
     ap.add_argument("--days", type=int, default=None)
+    ap.add_argument(
+        "--start-date",
+        type=date.fromisoformat,
+        default=None,
+        help="override run.start_date (changes config_hash)",
+    )
     ap.add_argument("--out", type=Path, default=None, help="directory for events / manifest")
     ap.add_argument("--validate", action="store_true", help="run the stream validator")
     ap.add_argument("--schema-every", type=int, default=1, help="Pydantic-validate every Nth event")
     args = ap.parse_args(argv)
-    config = load_config(args.config).with_overrides(n_customers=args.customers, days=args.days)
+    config = load_config(args.config).with_overrides(
+        n_customers=args.customers, days=args.days, start_date=args.start_date
+    )
     result = run_simulation(
         config, args.seed, out_dir=args.out, validate=args.validate, schema_every=args.schema_every
     )

@@ -63,6 +63,7 @@ asyncio_mode = "auto"
 markers = [
     "integration: touches a real boundary (never run in unit CI)",
     "slow: long-running scale smoke test",
+    "bigquery_live: hits a real BigQuery sandbox project; only via `make bq-verify`",
 ]
 
 [tool.coverage.run]

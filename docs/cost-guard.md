@@ -31,3 +31,12 @@ notifications, not hard caps.
 
 State what is created, why, expected monthly cost, the cap or quota set, and how to
 destroy it. Wait for approval.
+
+## Phase 2 BigQuery
+
+| Resource | State | Cost control |
+| --- | --- | --- |
+| Project `praxis-dev-510522` | BigQuery sandbox, billing disabled (verified) | Google caps at zero; sandbox limits 10 GiB storage, 1 TiB query/month |
+| Datasets `praxis_dev_{raw,staging,marts}` | about 60 MB, expire after 60 days | `maximum_bytes_billed` 1 GB per query in profile and tests; free load jobs and dry runs |
+
+Linking billing to this project is a spend decision for the user, not an implementation step.

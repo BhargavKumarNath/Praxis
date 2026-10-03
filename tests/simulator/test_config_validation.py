@@ -174,3 +174,17 @@ def test_product_specific_demand_spike_only_touches_that_product() -> None:
     r, g = infra.region_ids.index("eu_west"), infra.product_ids.index("gpu_minutes")
     assert spike[r, g] == 3.0 and spike.sum() == spike.size + 2.0
     assert np.all(infra.spike_on(0) == 1.0)
+
+
+def test_start_date_override_changes_identity_and_shifts_events() -> None:
+    from datetime import date
+
+    from praxis.simulator.runner import run_simulation
+
+    base = load_config().with_overrides(n_customers=5, days=2)
+    moved = base.with_overrides(start_date=date(2026, 8, 20))
+    assert moved.run.start_date == date(2026, 8, 20) and moved.run.days == 2
+    assert moved.config_hash != base.config_hash
+    assert base.with_overrides(days=2).run.start_date == base.run.start_date
+    result = run_simulation(moved, 3)
+    assert result.event_count > 0

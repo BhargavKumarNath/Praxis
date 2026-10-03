@@ -12,7 +12,8 @@ verification); the FRED and EIA test fixtures are still hand-written to the docu
 ## Tests executed
 
 `make check` (ruff, ruff format, mypy strict, pytest with coverage, schema sync, secret scan, frontend,
-terraform validate) exits 0. Pytest: **382 passed, 0 skipped** (239 from Phases 0-1 as regression, 143 new).
+terraform validate) exits 0. Pytest: **391 passed, 1 skipped** (239 from Phases 0-1 as regression, 152 new; the skip is the live BigQuery
+module, which runs only via `make bq-verify`).
 Coverage 98.6% (new `praxis.data`: ingest 100%, raw_store 100%, freshness 100%, sources 97-100%, fetch 93%).
 Docs checked first (CLAUDE.md s21): Open-Meteo archive, NESO Carbon Intensity, FRED observations, EIA v2.
 
@@ -68,6 +69,25 @@ No credentials, network or cost: `dbt compile --target bigquery` with a throwawa
   dry run in a new `praxis-dev` project) is pending approval.
 * Checker limit: a date predicate on any same-named column counts as a bound.
 
+## BigQuery live verification, option B (2026-10-03)
+
+Project `praxis-dev-510522`, **BigQuery sandbox: billing unlinked and verified `billingEnabled: False`**, so Google caps
+cost at zero; every real query also sets `maximum_bytes_billed` = 1 GB. Command: `make bq-verify BQ_PROJECT=...`.
+Data: 1K customers x 42 days ending 7 days ago (sandbox expires partitions older than 60 days), live external signals.
+
+| Check (pre-registered in `tests/data/test_bigquery_live.py`) | Result |
+| --- | --- |
+| Raw load (free load jobs, `WRITE_TRUNCATE`, row counts verified) | 5 tables; 146,034 events, 31,254 signals loaded |
+| `dbt build --target bigquery` | 92/92 pass (20 models, 72 tests) |
+| Physical layout | every fact DAY-partitioned on its date column, clustered, `require_partition_filter = true` |
+| Unfiltered query on any fact | rejected by BigQuery (5/5) |
+| Partition pruning, one day x 10 <= all | usage 193,724 vs 8,325,973 B; service 12,552 vs 527,184 B; signals 430 vs 6,312,706 B |
+| Parity with DuckDB (counts + integer sums, 9 marts) | exact match on every mart |
+| Feature view float features | equal within 1e-9 relative |
+| Re-load idempotent | raw counts unchanged |
+
+Total: 28 live tests pass, all on the second run (see failures 7 and 8).
+
 ## Statistical metrics
 
 None claimed. Sanity only: Jan-Feb feature means were physically plausible (Singapore 26.2 C, Frankfurt 2.9 C,
@@ -89,6 +109,15 @@ London 7.0 C, New York -2.8 C). The mapping of simulated regions to real places 
    in the first gate run (pytest and mypy ran them). After the fix: 9 long lines and one false-positive secret match
    (a dummy-key helper) were found and fixed; `make check` re-run, exit 0.
 
+7. First live run: 3 FRED rows dated 2026-08-01 (63 days old) were accepted by the load, then dropped by the sandbox's
+   60-day partition expiration, so external-signal parity was 31,251 vs 31,254. Documented sandbox behaviour, not a
+   pipeline bug. The live test was amended (reason in its header): parity on partitions inside the retention window
+   read from BigQuery, plus a stricter check that BigQuery holds nothing older and that the expired rows are the only
+   gap. The loader now reports `expiring_rows` and warns before BigQuery silently drops data.
+8. My idempotency test opened the DuckDB file read-write while another fixture held it; it now reloads from a copy.
+   The first pruning check for signals measured the expired partition (0 bytes, trivially true); it now picks a day
+   inside retention and requires non-zero bytes.
+
 ## Fixes
 
 1. httpx logger redaction filter installed by `HttpFetcher`; `configure_logging` quiets httpx/httpcore.
@@ -101,7 +130,8 @@ London 7.0 C, New York -2.8 C). The mapping of simulated regions to real places 
 
 * FRED and EIA live-verified only by this manual run; no automated test calls a live API (by design). Fixtures for
   both remain hand-written.
-* BigQuery execution is untested: only offline compile and static checks exist (see option A). No loader writes to BigQuery.
+* BigQuery verified only in the sandbox at 1K x 42 days; the sandbox expires tables and partitions after 60 days, so the
+  datasets are disposable and `make bq-verify` rebuilds them. No DML, so no incremental/MERGE models yet. No GCS staging.
 * No BigQuery tables, GCS upload, ONS or World Bank backfill. Terraform datasets unchanged; no resource applied.
 * Pricing "decision" facts do not exist yet; `fct_price_exposures` holds prices shown plus experiment arm.
 * `make data-dev` ingests the simulator's date range, so `freshness` reports it stale by design (informational).
@@ -110,14 +140,16 @@ London 7.0 C, New York -2.8 C). The mapping of simulated regions to real places 
 
 ## Cloud cost incurred
 
-GBP 0. No cloud resources created. About 15 small requests to two free public APIs, no load testing.
+GBP 0. Only cloud resources: BigQuery sandbox project `praxis-dev-510522` (billing disabled) with 3 datasets of about
+60 MB that expire within 60 days. Load jobs and dry runs are free; queries totalled well under the 1 TiB free tier.
+About 60 small requests to free public APIs across all runs, no load testing.
 
 ## Gate
 
-PASS (with the caveats under Known limitations; BigQuery execution and partition pruning are unverified, not failed).
+PASS. The BigQuery caveat is closed: execution, partition enforcement, pruning and parity verified live in the sandbox.
 
 ## Reason
 
 Both plan gates are met and evidenced: one command builds the local data path, and ingestion is idempotent (unit,
-integration and live). All required section 8 categories have passing tests with negative controls, except the
-BigQuery dry run, which cannot run without BigQuery.
+integration and live). Every required section 8 category has passing tests with negative controls, including the
+BigQuery partition-filter and dry-run checks, now verified against a real (sandbox) BigQuery.

@@ -238,12 +238,23 @@ class SimulationConfig(_Cfg):
     def config_hash(self) -> str:
         return hashlib.sha256(self.canonical_json().encode()).hexdigest()
 
-    def with_overrides(self, *, n_customers: int | None = None, days: int | None = None) -> Self:
+    def with_overrides(
+        self,
+        *,
+        n_customers: int | None = None,
+        days: int | None = None,
+        start_date: date | None = None,
+    ) -> Self:
         update: dict[str, object] = {}
         if n_customers is not None:
             update["population"] = self.population.model_copy(update={"n_customers": n_customers})
+        run_update: dict[str, object] = {}
         if days is not None:
-            update["run"] = self.run.model_copy(update={"days": days})
+            run_update["days"] = days
+        if start_date is not None:
+            run_update["start_date"] = start_date
+        if run_update:
+            update["run"] = self.run.model_copy(update=run_update)
         return self.model_copy(update=update)
 
 

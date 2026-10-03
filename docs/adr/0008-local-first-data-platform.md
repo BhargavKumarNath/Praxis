@@ -45,7 +45,10 @@ about GBP 0 to 5 per month (CLAUDE.md section 14).
 
 ## Consequences
 * Development and CI cost nothing and need no network except optional live ingestion.
-* Moving to BigQuery still needs a loader, a first real run and a dry-run check of partition pruning;
-  only the offline checks above are verified today.
+* BigQuery is verified in a sandbox project (no billing): `bq-load` mirrors DuckDB `raw` via free load jobs
+  (`WRITE_TRUNCATE`, schema from DuckDB, row counts checked, rows past partition expiration reported), dbt builds on
+  BigQuery, and live tests check partition enforcement, pruning and exact parity with DuckDB.
+* Sandbox limits shape the design: no DML (no MERGE/incremental models yet) and 60-day expiry (verification data
+  must be recent and is disposable). Leaving the sandbox needs a billing decision and new cost controls.
 * Simulated regions are mapped to real locations as context only (`configs/data/sources.toml`);
   the mapping is an assumption, not evidence that simulated customers sit there.
