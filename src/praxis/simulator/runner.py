@@ -146,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="praxis.simulator", description="Run the SYNTHETIC simulator."
     )
     ap.add_argument("--config", type=Path, default=None)
+    ap.add_argument("--scenario", type=Path, default=None, help="scenario TOML overlay")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--customers", type=int, default=None)
     ap.add_argument("--days", type=int, default=None)
@@ -159,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--validate", action="store_true", help="run the stream validator")
     ap.add_argument("--schema-every", type=int, default=1, help="Pydantic-validate every Nth event")
     args = ap.parse_args(argv)
-    config = load_config(args.config).with_overrides(
+    config = load_config(args.config, args.scenario).with_overrides(
         n_customers=args.customers, days=args.days, start_date=args.start_date
     )
     result = run_simulation(

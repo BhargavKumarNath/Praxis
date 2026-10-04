@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 from typing import Self
 
 from pydantic import Field, SecretStr, model_validator
@@ -59,6 +60,10 @@ class Settings(BaseSettings):
     # External data API keys (Phase 2). Open-Meteo and NESO Carbon Intensity need none.
     fred_api_key: SecretStr | None = None
     eia_api_key: SecretStr | None = None
+
+    # Demand forecasting (Phase 4). Unset model dir = forecast endpoints answer 503.
+    forecast_model_dir: Path | None = None
+    warehouse_path: Path = Path("data/warehouse/praxis.duckdb")
 
     @model_validator(mode="after")
     def _require_cloud_identity_outside_local(self) -> Self:

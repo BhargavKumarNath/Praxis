@@ -1,5 +1,6 @@
 .PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run \
-	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check
+	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
+	forecast-data forecast-signals forecast-backtest forecast-train
 
 # --- Phase 3 local dependencies (throwaway containers, loopback only, no cloud) ------------
 # Postgres uses trust auth on 127.0.0.1 only: no password exists to leak.
@@ -153,3 +154,38 @@ events-bench: _events-db pubsub-up
 	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming \
 		--database-url $(EVENTS_DB) --environment bench-$$(date +%s) emulator-bench \
 		--customers 50 --days 14 --rate 200 --publish-batch 20 --report data/events/emulator_bench.json
+
+# --- Phase 4 demand forecasting (local DuckDB; no cloud) ----------------------------------
+# Pre-registered evaluation world: scenario overlay + seed 42 (ADR 0010). Use FC_SEED=1
+# FC_CUSTOMERS=300 for a development world while changing code; evaluate on seed 42.
+FC_SCENARIO ?= configs/simulator/scenarios/forecast_eval.toml
+FC_SEED ?= 42
+FC_CUSTOMERS ?= 1000
+FC_DIR ?= data/forecast/seed$(FC_SEED)-c$(FC_CUSTOMERS)
+FC_DB = $(FC_DIR)/warehouse.duckdb
+FC_DBT = DBT_TARGET_PATH=$(CURDIR)/$(FC_DIR)/dbt/target DBT_LOG_PATH=$(CURDIR)/$(FC_DIR)/dbt/logs \
+	PRAXIS_DUCKDB_PATH=$(FC_DB) .venv/bin/dbt
+FC_START = 2026-01-05
+FC_END = 2026-07-19
+
+# simulate -> raw load -> dbt marts for the forecast world (offline: no external fetch)
+forecast-data:
+	rm -f $(FC_DB)
+	.venv/bin/python -m praxis.simulator --scenario $(FC_SCENARIO) --customers $(FC_CUSTOMERS) \
+		--seed $(FC_SEED) --validate --out $(FC_DIR)/sim >/dev/null
+	.venv/bin/python -m praxis.data --db $(FC_DB) --raw $(FC_DIR)/raw load-sim --dir $(FC_DIR)/sim
+	$(FC_DBT) run --project-dir dbt --profiles-dir dbt --quiet
+
+# Ablation input: real weather / carbon (and FRED / EIA with keys) for the world's dates.
+# ~20 small live requests to free APIs; run once, then the raw archive replays offline.
+forecast-signals:
+	-.venv/bin/python -m praxis.data --db $(FC_DB) --raw $(FC_DIR)/raw ingest --start $(FC_START) --end $(FC_END)
+	$(FC_DBT) run --project-dir dbt --profiles-dir dbt --quiet
+
+forecast-backtest:
+	.venv/bin/python -m praxis.forecasting --db $(FC_DB) backtest --scenario $(FC_SCENARIO) \
+		--report $(FC_DIR)/backtest.json
+
+forecast-train:
+	.venv/bin/python -m praxis.forecasting --db $(FC_DB) train --backtest-report $(FC_DIR)/backtest.json \
+		--out data/models/demand

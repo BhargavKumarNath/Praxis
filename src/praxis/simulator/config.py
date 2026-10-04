@@ -12,7 +12,7 @@ import json
 import tomllib
 from datetime import date
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -274,6 +274,25 @@ def _check_interventions(items: tuple[Intervention, ...], pids: list[str]) -> No
                 raise ValueError("overlapping interventions on one product are not allowed")
 
 
-def load_config(path: Path | None = None) -> SimulationConfig:
+def load_config(path: Path | None = None, scenario: Path | None = None) -> SimulationConfig:
+    """Load the stable world, optionally overlaid with a scenario TOML.
+
+    A scenario names only what differs from the base world (e.g. ``run.days`` or
+    ``infrastructure.demand_spikes``). Tables merge key by key; arrays and scalars replace.
+    The merged result is validated as a whole and gets its own ``config_hash``.
+    """
     raw = tomllib.loads((path or DEFAULT_CONFIG_PATH).read_text(encoding="utf-8"))
+    if scenario is not None:
+        raw = _deep_merge(raw, tomllib.loads(scenario.read_text(encoding="utf-8")))
     return SimulationConfig.model_validate(raw)
+
+
+def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    out = dict(base)
+    for key, value in overlay.items():
+        current = out.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            out[key] = _deep_merge(current, value)
+        else:
+            out[key] = value
+    return out

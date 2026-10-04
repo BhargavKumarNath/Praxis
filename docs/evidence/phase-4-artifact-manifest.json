@@ -1,0 +1,759 @@
+{
+  "artifact_checksum": "19a1992e2e430e2864c08022215b7d46ba3e7c66b0b130854b429656b028347c",
+  "artifact_format": 2,
+  "backtest": {
+    "acceptance": {
+      "checks": [
+        {
+          "check": "vwape_ratio_vs_seasonal_naive",
+          "passed": true,
+          "threshold": "<= 0.9",
+          "value": 0.775688
+        },
+        {
+          "check": "vwape_below_seasonal_naive",
+          "passed": true,
+          "threshold": "< 0",
+          "value": -0.037251
+        },
+        {
+          "check": "vwape_below_seasonal_moving_average",
+          "passed": true,
+          "threshold": "< 0",
+          "value": -0.011289
+        },
+        {
+          "check": "bootstrap_ci95_high_vs_naive",
+          "passed": true,
+          "threshold": "< 0",
+          "value": -0.029197
+        },
+        {
+          "check": "pinball_ratio_vs_seasonal_naive",
+          "passed": true,
+          "threshold": "< 1.0",
+          "value": 0.770217
+        },
+        {
+          "check": "pinball_below_seasonal_naive",
+          "passed": true,
+          "threshold": "< 0",
+          "value": -0.011855
+        },
+        {
+          "check": "pinball_below_seasonal_moving_average",
+          "passed": true,
+          "threshold": "< 0",
+          "value": -0.002491
+        },
+        {
+          "check": "pinball_below_ridge",
+          "passed": true,
+          "threshold": "< 0",
+          "value": -0.000192
+        },
+        {
+          "check": "coverage_80",
+          "passed": true,
+          "threshold": "in [0.74, 0.86]",
+          "value": 0.794767
+        },
+        {
+          "check": "coverage_50",
+          "passed": true,
+          "threshold": "in [0.43, 0.57]",
+          "value": 0.492063
+        },
+        {
+          "check": "worst_slice_vwape_ratio (product=gpu_minutes)",
+          "passed": true,
+          "threshold": "<= 1.1",
+          "value": 0.81218
+        }
+      ],
+      "passed": true
+    },
+    "candidate": "hybrid",
+    "data_version": "panel-421b0998b9c236d2",
+    "origins": 16,
+    "overall": {
+      "hybrid": {
+        "bias": -0.010527287146343886,
+        "coverage_50": 0.49206349206349204,
+        "coverage_80": 0.7947668650793651,
+        "coverage_90": 0.8976934523809523,
+        "mae": 1115.9773083924051,
+        "pinball": 0.03973694780046722,
+        "rmse": 4154.517177356713,
+        "rows": 8064.0,
+        "vwape": 0.12881481487105623
+      },
+      "lightgbm": {
+        "bias": 0.002311068637550017,
+        "coverage_50": 0.49206349206349204,
+        "coverage_80": 0.7947668650793651,
+        "coverage_90": 0.8976934523809523,
+        "mae": 1162.9098325407674,
+        "pinball": 0.03973694780046722,
+        "rmse": 4261.783071448271,
+        "rows": 8064.0,
+        "vwape": 0.13570376793243605
+      },
+      "ridge": {
+        "bias": -0.010527287146343886,
+        "coverage_50": 0.4885912698412698,
+        "coverage_80": 0.7977430555555556,
+        "coverage_90": 0.902281746031746,
+        "mae": 1115.9773083924051,
+        "pinball": 0.039929092562419784,
+        "rmse": 4154.517177356713,
+        "rows": 8064.0,
+        "vwape": 0.12881481487105623
+      },
+      "seasonal_moving_average": {
+        "bias": -0.0509626578118066,
+        "coverage_50": 0.4852430555555556,
+        "coverage_80": 0.7994791666666666,
+        "coverage_90": 0.8967013888888888,
+        "mae": 1221.6516617063492,
+        "pinball": 0.042227865472186266,
+        "rmse": 4478.528862437518,
+        "rows": 8064.0,
+        "vwape": 0.14010368647909915
+      },
+      "seasonal_naive": {
+        "bias": -0.020251884655299292,
+        "coverage_50": 0.48908730158730157,
+        "coverage_80": 0.8022073412698413,
+        "coverage_90": 0.9091021825396826,
+        "mae": 1471.7208581349207,
+        "pinball": 0.05159186611061257,
+        "rmse": 5215.202663921015,
+        "rows": 8064.0,
+        "vwape": 0.16606534800601624
+      }
+    }
+  },
+  "calibration_offsets": [
+    -0.04197969758579839,
+    -0.03847121686608623,
+    -0.024185216460998804,
+    -0.012472975014449272,
+    0.020835356737330446,
+    0.04730637025922202,
+    0.08732913421766725
+  ],
+  "catalogue": {
+    "products": [
+      "api_requests",
+      "cpu_minutes",
+      "data_transfer_gb",
+      "gpu_minutes",
+      "premium_latency"
+    ],
+    "regions": [
+      "ap_southeast",
+      "eu_central",
+      "eu_west",
+      "us_east",
+      "us_west"
+    ],
+    "segments": [
+      "enterprise",
+      "growth",
+      "starter"
+    ]
+  },
+  "champion": {
+    "adr": "0011",
+    "kind": "hybrid",
+    "point": "ridge",
+    "quantiles": "lightgbm_calibrated"
+  },
+  "code_revision": "5cf676b-dirty",
+  "config": {
+    "acceptance": {
+      "candidate": "hybrid",
+      "coverage_50": [
+        0.43,
+        0.57
+      ],
+      "coverage_80": [
+        0.74,
+        0.86
+      ],
+      "max_pinball_ratio_vs_seasonal_naive": 1.0,
+      "max_slice_vwape_ratio_vs_seasonal_naive": 1.1,
+      "max_vwape_ratio_vs_seasonal_naive": 0.9,
+      "pinball_must_beat": [
+        "seasonal_naive",
+        "seasonal_moving_average",
+        "ridge"
+      ],
+      "point_must_beat": [
+        "seasonal_naive",
+        "seasonal_moving_average"
+      ],
+      "reproducibility_tolerance": 1e-09,
+      "require_bootstrap_ci_below_zero": true
+    },
+    "backtest": {
+      "bootstrap_samples": 2000,
+      "bootstrap_seed": 7,
+      "initial_train_days": 84,
+      "step_days": 7
+    },
+    "evaluation": {
+      "value_weights": {
+        "api_requests": 0.4,
+        "cpu_minutes": 0.012,
+        "data_transfer_gb": 0.07,
+        "gpu_minutes": 0.045,
+        "premium_latency": 0.9
+      }
+    },
+    "features": {
+      "external": false
+    },
+    "lightgbm": {
+      "calibration_days": 28,
+      "feature_fraction": 0.9,
+      "lambda_l2": 1.0,
+      "learning_rate": 0.05,
+      "min_data_in_leaf": 40,
+      "num_boost_round": 300,
+      "num_leaves": 31,
+      "num_threads": 4,
+      "seed": 42
+    },
+    "ridge": {
+      "alpha": 1.0
+    },
+    "serving": {
+      "fresh_max_lag_days": 1,
+      "latency_budget_ms_p95": 500.0,
+      "max_planned_price_ratio": 1.5,
+      "max_series_per_request": 500,
+      "stale_max_lag_days": 7
+    },
+    "target": {
+      "horizons": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "min_history_days": 28,
+      "quantiles": [
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        0.95
+      ]
+    }
+  },
+  "config_hash": "c44a5f7c3dcf2974d00e42325930d276435b7b1e2190a1e660fcc03f33cef46a",
+  "created_at": "2026-10-04T22:58:58.448344+00:00",
+  "data_version": "panel-421b0998b9c236d2",
+  "fallback": {
+    "model": "seasonal_moving_average",
+    "residual_quantiles": {
+      "1": [
+        -0.27352400099217766,
+        -0.19741837741775603,
+        -0.08561540096895878,
+        0.02509277127369136,
+        0.1410414559139436,
+        0.2800304414003044,
+        0.39607543734853135
+      ],
+      "2": [
+        -0.2734299387777059,
+        -0.19700239199754388,
+        -0.08588202300820313,
+        0.02530288016704929,
+        0.14155151196234808,
+        0.28165081740243925,
+        0.39946682477376333
+      ],
+      "3": [
+        -0.27300632734989283,
+        -0.19670544186698657,
+        -0.08603238811254563,
+        0.02533177709724399,
+        0.1423219652639271,
+        0.2830974903877966,
+        0.3996353364266242
+      ],
+      "4": [
+        -0.2730674528965707,
+        -0.19730318118428514,
+        -0.08633978918391091,
+        0.025206287868801913,
+        0.14227548522505964,
+        0.2836860434141778,
+        0.4047200563851812
+      ],
+      "5": [
+        -0.2730798022983284,
+        -0.1972663097666356,
+        -0.08626014449899821,
+        0.02501452554832828,
+        0.14239269726506298,
+        0.28427598274753246,
+        0.4061048228217496
+      ],
+      "6": [
+        -0.2735787608779807,
+        -0.1978046105199071,
+        -0.08651895703877835,
+        0.025208135821234268,
+        0.14309525798724793,
+        0.28594094094668304,
+        0.408845540854722
+      ],
+      "7": [
+        -0.274195793268734,
+        -0.19838748028999098,
+        -0.086772893246749,
+        0.025272799282233804,
+        0.14372122130446907,
+        0.28615942779765385,
+        0.4123708734233368
+      ]
+    }
+  },
+  "feature_names": [
+    "region",
+    "product",
+    "segment",
+    "dow",
+    "horizon",
+    "lag_dow_1",
+    "lag_dow_2",
+    "lag_dow_3",
+    "lag_dow_4",
+    "sma_dow_4",
+    "last_1",
+    "mean_7",
+    "ewm_7",
+    "std_28",
+    "log_scale",
+    "served_ratio_7",
+    "active_ratio",
+    "log_price_change_to_target",
+    "log_price_change_last_7",
+    "log_price_vs_first",
+    "ctx_avg_utilization",
+    "ctx_max_utilization",
+    "ctx_avg_error_rate",
+    "ctx_avg_latency_p95_ms"
+  ],
+  "feature_version": "demand_features.v1",
+  "files": {
+    "q0.05.txt": "34cf61eb9e294c36d77336b3cb645e4cd8acd7f0b0c65999f24bb8c704728440",
+    "q0.1.txt": "0dbc30c9de84f70cc180420cdc9c29f350a110516b5abd9b2d627ad4b4e468cb",
+    "q0.25.txt": "685a54f56d620cfdbb7f3b885fba981b35e847306b1ed90996ffcecc5b1d2124",
+    "q0.5.txt": "266fd9b419a9b380ac76a88226619696091e8c8f18285e3551cd9c9da3b2741c",
+    "q0.75.txt": "3ae9ff1fa548078f025318a900500d37bdce440c58d4a21f353d965acac9e38d",
+    "q0.9.txt": "79df3d5fdb8f3f1282576e96d94f6254a64ef6d8a0d480f7c4a4716503c205d8",
+    "q0.95.txt": "92331c433ecb87551d47b6111debb77399b8ae4f80a3bcca01a7a3ec156cc7cc",
+    "ridge.json": "64a7ca2c1df8c2df757eee7ce3812ed70d495a92983e8a36908e382801a3bd9b"
+  },
+  "horizons": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "is_synthetic": true,
+  "model_name": "demand_forecaster",
+  "model_version": "demand-hybrid-19a1992e2e43",
+  "price_plan_version": "prices-0b2f77a8bcb97863",
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "series": [
+    [
+      "ap_southeast",
+      "api_requests",
+      "enterprise"
+    ],
+    [
+      "ap_southeast",
+      "api_requests",
+      "growth"
+    ],
+    [
+      "ap_southeast",
+      "api_requests",
+      "starter"
+    ],
+    [
+      "ap_southeast",
+      "cpu_minutes",
+      "enterprise"
+    ],
+    [
+      "ap_southeast",
+      "cpu_minutes",
+      "growth"
+    ],
+    [
+      "ap_southeast",
+      "cpu_minutes",
+      "starter"
+    ],
+    [
+      "ap_southeast",
+      "data_transfer_gb",
+      "enterprise"
+    ],
+    [
+      "ap_southeast",
+      "data_transfer_gb",
+      "growth"
+    ],
+    [
+      "ap_southeast",
+      "data_transfer_gb",
+      "starter"
+    ],
+    [
+      "ap_southeast",
+      "premium_latency",
+      "enterprise"
+    ],
+    [
+      "ap_southeast",
+      "premium_latency",
+      "growth"
+    ],
+    [
+      "ap_southeast",
+      "premium_latency",
+      "starter"
+    ],
+    [
+      "eu_central",
+      "api_requests",
+      "enterprise"
+    ],
+    [
+      "eu_central",
+      "api_requests",
+      "growth"
+    ],
+    [
+      "eu_central",
+      "api_requests",
+      "starter"
+    ],
+    [
+      "eu_central",
+      "cpu_minutes",
+      "enterprise"
+    ],
+    [
+      "eu_central",
+      "cpu_minutes",
+      "growth"
+    ],
+    [
+      "eu_central",
+      "cpu_minutes",
+      "starter"
+    ],
+    [
+      "eu_central",
+      "data_transfer_gb",
+      "enterprise"
+    ],
+    [
+      "eu_central",
+      "data_transfer_gb",
+      "growth"
+    ],
+    [
+      "eu_central",
+      "data_transfer_gb",
+      "starter"
+    ],
+    [
+      "eu_central",
+      "gpu_minutes",
+      "enterprise"
+    ],
+    [
+      "eu_central",
+      "gpu_minutes",
+      "growth"
+    ],
+    [
+      "eu_central",
+      "gpu_minutes",
+      "starter"
+    ],
+    [
+      "eu_central",
+      "premium_latency",
+      "enterprise"
+    ],
+    [
+      "eu_central",
+      "premium_latency",
+      "growth"
+    ],
+    [
+      "eu_central",
+      "premium_latency",
+      "starter"
+    ],
+    [
+      "eu_west",
+      "api_requests",
+      "enterprise"
+    ],
+    [
+      "eu_west",
+      "api_requests",
+      "growth"
+    ],
+    [
+      "eu_west",
+      "api_requests",
+      "starter"
+    ],
+    [
+      "eu_west",
+      "cpu_minutes",
+      "enterprise"
+    ],
+    [
+      "eu_west",
+      "cpu_minutes",
+      "growth"
+    ],
+    [
+      "eu_west",
+      "cpu_minutes",
+      "starter"
+    ],
+    [
+      "eu_west",
+      "data_transfer_gb",
+      "enterprise"
+    ],
+    [
+      "eu_west",
+      "data_transfer_gb",
+      "growth"
+    ],
+    [
+      "eu_west",
+      "data_transfer_gb",
+      "starter"
+    ],
+    [
+      "eu_west",
+      "gpu_minutes",
+      "enterprise"
+    ],
+    [
+      "eu_west",
+      "gpu_minutes",
+      "growth"
+    ],
+    [
+      "eu_west",
+      "gpu_minutes",
+      "starter"
+    ],
+    [
+      "eu_west",
+      "premium_latency",
+      "enterprise"
+    ],
+    [
+      "eu_west",
+      "premium_latency",
+      "growth"
+    ],
+    [
+      "eu_west",
+      "premium_latency",
+      "starter"
+    ],
+    [
+      "us_east",
+      "api_requests",
+      "enterprise"
+    ],
+    [
+      "us_east",
+      "api_requests",
+      "growth"
+    ],
+    [
+      "us_east",
+      "api_requests",
+      "starter"
+    ],
+    [
+      "us_east",
+      "cpu_minutes",
+      "enterprise"
+    ],
+    [
+      "us_east",
+      "cpu_minutes",
+      "growth"
+    ],
+    [
+      "us_east",
+      "cpu_minutes",
+      "starter"
+    ],
+    [
+      "us_east",
+      "data_transfer_gb",
+      "enterprise"
+    ],
+    [
+      "us_east",
+      "data_transfer_gb",
+      "growth"
+    ],
+    [
+      "us_east",
+      "data_transfer_gb",
+      "starter"
+    ],
+    [
+      "us_east",
+      "gpu_minutes",
+      "enterprise"
+    ],
+    [
+      "us_east",
+      "gpu_minutes",
+      "growth"
+    ],
+    [
+      "us_east",
+      "gpu_minutes",
+      "starter"
+    ],
+    [
+      "us_east",
+      "premium_latency",
+      "enterprise"
+    ],
+    [
+      "us_east",
+      "premium_latency",
+      "growth"
+    ],
+    [
+      "us_east",
+      "premium_latency",
+      "starter"
+    ],
+    [
+      "us_west",
+      "api_requests",
+      "enterprise"
+    ],
+    [
+      "us_west",
+      "api_requests",
+      "growth"
+    ],
+    [
+      "us_west",
+      "api_requests",
+      "starter"
+    ],
+    [
+      "us_west",
+      "cpu_minutes",
+      "enterprise"
+    ],
+    [
+      "us_west",
+      "cpu_minutes",
+      "growth"
+    ],
+    [
+      "us_west",
+      "cpu_minutes",
+      "starter"
+    ],
+    [
+      "us_west",
+      "data_transfer_gb",
+      "enterprise"
+    ],
+    [
+      "us_west",
+      "data_transfer_gb",
+      "growth"
+    ],
+    [
+      "us_west",
+      "data_transfer_gb",
+      "starter"
+    ],
+    [
+      "us_west",
+      "gpu_minutes",
+      "enterprise"
+    ],
+    [
+      "us_west",
+      "gpu_minutes",
+      "growth"
+    ],
+    [
+      "us_west",
+      "gpu_minutes",
+      "starter"
+    ],
+    [
+      "us_west",
+      "premium_latency",
+      "enterprise"
+    ],
+    [
+      "us_west",
+      "premium_latency",
+      "growth"
+    ],
+    [
+      "us_west",
+      "premium_latency",
+      "starter"
+    ]
+  ],
+  "training": {
+    "last_target_date": "2026-07-19",
+    "panel_end": "2026-07-19",
+    "panel_start": "2026-01-05",
+    "rows": 83160
+  }
+}

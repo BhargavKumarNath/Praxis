@@ -16,4 +16,4 @@ make check             # lint, types, tests (local Postgres + Pub/Sub emulator v
 make run               # http://127.0.0.1:8000/healthz
 ```
 
-Status: Phase 3 complete (event backbone, see `docs/event-backbone.md`; evidence `docs/evidence/phase-3.md`). Progress: `project_progress.md`; evidence: `docs/evidence/`.
+Status: Phase 4 complete (demand forecasting, see `docs/forecasting.md`; evidence `docs/evidence/phase-4.md`). Progress: `project_progress.md`; evidence: `docs/evidence/`.

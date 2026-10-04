@@ -1,0 +1,86 @@
+# Forecast evaluation world (Phase 4). SYNTHETIC. Overlay on configs/simulator/default.toml.
+#
+# Pre-registered 2026-10-04, before any forecasting model was trained or evaluated on it.
+# Do not edit to flatter a model (CLAUDE.md s9). Days are offsets from run.start_date.
+#
+# Why these events: the default world has none, so a forecaster could only ever be judged on
+# smooth weeks. Unannounced demand spikes (regional and product-specific), scheduled list
+# price changes (known in advance to the business, so a legitimate future input) and a
+# capacity shock (throttling plus the one-day service-quality feedback) make the backtest
+# include the cases that matter for pricing. Two spikes fall in the initial training window,
+# five in the evaluation window.
+
+[run]
+days = 196  # 28 weeks: 12 weeks of initial training history, 16 weekly forecast origins
+
+[[infrastructure.demand_spikes]]
+region = "eu_west"
+start_day = 40
+end_day = 46
+multiplier = 1.6
+
+[[infrastructure.demand_spikes]]
+region = "us_west"
+start_day = 61
+end_day = 65
+multiplier = 1.7
+
+[[infrastructure.demand_spikes]]
+region = "us_east"
+product = "api_requests"
+start_day = 95
+end_day = 100
+multiplier = 2.0
+
+[[infrastructure.demand_spikes]]
+region = "ap_southeast"
+start_day = 120
+end_day = 128
+multiplier = 1.5
+
+[[infrastructure.demand_spikes]]
+region = "eu_central"
+product = "gpu_minutes"
+start_day = 150
+end_day = 155
+multiplier = 2.5
+
+[[infrastructure.demand_spikes]]
+region = "us_west"
+product = "data_transfer_gb"
+start_day = 170
+end_day = 178
+multiplier = 1.8
+
+[[infrastructure.demand_spikes]]
+region = "eu_west"
+product = "premium_latency"
+start_day = 184
+end_day = 188
+multiplier = 1.9
+
+[[infrastructure.capacity_shocks]]
+region = "us_east"
+start_day = 130
+end_day = 138
+capacity_multiplier = 0.75
+
+[[pricing.price_changes]]
+product = "cpu_minutes"
+day = 70
+multiplier = 1.10
+
+[[pricing.price_changes]]
+product = "api_requests"
+day = 110
+multiplier = 0.92
+
+[[pricing.price_changes]]
+product = "data_transfer_gb"
+day = 140
+multiplier = 1.15
+
+[[pricing.price_changes]]
+product = "premium_latency"
+day = 160
+multiplier = 1.08

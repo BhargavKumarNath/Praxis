@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -188,3 +189,34 @@ def test_start_date_override_changes_identity_and_shifts_events() -> None:
     assert base.with_overrides(days=2).run.start_date == base.run.start_date
     result = run_simulation(moved, 3)
     assert result.event_count > 0
+
+
+def test_scenario_overlay_merges_tables_and_replaces_arrays(tmp_path: Path) -> None:
+    overlay = tmp_path / "s.toml"
+    overlay.write_text(
+        "[run]\ndays = 20\n\n[[infrastructure.demand_spikes]]\n"
+        'region = "eu_west"\nstart_day = 2\nend_day = 4\nmultiplier = 1.5\n'
+    )
+    base = load_config()
+    merged = load_config(scenario=overlay)
+    assert merged.run.days == 20 and merged.run.start_date == base.run.start_date
+    assert len(merged.infrastructure.demand_spikes) == 1
+    assert merged.infrastructure.diurnal_amplitude == base.infrastructure.diurnal_amplitude
+    assert merged.config_hash != base.config_hash
+
+
+def test_invalid_scenario_overlay_is_rejected(tmp_path: Path) -> None:
+    overlay = tmp_path / "bad.toml"
+    overlay.write_text('[[pricing.price_changes]]\nproduct = "nope"\nday = 1\nmultiplier = 1.1\n')
+    with pytest.raises(ValidationError):
+        load_config(scenario=overlay)
+
+
+def test_forecast_evaluation_scenario_is_valid_and_pinned() -> None:
+    """The pre-registered evaluation world (ADR 0010) must not drift silently."""
+    path = Path(__file__).resolve().parents[2] / "configs/simulator/scenarios/forecast_eval.toml"
+    cfg = load_config(scenario=path)
+    assert cfg.run.days == 196
+    assert len(cfg.infrastructure.demand_spikes) == 7
+    assert len(cfg.pricing.price_changes) == 4
+    assert cfg.config_hash.startswith("c6bf9fc33e02")

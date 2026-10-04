@@ -11,5 +11,7 @@
 | [0007](0007-deterministic-daily-step-simulator.md) | Deterministic daily-step simulator with retained ground truth |
 | [0008](0008-local-first-data-platform.md) | Local-first data platform (DuckDB + dbt), raw archive first |
 | [0009](0009-order-independent-event-processing.md) | Order-independent, idempotent event processing |
+| [0010](0010-daily-demand-forecasting.md) | Daily probabilistic demand forecasting with pre-registered acceptance |
+| [0011](0011-hybrid-demand-champion.md) | Hybrid demand champion: ridge mean + calibrated LightGBM quantiles |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

@@ -6,14 +6,18 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from praxis import __version__
+from praxis.api.forecast import build_forecast_service, forecast_router
 from praxis.config import Settings, get_settings
+from praxis.forecasting.service import ForecastService
 from praxis.logging import configure_logging
 from praxis.tracing import (
     CORRELATION_HEADER,
+    current_correlation_id,
     is_valid_correlation_id,
     new_correlation_id,
     trace_context,
@@ -32,12 +36,32 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     correlation_id: str
+    detail: str | None = None
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, forecast_service: ForecastService | None = None
+) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level.value)
     app = FastAPI(title="Praxis", version=__version__)
+    app.include_router(forecast_router(forecast_service or build_forecast_service(settings)))
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # Field locations and messages only: never echo internals or the raw input back.
+        detail = "; ".join(
+            f"{'.'.join(str(p) for p in err.get('loc', ()))}: {err.get('msg', 'invalid')}"
+            for err in exc.errors()[:10]
+        )
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="invalid_request",
+                correlation_id=current_correlation_id() or new_correlation_id(),
+                detail=detail,
+            ).model_dump(),
+        )
 
     @app.middleware("http")
     async def correlation_middleware(

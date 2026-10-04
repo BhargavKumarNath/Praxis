@@ -1,0 +1,75 @@
+# Demand forecasting (Phase 4). See ADR 0010, ADR 0011 and docs/forecasting.md.
+#
+# The acceptance table is PRE-REGISTERED: written 2026-10-04 before any backtest ran, and
+# re-registered by ADR 0011 before the evaluation world was run. Never loosen a threshold
+# after seeing a result (CLAUDE.md s16). Model hyperparameters are fixed a priori too;
+# there is no tuning loop on the evaluation window.
+
+[target]
+# One series = region x product x segment (segment = customer tier at signup, a static
+# attribute). Target = requested units per UTC day (served + throttled): unconstrained
+# demand, which is what pricing needs. Horizons are whole days after the feature date.
+horizons = [1, 2, 3, 4, 5, 6, 7]
+quantiles = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+min_history_days = 28
+
+[features]
+# Real external signals (weather, carbon, grid demand, macro). The simulated world does not
+# use them, so they are off by default; `backtest --external` runs the ablation.
+external = false
+
+[lightgbm]
+num_boost_round = 300
+learning_rate = 0.05
+num_leaves = 31
+min_data_in_leaf = 40
+feature_fraction = 0.9
+lambda_l2 = 1.0
+seed = 42
+num_threads = 4
+# Added 2026-10-04 after the DEVELOPMENT world (seed 1) showed in-sample quantile models
+# under-cover (80% interval covered ~0.71). Out-of-sample recalibration on the most recent
+# 28 days of training targets; see ADR 0010. The evaluation world (seed 42) was not used.
+calibration_days = 28
+
+[ridge]
+alpha = 1.0
+
+[backtest]
+initial_train_days = 84   # first forecast origin is the 84th day of the panel
+step_days = 7             # one origin per week, each forecasting horizons 1..7
+bootstrap_samples = 2000  # block bootstrap over origins (weekly blocks)
+bootstrap_seed = 7
+
+[evaluation.value_weights]
+# GBP per unit at the launch list price. Errors are weighted by value so that a unit of GPU
+# time and a thousand API calls are comparable. Fixed here so the metric never drifts with
+# later price changes.
+api_requests = 0.40
+cpu_minutes = 0.012
+gpu_minutes = 0.045
+data_transfer_gb = 0.07
+premium_latency = 0.90
+
+[serving]
+fresh_max_lag_days = 1    # feature date = yesterday (UTC) or later -> model
+stale_max_lag_days = 7    # older but within a week -> seasonal moving-average fallback
+max_planned_price_ratio = 1.5  # planned price outside [1/r, r] x current price -> rejected
+max_series_per_request = 500
+latency_budget_ms_p95 = 500
+
+[acceptance]
+# Pre-registered 2026-10-04 (ADR 0010); re-registered by ADR 0011 on 2026-10-04 BEFORE the
+# evaluation world (seed 42) was run: candidate = hybrid (ridge mean + calibrated LightGBM
+# quantiles). Pooled over every (series, origin, horizon) of the rolling-origin backtest.
+# vWAPE = sum(w |y - yhat|) / sum(w y), w = value weight of the series' product.
+candidate = "hybrid"
+max_vwape_ratio_vs_seasonal_naive = 0.90      # >= 10% better than the documented naive baseline
+point_must_beat = ["seasonal_naive", "seasonal_moving_average"]  # strictly lower vWAPE
+require_bootstrap_ci_below_zero = true        # 95% CI of vWAPE(candidate) - vWAPE(naive) < 0
+max_pinball_ratio_vs_seasonal_naive = 1.0     # strictly lower mean value-weighted pinball loss
+pinball_must_beat = ["seasonal_naive", "seasonal_moving_average", "ridge"]
+coverage_80 = [0.74, 0.86]                    # empirical coverage of [q0.10, q0.90]
+coverage_50 = [0.43, 0.57]                    # empirical coverage of [q0.25, q0.75]
+max_slice_vwape_ratio_vs_seasonal_naive = 1.10  # no region / product / segment slice > 10% worse
+reproducibility_tolerance = 1e-9              # retrain on same data/code/config/seed

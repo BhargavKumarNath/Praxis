@@ -47,3 +47,15 @@
 | Replay | Republishing archived events (same `event_id`s) to rebuild or verify state. |
 | Crash storm | Repeated consumer crashes; each crash costs every in-flight message a delivery attempt. |
 
+| Series (forecast) | One region x product x segment daily demand series; 72 in the default world. |
+| Segment | Customer tier at signup (static). Never the current tier, which encodes later changes. |
+| Requested units | Served + throttled units: unconstrained demand, the forecast target. |
+| Feature date / origin | Last complete UTC day whose data a forecast may use; horizons count from it. |
+| Planned price | The list price the business has set or scheduled; the only allowed input about the future. |
+| vWAPE | Value-weighted absolute percentage error: errors weighted by GBP per unit, over value forecast. |
+| Pinball loss | Quantile loss; averaged over quantile levels and value-weighted like vWAPE. |
+| Interval coverage | Share of actuals inside a forecast interval (e.g. q0.10..q0.90 should hold ~80%). |
+| Rolling-origin backtest | Train on everything known at origin T, forecast T+1..T+7, step T forward; never random. |
+| Development / evaluation world | Seed used to build and debug a method versus the held-out seed used once for the gate. |
+| Hybrid champion | Served demand model (ADR 0011): ridge expected demand + calibrated LightGBM quantiles. |
+| Stale-feature fallback | Seasonal moving average served when features are 2-7 days old; older means no forecast. |
