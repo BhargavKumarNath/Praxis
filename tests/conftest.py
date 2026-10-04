@@ -7,6 +7,8 @@ import pytest
 
 from praxis.config import get_settings
 
+pytest_plugins = ["tests.pg"]
+
 
 @pytest.fixture(autouse=True)
 def _isolated_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:

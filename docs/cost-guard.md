@@ -40,3 +40,15 @@ destroy it. Wait for approval.
 | Datasets `praxis_dev_{raw,staging,marts}` | about 60 MB, expire after 60 days | `maximum_bytes_billed` 1 GB per query in profile and tests; free load jobs and dry runs |
 
 Linking billing to this project is a spend decision for the user, not an implementation step.
+
+## Phase 3 event backbone
+
+| Resource | State | Cost control |
+| --- | --- | --- |
+| Pub/Sub topics / 4 subscriptions + DLQ IAM | Declared in Terraform only, never applied | Emulator for all development and CI; 24h retention; subscriptions never expire |
+| Postgres control plane | Local Docker container (`make pg-up`) | No cloud database; Supabase or Cloud SQL is a later, approved step |
+| Emulator / Postgres in CI | GitHub-hosted service containers | £0 |
+
+`ensure_topology` refuses to create Pub/Sub resources without `PUBSUB_EMULATOR_HOST`:
+cloud topology is Terraform's job, never a side effect of running code.
+

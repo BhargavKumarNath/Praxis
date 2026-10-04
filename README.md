@@ -11,8 +11,9 @@ Architecture: `docs/architecture.md`. Decisions: `docs/adr/`.
 ```bash
 uv sync                # creates .venv from pyproject.toml / uv.lock
 cp .env.example .env   # fill locally; never commit
-make check             # lint, types, tests, secret scan, frontend, terraform
+make check             # lint, types, tests (local Postgres + Pub/Sub emulator via Docker),
+                       # event chaos smoke, schemas, secret scan, frontend, terraform
 make run               # http://127.0.0.1:8000/healthz
 ```
 
-Status: Phase 1 complete (deterministic simulator, see `docs/simulator.md`). Progress: `project_progress.md`; evidence: `docs/evidence/`.
+Status: Phase 3 complete (event backbone, see `docs/event-backbone.md`; evidence `docs/evidence/phase-3.md`). Progress: `project_progress.md`; evidence: `docs/evidence/`.

@@ -20,8 +20,17 @@ Invoice lifecycle (attempt bookkeeping lives in the stream validator)
     ATTEMPTING --payment.failed (final)--> UNCOLLECTIBLE (terminal)
     ATTEMPTING --payment.succeeded--> PAID (terminal)
 
+Subscription lifecycle (Phase 3, one subscription per customer)
+    (none)  --subscription.started-->  ACTIVE
+    ACTIVE  --subscription.changed-->  ACTIVE     (tier change)
+    ACTIVE  --churn.observed-->        CANCELLED  (terminal)
+
 The exact dunning states for Phase 8 are deliberately left to a later ADR; the invoice
 machine here only models what the simulator emits.
+
+``reachable_pairs`` is the reflexive-transitive closure of a table. The control plane
+(Phase 3) installs it as a database trigger so a stored state can only ever move along
+the machine, even when several buffered events are applied in one transaction.
 """
 
 from __future__ import annotations
@@ -52,6 +61,11 @@ class InvoiceState(StrEnum):
     UNCOLLECTIBLE = "uncollectible"
 
 
+class SubscriptionState(StrEnum):
+    ACTIVE = "active"
+    CANCELLED = "cancelled"
+
+
 class TransitionTable[S: StrEnum]:
     def __init__(self, table: Mapping[tuple[S, str], S], entry: Mapping[str, S]) -> None:
         self._table = dict(table)
@@ -79,6 +93,24 @@ class TransitionTable[S: StrEnum]:
     def entries(self) -> frozenset[str]:
         return frozenset(self._entry)
 
+    def reachable_pairs(self) -> frozenset[tuple[S, S]]:
+        """Every (from, to) such that ``to`` is reachable from ``from`` in zero or more steps."""
+        states = {s for s, _ in self._table} | set(self._table.values()) | set(self._entry.values())
+        edges: dict[S, set[S]] = {s: set() for s in states}
+        for (src, _), dst in self._table.items():
+            edges[src].add(dst)
+        pairs: set[tuple[S, S]] = set()
+        for start in states:
+            seen = {start}
+            frontier = [start]
+            while frontier:
+                for nxt in edges[frontier.pop()]:
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        frontier.append(nxt)
+            pairs.update((start, s) for s in seen)
+        return frozenset(pairs)
+
 
 CUSTOMER_TRANSITIONS: TransitionTable[CustomerState] = TransitionTable(
     {
@@ -100,6 +132,14 @@ INVOICE_TRANSITIONS: TransitionTable[InvoiceState] = TransitionTable(
         (InvoiceState.ATTEMPTING, "payment.succeeded"): InvoiceState.PAID,
     },
     entry={"invoice.created": InvoiceState.OPEN},
+)
+
+SUBSCRIPTION_TRANSITIONS: TransitionTable[SubscriptionState] = TransitionTable(
+    {
+        (SubscriptionState.ACTIVE, "subscription.changed"): SubscriptionState.ACTIVE,
+        (SubscriptionState.ACTIVE, "churn.observed"): SubscriptionState.CANCELLED,
+    },
+    entry={"subscription.started": SubscriptionState.ACTIVE},
 )
 
 # Events a customer may emit only while in one of these states. Invoice/payment events are

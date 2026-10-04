@@ -191,6 +191,24 @@ class Warehouse:
         )
         return self.count("raw.sim_events") - before
 
+    def insert_events(self, events: Iterable[dict[str, Any]], batch_id: str) -> int:
+        """Idempotently insert envelope dicts (streaming path). Returns NEW event count.
+
+        Same SQL as the batch loader (``ON CONFLICT (event_id) DO NOTHING``), so the
+        streaming and batch paths can never disagree about an event. The count comes from
+        the INSERT itself (conflicts excluded): counting the table per batch would make
+        streaming quadratic in table size.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.ndjson"
+            with path.open("w") as fh:
+                for event in events:
+                    fh.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+            row = self._con.execute(
+                _INSERT_EVENTS, [batch_id, datetime.now(UTC), str(path)]
+            ).fetchone()
+        return int(row[0]) if row else 0
+
     # --- helpers ----------------------------------------------------------------------
     def count(self, table: str) -> int:
         row = self._con.execute(f"SELECT count(*) FROM {table}").fetchone()  # noqa: S608

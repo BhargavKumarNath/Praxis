@@ -58,15 +58,16 @@ The loop is only complete when outcomes flow back into ingestion (right to left 
 ## Repository layout
 
 ```text
-src/praxis/        Python package: api, config, logging, tracing, events, domain (state machines),
-                   simulator (Phase 1)
-tests/             unit/ and contract/ now; integration/ and others as phases land
+src/praxis/        Python package: api, config, logging, tracing, events (envelope, payloads, codec),
+                   domain (state machines, projections), simulator (Phase 1), data (Phase 2),
+                   streaming (Phase 3 transport, producer, consumers), control (Postgres + Alembic)
+tests/             unit, contract, simulator, data, streaming, control, integration (emulator)
 schemas/events/    Versioned JSON Schemas: envelope and per-event payloads (payloads/)
 configs/simulator/ Stable simulator world definition (TOML)
 frontend/          Next.js + TypeScript dashboard (placeholder in Phase 0)
 infra/terraform/   modules/ (storage, pubsub, bigquery) and envs/dev
 docs/              architecture, glossary, conventions, cost guard, ADRs, phase evidence
-scripts/           Repository tooling (secret scan)
+scripts/           Repository tooling (secret scan, schema export, bounded readiness wait)
 ```
 
 ## Boundaries that must not erode
@@ -75,3 +76,5 @@ scripts/           Repository tooling (secret scan)
 * All payment operations go through `PaymentGateway` (ADR 0003).
 * Retraining never implies promotion (ADR 0005).
 * Large-scale tests use the synthetic gateway only (ADR 0006).
+* Consumers are idempotent and order-independent; state changes only via transition tables,
+  enforced again in Postgres (ADR 0009, `docs/event-backbone.md`).

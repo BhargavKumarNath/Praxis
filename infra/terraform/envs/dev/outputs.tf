@@ -6,6 +6,10 @@ output "events_topic" {
   value = module.pubsub.events_topic
 }
 
+output "event_subscriptions" {
+  value = module.pubsub.subscriptions
+}
+
 output "bigquery_datasets" {
   value = module.bigquery.dataset_ids
 }

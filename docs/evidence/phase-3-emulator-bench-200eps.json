@@ -1,0 +1,125 @@
+{
+  "customers": 50,
+  "days": 14,
+  "dead_letters": {},
+  "events": 4299,
+  "is_synthetic": true,
+  "loops": {
+    "dlq-inspect": {
+      "acks": 0,
+      "crashed": false,
+      "deliveries": 0,
+      "nacks": 0,
+      "pulls": 2
+    },
+    "monitoring": {
+      "acks": 4299,
+      "crashed": false,
+      "deliveries": 4299,
+      "nacks": 0,
+      "pulls": 217
+    },
+    "operational": {
+      "acks": 162,
+      "crashed": false,
+      "deliveries": 162,
+      "nacks": 0,
+      "pulls": 31
+    },
+    "warehouse": {
+      "acks": 4299,
+      "crashed": false,
+      "deliveries": 4299,
+      "nacks": 0,
+      "pulls": 45
+    }
+  },
+  "matches_oracle": true,
+  "metrics": {
+    "praxis-bench2-events-monitoring": {
+      "counters": {
+        "deliveries": 4299,
+        "status_observed": 4299,
+        "type_conversion.observed": 5,
+        "type_customer.created": 50,
+        "type_invoice.created": 17,
+        "type_payment.attempted": 20,
+        "type_payment.failed": 6,
+        "type_payment.succeeded": 14,
+        "type_price.exposed": 171,
+        "type_request.completed": 463,
+        "type_service.metric_observed": 1680,
+        "type_subscription.changed": 2,
+        "type_subscription.started": 48,
+        "type_usage.observed": 1823,
+        "unique_events_observed": 4299
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 4299,
+          "max_ms": 108.272,
+          "p50_ms": 47.591,
+          "p95_ms": 71.417,
+          "p99_ms": 76.773
+        },
+        "processing": {
+          "count": 4299,
+          "max_ms": 0.869,
+          "p50_ms": 0.085,
+          "p95_ms": 0.151,
+          "p99_ms": 0.238
+        }
+      }
+    },
+    "praxis-bench2-events-operational": {
+      "counters": {
+        "deliveries": 162,
+        "status_applied": 162
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 162,
+          "max_ms": 151.801,
+          "p50_ms": 70.815,
+          "p95_ms": 132.642,
+          "p99_ms": 143.614
+        },
+        "processing": {
+          "count": 162,
+          "max_ms": 32.909,
+          "p50_ms": 3.487,
+          "p95_ms": 9.131,
+          "p99_ms": 19.142
+        }
+      }
+    },
+    "praxis-bench2-events-warehouse": {
+      "counters": {
+        "batches": 43,
+        "deliveries": 4299,
+        "status_applied": 4299
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 4299,
+          "max_ms": 29538.283,
+          "p50_ms": 19163.419,
+          "p95_ms": 28577.773,
+          "p99_ms": 29339.961
+        },
+        "processing": {
+          "count": 4299,
+          "max_ms": 0.107,
+          "p50_ms": 0.064,
+          "p95_ms": 0.099,
+          "p99_ms": 0.107
+        }
+      }
+    }
+  },
+  "note": "warehouse consumer drained after publishing (DuckDB single writer); its end_to_end latency therefore includes backlog and is not a live-latency figure",
+  "offered_rate_eps": 200.0,
+  "publish_s": 21.5,
+  "transport": "pubsub-emulator",
+  "warehouse_rows": 4299
+}

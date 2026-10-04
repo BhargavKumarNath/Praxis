@@ -1,4 +1,35 @@
-.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run
+.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run \
+	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check
+
+# --- Phase 3 local dependencies (throwaway containers, loopback only, no cloud) ------------
+# Postgres uses trust auth on 127.0.0.1 only: no password exists to leak.
+PG_CONTAINER ?= praxis-pg
+PG_PORT ?= 55432
+PG_IMAGE ?= postgres:17-alpine
+PRAXIS_TEST_DATABASE_URL ?= postgresql+psycopg://praxis@127.0.0.1:$(PG_PORT)/postgres
+export PRAXIS_TEST_DATABASE_URL
+PUBSUB_CONTAINER ?= praxis-pubsub
+PUBSUB_PORT ?= 8085
+PUBSUB_IMAGE ?= gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+PUBSUB_EMULATOR = 127.0.0.1:$(PUBSUB_PORT)
+
+pg-up:
+	@docker start $(PG_CONTAINER) >/dev/null 2>&1 || docker run -d --name $(PG_CONTAINER) \
+		-p 127.0.0.1:$(PG_PORT):5432 -e POSTGRES_USER=praxis -e POSTGRES_HOST_AUTH_METHOD=trust \
+		$(PG_IMAGE) >/dev/null
+	@.venv/bin/python scripts/wait_for.py --postgres $(PRAXIS_TEST_DATABASE_URL)
+
+pg-down:
+	-docker rm -f $(PG_CONTAINER)
+
+pubsub-up:
+	@docker start $(PUBSUB_CONTAINER) >/dev/null 2>&1 || docker run -d --name $(PUBSUB_CONTAINER) \
+		-p 127.0.0.1:$(PUBSUB_PORT):8085 $(PUBSUB_IMAGE) \
+		gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=praxis-local >/dev/null
+	@.venv/bin/python scripts/wait_for.py --http http://$(PUBSUB_EMULATOR) --timeout 120
+
+pubsub-down:
+	-docker rm -f $(PUBSUB_CONTAINER)
 
 setup:
 	uv sync
@@ -11,10 +42,11 @@ lint:
 typecheck:
 	.venv/bin/mypy
 
-test:
-	.venv/bin/pytest --cov
+# Full suite incl. emulator integration tests (local Docker; CI runs them in a separate job).
+test: pg-up pubsub-up
+	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) .venv/bin/pytest --cov
 
-test-fast:
+test-fast: pg-up
 	.venv/bin/pytest -m 'not slow' -q
 
 schemas:
@@ -36,7 +68,7 @@ tf-check:
 frontend-check:
 	cd frontend && npm run typecheck && npm run lint
 
-check: lint typecheck test schemas secrets frontend-check tf-check
+check: lint typecheck test events-check schemas secrets frontend-check tf-check
 
 # --- Phase 2 data platform (local DuckDB; no cloud resources) -----------------------------
 SIM_DIR ?= data/sim
@@ -87,3 +119,37 @@ data-check:
 
 run:
 	.venv/bin/uvicorn --factory praxis.api.app:create_app --reload
+
+# --- Phase 3 event backbone --------------------------------------------------------------
+EVENTS_DB = postgresql+psycopg://praxis@127.0.0.1:$(PG_PORT)/praxis_events
+EVENTS_CUSTOMERS ?= 1000
+EVENTS_DAYS ?= 28
+
+# Producer + consumers over the real Pub/Sub API (emulator) + Postgres. Free, local.
+pubsub-verify: pg-up pubsub-up
+	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) .venv/bin/pytest tests/integration -m pubsub_emulator \
+		-v -p no:cacheprovider --no-cov
+
+_events-db: pg-up
+	@.venv/bin/python -c "from sqlalchemy import create_engine, text; \
+	e = create_engine('$(PRAXIS_TEST_DATABASE_URL)', isolation_level='AUTOCOMMIT'); c = e.connect(); \
+	c.execute(text('DROP DATABASE IF EXISTS praxis_events WITH (FORCE)')); \
+	c.execute(text('CREATE DATABASE praxis_events'))"
+	.venv/bin/python -m praxis.streaming --database-url $(EVENTS_DB) migrate
+
+# Chaos run on the in-memory broker: duplicates, delay, reorder, crashes; verified vs oracle.
+events-local: _events-db
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(EVENTS_DB) run-local \
+		--customers $(EVENTS_CUSTOMERS) --days $(EVENTS_DAYS) --archive data/events/archive \
+		--report data/events/run_local.json
+
+# Small chaos smoke used by `make check` / CI (exit code 1 if the oracle does not match).
+events-check: _events-db
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(EVENTS_DB) run-local \
+		--customers 300 --days 28 --crash-rate 0.01 --duplicate-rate 0.2 >/dev/null
+
+# Live latency over the emulator: paced producer, concurrent consumers.
+events-bench: _events-db pubsub-up
+	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming \
+		--database-url $(EVENTS_DB) --environment bench-$$(date +%s) emulator-bench \
+		--customers 50 --days 14 --rate 200 --publish-batch 20 --report data/events/emulator_bench.json

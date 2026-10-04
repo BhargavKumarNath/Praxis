@@ -76,7 +76,8 @@ phases add them. Overlapping interventions on one product are rejected.
 
 * Customer dynamics are daily; no intra-day price response.
 * `request.completed` is aggregated per customer-day, not per request.
-* No late, duplicate or out-of-order delivery yet (Phase 3).
+* The simulator itself emits a clean, ordered stream. Late, duplicate and out-of-order
+  delivery are injected by the Phase 3 transport (`praxis.streaming.memory.FaultPlan`).
 * Payment failures do not depend on invoice amount or time of month.
 * A single currency (GBP); customers do not move region.
 * Control-arm exposure is logged at experiment start; treated customers' price revert

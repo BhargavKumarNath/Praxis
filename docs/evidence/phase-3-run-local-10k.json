@@ -1,0 +1,169 @@
+{
+  "control_plane_checksum": "5dc6a62debee5b3559cbcdd9b4501f3b1b970a7465f2f22ff317eb81ce7c643f",
+  "crash_rate": 0.005,
+  "customers": 10000,
+  "customers_projected": 10000,
+  "days": 28,
+  "dead_letters_after_redrive": {},
+  "dead_letters_before_redrive": {
+    "praxis-local-events-warehouse": {
+      "max_delivery_attempts_exceeded": 300
+    }
+  },
+  "drain": {
+    "dlq-inspect": {
+      "acks": 335,
+      "crashes": 0,
+      "deliveries": 335,
+      "nacks": 0,
+      "rounds": 720
+    },
+    "monitoring": {
+      "acks": 1075755,
+      "crashes": 0,
+      "deliveries": 1075755,
+      "nacks": 0,
+      "rounds": 10840
+    },
+    "operational": {
+      "acks": 51134,
+      "crashes": 462,
+      "deliveries": 51596,
+      "nacks": 0,
+      "rounds": 103704
+    },
+    "warehouse": {
+      "acks": 1075883,
+      "crashes": 9314,
+      "deliveries": 1680174,
+      "nacks": 0,
+      "rounds": 735676
+    }
+  },
+  "elapsed_s": 1887.491,
+  "events_per_s": 518.0,
+  "events_published": 977754,
+  "faults": {
+    "duplicate_rate": 0.1,
+    "max_delay_s": 600.0,
+    "reorder": true,
+    "seed": 42
+  },
+  "invoices_projected": 7603,
+  "is_synthetic": true,
+  "ledger_entries": 7430,
+  "ledger_total_minor": 473097245,
+  "matches_oracle": true,
+  "metrics": {
+    "praxis-local-events-dlq-inspect": {
+      "counters": {
+        "dead_letters_duplicate": 35,
+        "dead_letters_recorded": 300,
+        "reason_max_delivery_attempts_exceeded": 300
+      },
+      "latency": {}
+    },
+    "praxis-local-events-monitoring": {
+      "counters": {
+        "deliveries": 1075755,
+        "duplicate_deliveries": 97801,
+        "status_duplicate": 97801,
+        "status_observed": 977954,
+        "type_churn.observed": 343,
+        "type_conversion.observed": 1442,
+        "type_customer.created": 10001,
+        "type_invoice.created": 7604,
+        "type_payment.attempted": 8368,
+        "type_payment.failed": 936,
+        "type_payment.succeeded": 7433,
+        "type_price.exposed": 33458,
+        "type_request.completed": 187896,
+        "type_service.metric_observed": 3361,
+        "type_subscription.changed": 1032,
+        "type_subscription.started": 9385,
+        "type_usage.observed": 706695,
+        "unique_events_observed": 977954
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 1075755,
+          "max_ms": 23808772488.912,
+          "p50_ms": 8963.798,
+          "p95_ms": 97693.79,
+          "p99_ms": 105014.798
+        },
+        "processing": {
+          "count": 1075755,
+          "max_ms": 5.925,
+          "p50_ms": 0.029,
+          "p95_ms": 0.036,
+          "p99_ms": 0.052
+        }
+      }
+    },
+    "praxis-local-events-operational": {
+      "counters": {
+        "deliveries": 51596,
+        "redeliveries": 462,
+        "status_applied": 46312,
+        "status_duplicate": 4822
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 51134,
+          "max_ms": 23808772356.688,
+          "p50_ms": 2554.167,
+          "p95_ms": 19293.909,
+          "p99_ms": 22067.261
+        },
+        "processing": {
+          "count": 51134,
+          "max_ms": 481.041,
+          "p50_ms": 2.642,
+          "p95_ms": 4.245,
+          "p99_ms": 6.3
+        }
+      }
+    },
+    "praxis-local-events-warehouse": {
+      "counters": {
+        "batches": 7215,
+        "deliveries": 1680174,
+        "redeliveries": 603991,
+        "status_applied": 1075883
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 1075883,
+          "max_ms": 23808772445.748,
+          "p50_ms": 7275.289,
+          "p95_ms": 80291.336,
+          "p99_ms": 91543.061
+        },
+        "processing": {
+          "count": 1075883,
+          "max_ms": 34.051,
+          "p50_ms": 0.089,
+          "p95_ms": 4.782,
+          "p99_ms": 6.406
+        }
+      }
+    }
+  },
+  "peak_rss_mb": 1800.7,
+  "pending": {
+    "customer_orphans": 0,
+    "customer_pending": 0,
+    "invoice_orphans": 0,
+    "invoice_pending": 0
+  },
+  "praxis_version": "0.0.1",
+  "redrive": {
+    "republished": 300,
+    "skipped_undecodable": 0
+  },
+  "seed": 42,
+  "subscription_inconsistencies": 0,
+  "transport": "memory",
+  "warehouse_rows": 977754
+}

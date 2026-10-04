@@ -154,6 +154,14 @@ class StreamValidator:
     def finish(self) -> Counter[str]:
         return self.counts
 
+    def customer_states(self) -> dict[str, tuple[CustomerState, str]]:
+        """Final (state, tier) per customer after the events fed so far (read-only copy)."""
+        return {cid: (state, self._tier[cid]) for cid, state in self._customer.items()}
+
+    def invoice_states(self) -> dict[str, tuple[str, int, InvoiceState, int]]:
+        """Final (customer, amount_minor, state, attempts) per invoice (read-only copy)."""
+        return {k: (v.customer, v.amount, v.state, v.attempts) for k, v in self._invoices.items()}
+
 
 def _need(state: CustomerState | None) -> CustomerState:
     if state is None:

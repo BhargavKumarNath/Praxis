@@ -37,3 +37,13 @@
 | Batch fingerprint | Body content minus volatile fields (e.g. server timings); the basis of `batch_id`. |
 | Release lag | Delay between the period a macro value describes and when it is published; features must respect it. |
 | Feature view | Region-day dbt view of information available at the end of the feature day. |
+| Idempotency store | `processed_events`: one row per (consumer, event); written in the same transaction as the side effect. |
+| Aggregate | A customer or an invoice: the unit whose state is folded from its own event log. |
+| Refold | Recomputing an aggregate's state from its full event log in canonical order after each new event. |
+| Pending event | Logged but not yet applicable (its predecessor has not arrived); applies automatically later. |
+| Stateful event | An event that changes control-plane state; carries `stateful=true` and is the only kind routed to Postgres. |
+| Poison message | Valid on the wire but always fails processing; retried `max_delivery_attempts` times, then dead-lettered. |
+| Redrive | Operator action that republishes stored dead letters after the fault is fixed; safe because consumers are idempotent. |
+| Replay | Republishing archived events (same `event_id`s) to rebuild or verify state. |
+| Crash storm | Repeated consumer crashes; each crash costs every in-flight message a delivery attempt. |
+

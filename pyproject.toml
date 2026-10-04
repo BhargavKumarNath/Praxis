@@ -11,6 +11,10 @@ dependencies = [
     "pydantic-settings>=2.4",
     "numpy>=2.5.3",
     "duckdb>=1.5.6",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "google-cloud-pubsub>=2.25",
 ]
 
 [dependency-groups]
@@ -55,6 +59,11 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["src", "tests", "scripts"]
 
+# google-cloud-pubsub ships no complete type information for these namespaces.
+[[tool.mypy.overrides]]
+module = ["google.cloud.pubsub_v1", "google.cloud.pubsub_v1.*", "google.protobuf", "google.protobuf.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
@@ -64,6 +73,7 @@ markers = [
     "integration: touches a real boundary (never run in unit CI)",
     "slow: long-running scale smoke test",
     "bigquery_live: hits a real BigQuery sandbox project; only via `make bq-verify`",
+    "pubsub_emulator: needs the Pub/Sub emulator; only via `make pubsub-verify` (local, free)",
 ]
 
 [tool.coverage.run]

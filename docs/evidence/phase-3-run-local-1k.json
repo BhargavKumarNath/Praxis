@@ -1,0 +1,169 @@
+{
+  "control_plane_checksum": "c8928ca973365d1aef26237ca3349e7bd6a3ea44d1a862a7e308938704f552d9",
+  "crash_rate": 0.005,
+  "customers": 1000,
+  "customers_projected": 1000,
+  "days": 28,
+  "dead_letters_after_redrive": {},
+  "dead_letters_before_redrive": {
+    "praxis-local-events-warehouse": {
+      "max_delivery_attempts_exceeded": 100
+    }
+  },
+  "drain": {
+    "dlq-inspect": {
+      "acks": 113,
+      "crashes": 0,
+      "deliveries": 113,
+      "nacks": 0,
+      "rounds": 247
+    },
+    "monitoring": {
+      "acks": 110146,
+      "crashes": 0,
+      "deliveries": 110146,
+      "nacks": 0,
+      "rounds": 1135
+    },
+    "operational": {
+      "acks": 5064,
+      "crashes": 43,
+      "deliveries": 5107,
+      "nacks": 0,
+      "rounds": 10278
+    },
+    "warehouse": {
+      "acks": 110024,
+      "crashes": 972,
+      "deliveries": 206790,
+      "nacks": 0,
+      "rounds": 3465
+    }
+  },
+  "elapsed_s": 56.719,
+  "events_per_s": 1762.7,
+  "events_published": 99979,
+  "faults": {
+    "duplicate_rate": 0.1,
+    "max_delay_s": 600.0,
+    "reorder": true,
+    "seed": 42
+  },
+  "invoices_projected": 741,
+  "is_synthetic": true,
+  "ledger_entries": 725,
+  "ledger_total_minor": 49345787,
+  "matches_oracle": true,
+  "metrics": {
+    "praxis-local-events-dlq-inspect": {
+      "counters": {
+        "dead_letters_duplicate": 13,
+        "dead_letters_recorded": 100,
+        "reason_max_delivery_attempts_exceeded": 100
+      },
+      "latency": {}
+    },
+    "praxis-local-events-monitoring": {
+      "counters": {
+        "deliveries": 110146,
+        "duplicate_deliveries": 10167,
+        "status_duplicate": 10167,
+        "status_observed": 99979,
+        "type_churn.observed": 37,
+        "type_conversion.observed": 146,
+        "type_customer.created": 1000,
+        "type_invoice.created": 741,
+        "type_payment.attempted": 824,
+        "type_payment.failed": 99,
+        "type_payment.succeeded": 725,
+        "type_price.exposed": 3349,
+        "type_request.completed": 18524,
+        "type_service.metric_observed": 3360,
+        "type_subscription.changed": 81,
+        "type_subscription.started": 938,
+        "type_usage.observed": 70155,
+        "unique_events_observed": 99979
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 110146,
+          "max_ms": 5665.107,
+          "p50_ms": 2161.424,
+          "p95_ms": 5427.678,
+          "p99_ms": 5605.709
+        },
+        "processing": {
+          "count": 110146,
+          "max_ms": 10.736,
+          "p50_ms": 0.028,
+          "p95_ms": 0.034,
+          "p99_ms": 0.048
+        }
+      }
+    },
+    "praxis-local-events-operational": {
+      "counters": {
+        "deliveries": 5107,
+        "redeliveries": 43,
+        "status_applied": 4570,
+        "status_duplicate": 494
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 5064,
+          "max_ms": 4721.556,
+          "p50_ms": 885.645,
+          "p95_ms": 4107.733,
+          "p99_ms": 4590.095
+        },
+        "processing": {
+          "count": 5064,
+          "max_ms": 24.686,
+          "p50_ms": 2.809,
+          "p95_ms": 11.823,
+          "p99_ms": 19.6
+        }
+      }
+    },
+    "praxis-local-events-warehouse": {
+      "counters": {
+        "batches": 1101,
+        "deliveries": 206790,
+        "redeliveries": 96666,
+        "status_applied": 110024
+      },
+      "latency": {
+        "end_to_end": {
+          "count": 110024,
+          "max_ms": 5445.465,
+          "p50_ms": 1665.476,
+          "p95_ms": 3784.84,
+          "p99_ms": 5325.031
+        },
+        "processing": {
+          "count": 110024,
+          "max_ms": 9.753,
+          "p50_ms": 0.068,
+          "p95_ms": 0.095,
+          "p99_ms": 0.13
+        }
+      }
+    }
+  },
+  "peak_rss_mb": 532.3,
+  "pending": {
+    "customer_orphans": 0,
+    "customer_pending": 0,
+    "invoice_orphans": 0,
+    "invoice_pending": 0
+  },
+  "praxis_version": "0.0.1",
+  "redrive": {
+    "republished": 100,
+    "skipped_undecodable": 0
+  },
+  "seed": 42,
+  "subscription_inconsistencies": 0,
+  "transport": "memory",
+  "warehouse_rows": 99979
+}

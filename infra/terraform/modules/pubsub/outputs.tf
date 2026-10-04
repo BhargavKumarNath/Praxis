@@ -6,6 +6,11 @@ output "dead_letter_topic" {
   value = google_pubsub_topic.dead_letter.name
 }
 
-output "operational_subscription" {
-  value = google_pubsub_subscription.operational.name
+output "subscriptions" {
+  value = {
+    operational = google_pubsub_subscription.operational.name
+    warehouse   = google_pubsub_subscription.warehouse.name
+    monitoring  = google_pubsub_subscription.monitoring.name
+    dlq_inspect = google_pubsub_subscription.dead_letter_inspect.name
+  }
 }
