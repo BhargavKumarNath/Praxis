@@ -35,6 +35,10 @@ planned-price changes (target vs origin, last week, vs first price), day of week
 region / product / segment codes. Optional `ext_*` features (real weather, carbon, grid demand,
 CPI at the origin) exist for the ablation and are off by default.
 
+Loading is deterministic: service context is recomputed from the hourly mart with exact DECIMAL sums
+(same definition as `feat_region_daily`, parity tested), so rebuilding a world from its seed gives a
+bit-identical panel and `data_version`. A float `avg` would depend on physical row order.
+
 ## Leakage rules (tested)
 
 * Every outcome-derived feature is computed from `panel.history(origin)`.

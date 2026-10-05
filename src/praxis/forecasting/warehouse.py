@@ -13,8 +13,15 @@ from pathlib import Path
 
 import duckdb
 import numpy as np
+from numpy.typing import NDArray
 
-from praxis.forecasting.panel import CONTEXT_COLUMNS, DemandPanel, PricePlan, SeriesKey
+from praxis.forecasting.panel import (
+    EXTERNAL_CONTEXT,
+    SERVICE_CONTEXT,
+    DemandPanel,
+    PricePlan,
+    SeriesKey,
+)
 
 _USAGE_SQL = """
 SELECT u.event_date, u.region_id, u.product, c.initial_tier AS segment,
@@ -27,11 +34,31 @@ WHERE u.event_date BETWEEN ? AND ?
 GROUP BY ALL
 """
 
-_CONTEXT_SQL = f"""
-SELECT region_id, feature_date, {", ".join(f"{c}::DOUBLE" for c in CONTEXT_COLUMNS)}
+# Service context: same definition as dbt `feat_region_daily` (daily mean / max of the hourly
+# mart), recomputed here with exact DECIMAL sums. A float `avg` depends on physical row order,
+# which differs between warehouse builds (~1e-16), changing data_version and model fits; integer-
+# backed DECIMAL sums are order-independent, so a rebuilt world gives a bit-identical panel.
+# tests/forecasting/test_warehouse.py pins both properties (parity with the view, determinism).
+_SERVICE_SQL = """
+SELECT region_id, event_date,
+       avg(utilization::DECIMAL(38, 12))::DOUBLE,
+       max(utilization)::DOUBLE,
+       avg(error_rate::DECIMAL(38, 12))::DOUBLE,
+       avg(latency_p95_ms::DECIMAL(38, 12))::DOUBLE
+FROM marts.fct_service_metrics_hourly
+WHERE event_date BETWEEN ? AND ?
+GROUP BY ALL
+"""
+
+# External signals (ablation only, off by default) come from the feature view, which owns the
+# region mapping and the macro release lag. Its float means are canonicalised to 9 significant
+# digits: deterministic except in the astronomically rare case of a value on a rounding edge.
+_EXTERNAL_SQL = f"""
+SELECT region_id, feature_date, {", ".join(f"{c}::DOUBLE" for c in EXTERNAL_CONTEXT)}
 FROM marts.feat_region_daily
 WHERE feature_date BETWEEN ? AND ?
 """  # noqa: S608 - column names are module constants
+EXTERNAL_SIGNIFICANT_DIGITS = 9
 
 _PRICE_SQL = """
 SELECT product, event_date, max(list_price_micros)::BIGINT
@@ -132,13 +159,10 @@ def load_panel(
     region_rows = con.execute("SELECT region_id FROM marts.dim_region ORDER BY 1").fetchall()
     regions = tuple(sorted({r[0] for r in region_rows} | {k.region_id for k in keys}))
     r_index = {r: i for i, r in enumerate(regions)}
-    context = {c: np.full((len(regions), n), np.nan) for c in CONTEXT_COLUMNS}
-    for region, d, *values in con.execute(_CONTEXT_SQL, [start, end]).fetchall():
-        if region not in r_index:
-            continue
-        for c, v in zip(CONTEXT_COLUMNS, values, strict=True):
-            if v is not None:
-                context[c][r_index[region], (d - start).days] = v
+    context = {
+        **_context(con, _SERVICE_SQL, SERVICE_CONTEXT, r_index, start, end),
+        **_context(con, _EXTERNAL_SQL, EXTERNAL_CONTEXT, r_index, start, end, digits=True),
+    }
     return DemandPanel(
         start_date=start,
         series=tuple(keys),
@@ -148,3 +172,25 @@ def load_panel(
         active=active,
         context=context,
     )
+
+
+def _context(
+    con: duckdb.DuckDBPyConnection,
+    sql: str,
+    columns: Sequence[str],
+    r_index: dict[str, int],
+    start: date,
+    end: date,
+    *,
+    digits: bool = False,
+) -> dict[str, NDArray[np.float64]]:
+    n = (end - start).days + 1
+    out = {c: np.full((len(r_index), n), np.nan) for c in columns}
+    for region, d, *values in con.execute(sql, [start, end]).fetchall():
+        if region not in r_index:
+            continue
+        for c, v in zip(columns, values, strict=True):
+            if v is not None:
+                value = float(f"{v:.{EXTERNAL_SIGNIFICANT_DIGITS}g}") if digits else v
+                out[c][r_index[region], (d - start).days] = value
+    return out

@@ -84,13 +84,41 @@ def _bulk(con: duckdb.DuckDBPyConnection, table: str, rows: list[tuple[Any, ...]
         Path(name).unlink()
 
 
+def _service_rows(
+    panel: DemandPanel, n_complete: int, jitter: float, order_seed: int | None
+) -> list[tuple[Any, ...]]:
+    noise = np.random.default_rng(99).normal(0.0, 1.0, (panel.n_days, len(panel.regions), 24, 3))
+    svc = []
+    for d in range(panel.n_days):
+        for ri, r in enumerate(panel.regions):
+            base = [
+                float(panel.context[c][ri, d])
+                for c in ("avg_utilization", "avg_error_rate", "avg_latency_p95_ms")
+            ]
+            for h in range(24 if d < n_complete else 12):
+                vals = [b * (1 + jitter * noise[d, ri, h, k]) for k, b in enumerate(base)]
+                svc.append((panel.date_of(d), r, h, *vals))
+    if order_seed is not None:
+        order = np.random.default_rng(order_seed).permutation(len(svc))
+        svc = [svc[i] for i in order.tolist()]
+    return svc
+
+
 def write_warehouse(
-    path: Path, panel: DemandPanel, plan: PricePlan, *, complete_days: int | None = None
+    path: Path,
+    panel: DemandPanel,
+    plan: PricePlan,
+    *,
+    complete_days: int | None = None,
+    hourly_jitter: float = 0.0,
+    row_order_seed: int | None = None,
 ) -> None:
     """A DuckDB file with just the marts the forecaster reads, built from a known panel.
 
     One synthetic customer per series (initial tier = segment). ``complete_days`` limits how
-    many days get all 24 hourly service rows (later days look unfinished).
+    many days get all 24 hourly service rows (later days look unfinished). Hourly service
+    values equal the panel's daily context; ``hourly_jitter`` makes them vary by hour (fixed
+    values), and ``row_order_seed`` shuffles their physical insertion order.
     """
     con = duckdb.connect(str(path))
     con.execute("SET TimeZone = 'UTC'")
@@ -113,8 +141,8 @@ def write_warehouse(
         "list_price_micros BIGINT)"
     )
     con.execute(
-        "CREATE TABLE marts.fct_service_metrics_hourly "
-        "(event_date DATE, region_id VARCHAR, hour INT)"
+        "CREATE TABLE marts.fct_service_metrics_hourly (event_date DATE, region_id VARCHAR, "
+        "hour INT, utilization DOUBLE, error_rate DOUBLE, latency_p95_ms DOUBLE)"
     )
     for r in panel.regions:
         con.execute("INSERT INTO marts.dim_region VALUES (?)", [r])
@@ -154,11 +182,6 @@ def write_warehouse(
                 prices.append((panel.date_of(d), product, price))
     _bulk(con, "marts.fct_price_exposures", prices)
     n_complete = panel.n_days if complete_days is None else complete_days
-    svc = [
-        (panel.date_of(d), r, h)
-        for d in range(panel.n_days)
-        for r in panel.regions
-        for h in range(24 if d < n_complete else 12)
-    ]
+    svc = _service_rows(panel, n_complete, hourly_jitter, row_order_seed)
     _bulk(con, "marts.fct_service_metrics_hourly", svc)
     con.close()

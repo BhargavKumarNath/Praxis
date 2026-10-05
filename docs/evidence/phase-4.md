@@ -3,8 +3,8 @@
 ```text
 Phase: 4 - Baseline Demand Forecasting
 Date: 2026-10-05
-Code revision: 5cf676b (HEAD, Phase 3) + uncommitted working tree (no commits made, per policy);
-               reports and the artifact record code_revision "5cf676b-dirty"
+Code revision: first evaluation on 5cf676b + working tree; re-run after the loader fix on f4b0df2 + working
+               tree (reports and the artifact record "f4b0df2-dirty"); no commits made by Claude
 Environment: Linux, Python 3.12.14, numpy 2.5.3, lightgbm 4.7.0, scipy 1.18.1, duckdb 1.5.6,
              dbt-duckdb (Phase 2), 16 cores (LightGBM num_threads = 4)
 All demand data is SYNTHETIC (Phase 1 simulator). External signals used only in the ablation are
@@ -28,9 +28,12 @@ ADR 0011 (hybrid champion, re-registered acceptance). Raw results: `phase-4-back
      only (listed in ADR 0011); none beat ridge. The project owner chose the **hybrid champion** (ridge mean +
      calibrated LightGBM quantiles) and the re-registered acceptance (ADR 0011) **before seed 42 was run**.
 3. Dev world with the final code: all 11 re-registered checks pass (`phase-4-backtest-dev-seed1.json`).
-4. Evaluation world (seed 42) run **once** with the final code: `make forecast-data forecast-backtest
-   forecast-train`. No threshold, hyperparameter or code path changed afterwards. (One later fix touched only
-   the `predict` CLI's error exit, see Fixes.)
+4. Evaluation world (seed 42) run with the final code: `make forecast-data forecast-backtest forecast-train`.
+   No threshold or hyperparameter changed afterwards. It was re-run once on 2026-10-05 after the loader
+   determinism fix (a bug fix, not a method change); all tables here are from that re-run (`data_version`
+   `panel-8b9cab7bf9c927c0`). Versus the first run, every baseline and the hybrid point forecast are identical;
+   LightGBM quantile coverage moved in the 4th decimal (50%: 0.492 -> 0.493). One other later fix touched only
+   the `predict` CLI's error exit, see Fixes.
 
 ## Tests executed
 
@@ -66,8 +69,8 @@ Forecasting: 131 tests in `tests/forecasting/` (+3 simulator scenario-overlay te
 | seasonal naive (documented baseline) | 0.1661 | 1,471.7 | 5,215 | 0.0516 | 0.489 | 0.802 | 0.909 | -2.0% |
 | seasonal moving average | 0.1401 | 1,221.7 | 4,479 | 0.0422 | 0.485 | 0.800 | 0.897 | -5.1% |
 | ridge | 0.1288 | 1,116.0 | 4,155 | 0.0399 | 0.489 | 0.798 | 0.902 | -1.1% |
-| LightGBM (challenger: point + calibrated quantiles) | 0.1357 | 1,162.9 | 4,262 | 0.0397 | 0.492 | 0.795 | 0.898 | +0.2% |
-| **hybrid (champion)** | **0.1288** | 1,116.0 | 4,155 | **0.0397** | 0.492 | 0.795 | 0.898 | -1.1% |
+| LightGBM (challenger: point + calibrated quantiles) | 0.1357 | 1,162.8 | 4,258 | 0.0397 | 0.493 | 0.795 | 0.897 | +0.3% |
+| **hybrid (champion)** | **0.1288** | 1,116.0 | 4,155 | **0.0397** | 0.493 | 0.795 | 0.897 | -1.1% |
 
 ### Acceptance (re-registered, ADR 0011): PASS, 11 of 11
 
@@ -78,9 +81,9 @@ Forecasting: 131 tests in `tests/forecasting/` (+3 simulator scenario-overlay te
 | vWAPE below seasonal moving average | -0.0113 | < 0 |
 | 95% block-bootstrap CI of vWAPE(hybrid) - vWAPE(naive) | [-0.0455, -0.0292] | upper < 0 |
 | pinball ratio vs seasonal naive | 0.770 | < 1.0 |
-| pinball below seasonal naive / moving average / ridge | -0.0119 / -0.0025 / **-0.0002** | < 0 |
+| pinball below seasonal naive / moving average / ridge | -0.0118 / -0.0025 / **-0.0002** | < 0 |
 | 80% interval coverage | 0.795 | [0.74, 0.86] |
-| 50% interval coverage | 0.492 | [0.43, 0.57] |
+| 50% interval coverage | 0.493 | [0.43, 0.57] |
 | worst region / product / segment slice vs naive | 0.812 (gpu_minutes) | <= 1.10 |
 | reproducibility | identical model files and version on retrain | exact |
 
@@ -115,7 +118,7 @@ carbon, grid demand or CPI, so lift would itself have been a warning sign. Exter
 
 * Evaluation world build (simulate 609,367 events in 15.5 s, 145 MB peak; load; `dbt run`): ~25 s.
 * Backtest: 340 s for 16 origins (LightGBM 8 boosters + 7 calibration boosters per origin; ridge 0.5 s total).
-* Training: 83,160 rows, two identical trainings, artifact `demand-hybrid-19a1992e2e43` (7 quantile models +
+* Training: 83,160 rows, two identical trainings, artifact `demand-hybrid-f4ab82a52a1c` (7 quantile models +
   ridge coefficients, 15 KB manifest).
 * Serving, real artifact over the 145 MB evaluation warehouse, all 72 series x 7 horizons (504 points),
   single cold call: fresh (model) 171 ms, stale (fallback) 122 ms; lag 11 days -> `features_unavailable`,
@@ -151,14 +154,13 @@ See Results. Calibration offsets of the served model (scaled units, q0.05..q0.95
   of `ForecastMetrics` is Phase 11.
 * One evaluation world (seed 42, 1K customers). The dev world agreed closely (vWAPE ratio 0.775 vs 0.776), but
   results at 10K+ customers are not measured.
-* **Cross-rebuild reproducibility is not exact** (found 2026-10-05 by the first local `nightly-science` run).
-  Rebuilding a world from its seed gives bit-identical demand, served and active counts, but the
-  `feat_region_daily` view averages floats in physical row order, which differs between DuckDB builds: three
-  service-context columns differ by ~1e-16. That changes the panel `data_version` and moves LightGBM metrics at
-  the 1e-4 level (dev world: vWAPE 0.1404 -> 0.1405, coverage 50 0.494 -> 0.496; acceptance unaffected).
-  Retraining on the *same* warehouse is bit-identical (what the reproducibility checks above test). Fix pending:
-  order-independent aggregation of context features (e.g. exact `math.fsum` over ordered hourly rows, or
-  DECIMAL averaging in the view).
+* Cross-rebuild reproducibility, found 2026-10-05 by the first local `nightly-science` run and **fixed the same
+  day**: the `feat_region_daily` view averages floats in physical row order, which differs between DuckDB builds
+  (~1e-16 in three service-context columns), so a rebuilt world got a new `data_version` and LightGBM metrics moved
+  ~1e-4. The loader now computes service context from the hourly mart with exact DECIMAL sums (order-independent;
+  parity with the view to 1e-12 tested on real dbt output; a shuffled-row-order test fails with the old float
+  `avg`). Two independent builds of the dev world now give the same `data_version`. External-signal context
+  (ablation only) is still read from the view, canonicalised to 9 significant digits (best effort).
 * `load_price_plan` reads exposures bounded above only (needs full history for the first price); fine on DuckDB,
   needs a price dimension before running on BigQuery with partition filters.
 
@@ -176,7 +178,7 @@ PASS
 | --- | --- |
 | Model beats documented naive baseline on pre-defined metrics | hybrid vWAPE 0.776 x seasonal naive, bootstrap CI entirely below 0; pinball 0.770 x; all 11 re-registered checks pass on the held-out world |
 | No target leakage | perturbation property test + negative control; temporal fold assertions; static segment; planned price whitelisted and tested |
-| Prediction intervals tested for coverage | 50% 0.492, 80% 0.795, 90% 0.898 pooled; per-slice coverage reported, spike-day failure disclosed |
+| Prediction intervals tested for coverage | 50% 0.493, 80% 0.795, 90% 0.897 pooled; per-slice coverage reported, spike-day failure disclosed |
 | Stale-feature behaviour defined | ADR 0010 policy (fresh model / stale fallback / reject), tested in service, API and CLI |
-| Model artifact reproducible | content-derived version; retrain on the same warehouse gives identical files; checksums verified on load; tamper tests. Not exact across warehouse rebuilds (see Known limitations) |
+| Model artifact reproducible | content-derived version; retrain gives identical files; a rebuilt warehouse gives an identical panel (`data_version`) after the 2026-10-05 fix; checksums verified on load; tamper tests |
 | Inference path emits monitoring metrics | `ForecastMetrics` counters + latency, structured `forecast.*` logs with model version, `/metrics` endpoint |

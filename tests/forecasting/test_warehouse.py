@@ -36,7 +36,12 @@ def test_panel_round_trips_through_the_marts(db: Path) -> None:
     assert panel.series == source.series
     np.testing.assert_array_equal(panel.demand, source.demand)
     np.testing.assert_array_equal(panel.served, source.served)
-    np.testing.assert_allclose(panel.context["avg_utilization"], source.context["avg_utilization"])
+    for c in ("avg_utilization", "avg_error_rate", "avg_latency_p95_ms"):
+        np.testing.assert_allclose(panel.context[c], source.context[c], rtol=1e-11)
+    np.testing.assert_allclose(panel.context["max_utilization"], source.context["avg_utilization"])
+    np.testing.assert_allclose(
+        panel.context["temperature_c_mean"], source.context["temperature_c_mean"], rtol=1e-8
+    )
     assert (panel.active == 1).all()  # one synthetic customer per series
 
 
@@ -99,3 +104,20 @@ def test_empty_usage_mart_has_no_range(tmp_path: Path) -> None:
     con.execute("CREATE TABLE marts.fct_usage_daily (event_date DATE)")
     con.close()
     assert usage_date_range(connect(path)) is None
+
+
+def test_panel_is_bit_identical_whatever_the_physical_row_order(tmp_path: Path) -> None:
+    """A rebuilt warehouse stores rows in a different order; the panel must not change.
+    (Float `avg` is order-dependent; the loader's DECIMAL sums are not.)"""
+    source = make_panel(n_days=40)
+    panels = []
+    for seed in (1, 2, 3):
+        path = tmp_path / f"w{seed}.duckdb"
+        write_warehouse(path, source, make_plan(), hourly_jitter=0.37, row_order_seed=seed)
+        con = connect(path)
+        con.execute("SET threads = 4")
+        panels.append(load_panel(con, source.start_date, source.end_date))
+        con.close()
+    assert len({p.data_version() for p in panels}) == 1
+    for c in panels[0].context:
+        np.testing.assert_array_equal(panels[0].context[c], panels[1].context[c])

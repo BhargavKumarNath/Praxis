@@ -74,6 +74,10 @@ def data(warehouse: Path) -> dict[str, Any]:
         """
     ).fetchone()
     out["raw_demand"] = raw[0] if raw else None
+    out["view"] = con.execute(
+        "SELECT region_id, feature_date, avg_utilization, max_utilization, avg_error_rate, "
+        "avg_latency_p95_ms FROM marts.feat_region_daily"
+    ).fetchall()
     con.close()
     return out
 
@@ -87,6 +91,12 @@ def test_panel_from_dbt_marts_matches_raw_events(data: dict[str, Any]) -> None:
     )
     assert float(panel.demand.sum()) == pytest.approx(float(data["raw_demand"]))
     assert np.isfinite(panel.context["avg_utilization"]).all()
+    # the loader's exact (DECIMAL) service context equals the dbt feature view's definition
+    names = ("avg_utilization", "max_utilization", "avg_error_rate", "avg_latency_p95_ms")
+    for region, d, *values in data["view"]:
+        r, day = panel.regions.index(region), panel.day_of(d)
+        for name, v in zip(names, values, strict=True):
+            assert panel.context[name][r, day] == pytest.approx(v, rel=1e-12, abs=1e-15)
     # the scheduled cpu price change (day 70, x1.10) is visible in the plan
     cpu = data["plan"].changes["cpu_minutes"]
     assert cpu[1] == (panel.date_of(70), round(cpu[0][1] * 1.10))

@@ -34,7 +34,9 @@ jobs:
       - run: make lint typecheck arch schemas secrets workflow-lint
 
   backend:
-    name: backend tests + coverage floors
+    # Same as local `make test`: Postgres (service) + Pub/Sub emulator (Docker), so the
+    # emulator integration tests run here and count towards the coverage floors.
+    name: backend tests (+ Pub/Sub emulator) + coverage floors
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -56,31 +58,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: make pg-up pytest-cov coverage-gate
-
-  pubsub-emulator:
-    name: Pub/Sub emulator integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: praxis
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U praxis" --health-interval 2s --health-timeout 5s
-          --health-retries 30
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
-        with:
-          enable-cache: true
-      - run: uv sync --locked
-      - run: make pubsub-verify
+      - run: make test coverage-gate
 
   # Chaos smoke (duplicates, delay, reorder, crashes): exit 1 unless the final control-plane
   # state equals the independent oracle.
