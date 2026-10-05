@@ -8,10 +8,6 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
-# Re-exported: consumers classify failures with the shared taxonomy (praxis.errors).
-from praxis.errors import PermanentError as PermanentError
-from praxis.errors import TransientError as TransientError
-
 # Attributes Pub/Sub adds when its dead-letter policy forwards a message.
 DEAD_LETTER_SOURCE_SUBSCRIPTION = "CloudPubSubDeadLetterSourceSubscription"
 DEAD_LETTER_SOURCE_DELIVERY_COUNT = "CloudPubSubDeadLetterSourceDeliveryCount"

@@ -1,7 +1,8 @@
 """Integration: producer + consumers over the real Pub/Sub API (emulator, no cloud, no cost).
 
-Run with ``make pubsub-verify`` (starts the emulator container and sets
-``PUBSUB_EMULATOR_HOST``). Each test gets its own topology (unique environment name), so
+Runs in ``make test`` and the CI backend job (both start the emulator and set
+``PUBSUB_EMULATOR_HOST``, so these tests count towards coverage); ``make pubsub-verify`` runs
+only this module. Each test gets its own topology (unique environment name), so
 tests never see each other's messages.
 """
 
@@ -54,7 +55,9 @@ from tests.streaming.helpers import (
 EMULATOR = os.environ.get(EMULATOR_ENV)
 pytestmark = [
     pytest.mark.pubsub_emulator,
-    pytest.mark.skipif(not EMULATOR, reason=f"needs {EMULATOR_ENV}; run `make pubsub-verify`"),
+    pytest.mark.skipif(
+        not EMULATOR, reason=f"needs {EMULATOR_ENV}; run `make test` or `make pubsub-verify`"
+    ),
 ]
 PROJECT = "praxis-local"
 FLOW = customer_lifecycle(changes=1, churn=False) + invoice_lifecycle(fail_first=1)

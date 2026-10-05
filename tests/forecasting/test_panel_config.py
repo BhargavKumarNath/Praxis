@@ -95,8 +95,11 @@ def test_panel_dates_history_and_version() -> None:
 
 
 def test_price_plan_lookup_and_planning() -> None:
-    plan = PricePlan.from_rows(
-        [("a", date(2026, 1, 5), 100), ("a", date(2026, 2, 1), 110), ("b", date(2026, 1, 9), 5)]
+    plan = PricePlan(
+        {
+            "a": ((date(2026, 1, 5), 100), (date(2026, 2, 1), 110)),
+            "b": ((date(2026, 1, 9), 5),),
+        }
     )
     assert plan.price_on("a", date(2026, 1, 4)) is None
     assert plan.price_on("a", date(2026, 1, 31)) == 100

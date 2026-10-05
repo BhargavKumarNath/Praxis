@@ -1,5 +1,16 @@
 {
   "environments": {
+    "github": {
+      "max_memory_ratio": 1.5,
+      "metrics": {
+        "events_chaos_events_per_s": 1852.8,
+        "events_chaos_peak_rss_mb": 492.9,
+        "simulator_events_per_s": 52666.5,
+        "simulator_peak_rss_mb": 106.8
+      },
+      "min_throughput_ratio": 0.5,
+      "recorded_at": "2026-10-05"
+    },
     "local": {
       "max_memory_ratio": 1.5,
       "metrics": {

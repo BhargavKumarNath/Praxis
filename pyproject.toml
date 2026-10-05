@@ -83,10 +83,10 @@ pythonpath = ["."]
 addopts = "-ra --strict-markers --strict-config"
 asyncio_mode = "auto"
 markers = [
-    "integration: touches a real boundary (never run in unit CI)",
+    "integration: touches a real boundary (DuckDB + dbt, Postgres, Pub/Sub emulator); runs in make test / CI backend",
     "slow: long-running scale smoke test",
     "bigquery_live: hits a real BigQuery sandbox project; only via `make bq-verify`",
-    "pubsub_emulator: needs the Pub/Sub emulator; only via `make pubsub-verify` (local, free)",
+    "pubsub_emulator: needs the Pub/Sub emulator (PUBSUB_EMULATOR_HOST); make test / CI backend start it",
 ]
 
 [tool.coverage.run]

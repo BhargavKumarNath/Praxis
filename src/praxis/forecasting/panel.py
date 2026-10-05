@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import bisect
 import hashlib
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
@@ -128,13 +128,6 @@ class PricePlan:
             days = [d for d, _ in points]
             if days != sorted(set(days)) or any(p <= 0 for _, p in points):
                 raise ValueError(f"price plan for {product} must be dated, unique, positive")
-
-    @classmethod
-    def from_rows(cls, rows: Iterable[tuple[str, date, int]]) -> PricePlan:
-        by_product: dict[str, dict[date, int]] = {}
-        for product, d, price in rows:
-            by_product.setdefault(product, {})[d] = int(price)
-        return cls({p: tuple(sorted(v.items())) for p, v in sorted(by_product.items())})
 
     def price_on(self, product: str, d: date) -> int | None:
         points = self.changes.get(product, ())

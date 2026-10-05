@@ -9,6 +9,7 @@ import pytest
 
 from praxis.control.store import ControlPlaneStore, DeadLetterRecord
 from praxis.data.warehouse import Warehouse
+from praxis.errors import TransientError
 from praxis.events.codec import decode, encode
 from praxis.streaming.consumers.dead_letter import (
     MAX_DELIVERY_ATTEMPTS_EXCEEDED,
@@ -25,7 +26,6 @@ from praxis.streaming.transport import (
     DEAD_LETTER_SOURCE_SUBSCRIPTION,
     Delivery,
     Disposition,
-    TransientError,
 )
 from tests.streaming.helpers import customer_lifecycle
 

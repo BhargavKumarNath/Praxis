@@ -12,6 +12,7 @@ import logging
 from collections.abc import Mapping, Sequence
 
 from praxis.control.store import ControlPlaneStore, DeadLetterRecord
+from praxis.errors import TransientError
 from praxis.events.codec import (
     ATTR_CORRELATION_ID,
     ATTR_EVENT_ID,
@@ -26,7 +27,6 @@ from praxis.streaming.transport import (
     DEAD_LETTER_SOURCE_SUBSCRIPTION,
     Delivery,
     Disposition,
-    TransientError,
 )
 from praxis.tracing import is_valid_correlation_id, is_valid_trace_id, trace_context
 

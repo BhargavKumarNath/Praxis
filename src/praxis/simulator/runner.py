@@ -7,7 +7,6 @@ import hashlib
 import json
 import platform
 import resource
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -21,6 +20,7 @@ import numpy as np
 from praxis import __version__
 from praxis.events.envelope import ENVELOPE_SCHEMA_VERSION
 from praxis.events.payloads import PAYLOAD_SCHEMA_VERSION
+from praxis.provenance import code_revision
 from praxis.simulator.config import SimulationConfig, load_config
 from praxis.simulator.engine import Engine
 from praxis.simulator.events import canonical_line
@@ -67,22 +67,8 @@ class RunResult:
             "numpy_version": np.__version__,
             "python_version": platform.python_version(),
             "praxis_version": __version__,
-            "code_revision": _git_revision(),
+            "code_revision": code_revision(),
         }
-
-
-def _git_revision() -> str:
-    try:
-        out = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=5,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return "unknown"
-    return out.stdout.strip() or "unknown"
 
 
 def peak_rss_mb() -> float:

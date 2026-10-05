@@ -12,9 +12,10 @@ from collections.abc import Sequence
 import duckdb
 
 from praxis.data.warehouse import Warehouse
+from praxis.errors import TransientError
 from praxis.events.codec import DecodedEvent
 from praxis.streaming.topology import WAREHOUSE
-from praxis.streaming.transport import Delivery, TransientError
+from praxis.streaming.transport import Delivery
 
 
 class WarehouseConsumer:

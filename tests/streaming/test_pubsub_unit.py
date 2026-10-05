@@ -11,8 +11,9 @@ from typing import Any
 import pytest
 from google.api_core import exceptions as gexc
 
+from praxis.errors import TransientError
 from praxis.streaming.pubsub import PubSubPublisher, PubSubPuller, run_pull_loop
-from praxis.streaming.transport import ConsumerCrashed, Delivery, Disposition, TransientError
+from praxis.streaming.transport import ConsumerCrashed, Delivery, Disposition
 
 
 class FakePublisherClient:

@@ -12,8 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-# Re-exported for existing callers; the primitive lives in praxis.observability.
-from praxis.observability import LatencySample as LatencySample
+from praxis.observability import LatencySample
 
 
 @dataclass

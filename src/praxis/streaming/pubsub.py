@@ -25,14 +25,9 @@ import google.cloud.pubsub_v1 as pubsub_v1
 from google.api_core import exceptions as gexc
 from google.protobuf import duration_pb2
 
+from praxis.errors import TransientError
 from praxis.streaming.topology import SubscriptionSpec, Topology
-from praxis.streaming.transport import (
-    ConsumerCrashed,
-    Delivery,
-    Disposition,
-    TransientError,
-    Worker,
-)
+from praxis.streaming.transport import ConsumerCrashed, Delivery, Disposition, Worker
 
 EMULATOR_ENV = "PUBSUB_EMULATOR_HOST"
 

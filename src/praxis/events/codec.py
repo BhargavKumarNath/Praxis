@@ -84,10 +84,6 @@ class DecodedEvent:
     def correlation_id(self) -> str:
         return self.envelope.correlation_id
 
-    @property
-    def raw_payload(self) -> dict[str, Any]:
-        return self.envelope.payload
-
 
 def canonical_bytes(event: Mapping[str, Any]) -> bytes:
     return json.dumps(event, sort_keys=True, separators=(",", ":"), default=str).encode()

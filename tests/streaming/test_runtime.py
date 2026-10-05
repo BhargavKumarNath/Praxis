@@ -8,9 +8,11 @@ from datetime import UTC, datetime
 
 import pytest
 
+from praxis.errors import PermanentError, TransientError
 from praxis.events.codec import ATTR_SENT_AT, DecodedEvent, encode
+from praxis.observability import LatencySample
 from praxis.streaming.memory import MemoryBroker
-from praxis.streaming.metrics import LatencySample, StreamMetrics
+from praxis.streaming.metrics import StreamMetrics
 from praxis.streaming.runtime import (
     DLQ_ATTEMPT,
     DLQ_REASON,
@@ -20,7 +22,7 @@ from praxis.streaming.runtime import (
     transport_latency_ms,
 )
 from praxis.streaming.topology import DLQ_INSPECT, build_topology
-from praxis.streaming.transport import Delivery, Disposition, PermanentError, TransientError
+from praxis.streaming.transport import Delivery, Disposition
 from praxis.tracing import current_correlation_id, current_trace_id
 from tests.streaming.helpers import customer_lifecycle
 

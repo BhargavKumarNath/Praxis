@@ -25,7 +25,7 @@ notifications, not hard caps.
 | GCS raw bucket | No (declared only) | Free tier at dev volumes |
 | Pub/Sub topics / subscriptions | No (declared only) | Free tier at dev volumes |
 | BigQuery datasets | No (declared only) | Free tier at dev volumes |
-| GitHub Actions | Not pushed | £0 |
+| GitHub Actions | Running since Phase 1 (`ci.yml` per push, `nightly.yml` daily) | £0: public repository, standard GitHub-hosted runners are free |
 
 ## Before provisioning anything
 

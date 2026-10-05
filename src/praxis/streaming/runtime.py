@@ -25,9 +25,9 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable, Mapping, Sequence
-from datetime import UTC, datetime
 from typing import Protocol
 
+from praxis.errors import PermanentError, TransientError
 from praxis.events.codec import (
     ATTR_CORRELATION_ID,
     ATTR_EVENT_ID,
@@ -39,13 +39,7 @@ from praxis.events.codec import (
     decode,
 )
 from praxis.streaming.metrics import StreamMetrics
-from praxis.streaming.transport import (
-    Delivery,
-    Disposition,
-    PermanentError,
-    Publisher,
-    TransientError,
-)
+from praxis.streaming.transport import Delivery, Disposition, Publisher
 from praxis.tracing import is_valid_correlation_id, is_valid_trace_id, trace_context
 
 logger = logging.getLogger(__name__)
@@ -244,7 +238,3 @@ class ConsumerWorker:
             },
         )
         return Disposition.ACK
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC)
