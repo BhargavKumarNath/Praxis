@@ -47,7 +47,7 @@ def _exit_code(report: IngestReport, strict: bool) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - complexity-debt
     ap = argparse.ArgumentParser(prog="praxis.data")
     ap.add_argument("--db", type=Path, default=DEFAULT_DB)
     ap.add_argument("--raw", type=Path, default=DEFAULT_RAW)

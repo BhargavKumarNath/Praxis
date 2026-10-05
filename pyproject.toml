@@ -34,6 +34,7 @@ dev = [
     "dbt-core>=1.12.5",
     "dbt-duckdb>=1.11.0",
     "dbt-bigquery>=1.12.1",
+    "import-linter>=2.15",
 ]
 
 [build-system]
@@ -49,10 +50,21 @@ target-version = "py312"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF", "DTZ", "T20"]
+select = ["E", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF", "DTZ", "T20", "C90", "PLR0911", "PLR0912", "PLR0913", "PLR0915"]
+
+# Complexity budget (CLAUDE.md "CI/CD and code health"). Existing offenders carry a
+# `complexity-debt` noqa; tests/unit/test_repo_hygiene.py caps their number (ratchet).
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-branches = 12
+max-statements = 50
+max-args = 7
+max-returns = 6
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106", "PLR0913"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -84,3 +96,63 @@ source = ["praxis"]
 [tool.coverage.report]
 fail_under = 85
 show_missing = true
+
+# --- Architecture contracts (import-linter; `make arch`). A new package MUST be placed in a
+# layer below; changing a contract needs an ADR. See CLAUDE.md "CI/CD and code health".
+[tool.importlinter]
+root_package = "praxis"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture (higher may import lower, never the reverse)"
+type = "layers"
+layers = [
+    "praxis.api",
+    "praxis.streaming | praxis.forecasting",
+    "praxis.control | praxis.data | praxis.simulator",
+    "praxis.events",
+    "praxis.domain",
+    "praxis.config : praxis.logging : praxis.tracing : praxis.provenance : praxis.errors : praxis.observability",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models never import the simulator (ground truth stays out of reach)"
+type = "forbidden"
+source_modules = ["praxis.forecasting"]
+forbidden_modules = ["praxis.simulator"]
+# Evaluation CLI reads only the scenario *config* to label spike days for slicing.
+ignore_imports = ["praxis.forecasting.__main__ -> praxis.simulator.config"]
+
+[[tool.importlinter.contracts]]
+name = "Domain and event contracts stay pure (no I/O frameworks)"
+type = "forbidden"
+source_modules = ["praxis.domain", "praxis.events"]
+forbidden_modules = ["sqlalchemy", "duckdb", "fastapi", "httpx", "google", "lightgbm", "alembic", "psycopg"]
+
+[[tool.importlinter.contracts]]
+name = "Only the API layer uses the web framework"
+type = "forbidden"
+source_modules = [
+    "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
+    "praxis.simulator", "praxis.streaming",
+]
+forbidden_modules = ["fastapi", "starlette", "uvicorn"]
+
+# --- Per-module coverage floors (`make coverage-gate`, scripts/coverage_gate.py). Ordered:
+# the FIRST matching glob wins. Critical = money, state machines, idempotency, event contracts,
+# model lineage and serving (required_test.md s5: >= 95%). Add every new critical module here
+# (optimiser, guardrails, webhooks, agent permissions) in the phase that creates it.
+[tool.praxis.coverage_floors]
+"src/praxis/simulator/__main__.py" = 0  # 3-line shim; runner.main is tested
+"src/praxis/domain/*" = 95
+"src/praxis/control/*" = 95
+"src/praxis/events/*" = 95
+"src/praxis/streaming/runtime.py" = 95
+"src/praxis/streaming/redrive.py" = 95
+"src/praxis/streaming/memory.py" = 95
+"src/praxis/streaming/consumers/*" = 95
+"src/praxis/forecasting/artifact.py" = 95
+"src/praxis/forecasting/service.py" = 95
+"src/praxis/forecasting/features.py" = 95
+"src/praxis/api/*" = 95
+"src/praxis/*" = 85

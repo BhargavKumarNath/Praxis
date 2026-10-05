@@ -176,7 +176,7 @@ def fold_customer(customer_id: str, events: Iterable[LoggedEvent]) -> CustomerPr
     )
 
 
-def _apply_customer(
+def _apply_customer(  # noqa: C901 - complexity-debt
     p: CustomerProjection, e: LoggedEvent
 ) -> tuple[CustomerProjection, list[Transition]]:
     """Validate everything first, then return the new projection. Raises InvalidTransition."""
@@ -282,7 +282,7 @@ def fold_invoice(invoice_id: str, events: Iterable[LoggedEvent]) -> InvoiceProje
     )
 
 
-def _apply_invoice(p: InvoiceProjection, e: LoggedEvent) -> tuple[InvoiceProjection, Transition]:
+def _apply_invoice(p: InvoiceProjection, e: LoggedEvent) -> tuple[InvoiceProjection, Transition]:  # noqa: C901 - complexity-debt
     et, pl = e.event_type, e.payload
     if pl.get("invoice_id") != p.invoice_id:
         raise InvalidTransition(p.state, f"{et}[foreign invoice]")

@@ -336,7 +336,7 @@ def cmd_dlq(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - complexity-debt
     ap = argparse.ArgumentParser(prog="praxis.streaming", description=__doc__.splitlines()[0])
     ap.add_argument("--database-url", default=None, help="overrides PRAXIS_DATABASE_URL")
     ap.add_argument("--environment", default=None, help="topology environment name")

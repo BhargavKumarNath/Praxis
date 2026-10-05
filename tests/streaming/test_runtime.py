@@ -200,7 +200,7 @@ def test_latency_sample_quantiles_and_reservoir() -> None:
     for v in range(1, 101):
         s.add(float(v))
     assert (s.quantile(0.5), s.quantile(0.95), s.quantile(0.99)) == (50.0, 95.0, 99.0)
-    import praxis.streaming.metrics as m
+    import praxis.observability as m
 
     small = LatencySample(seed=1)
     old = m._RESERVOIR

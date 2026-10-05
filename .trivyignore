@@ -1,0 +1,6 @@
+# Accepted Terraform misconfiguration findings (trivy config; `make nightly-security`).
+# Every entry needs a reason and an expiry; an expired entry fails the scan again.
+#
+# GCS access logging on the raw bucket: needs a second log bucket plus storage cost
+# (CLAUDE.md s14, GBP 0-5/month target); data is synthetic. Revisit in Phase 15 hardening.
+GCP-0077 exp:2027-03-31

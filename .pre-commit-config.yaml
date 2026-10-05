@@ -17,6 +17,12 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      - id: architecture
+        name: import contracts (make arch)
+        entry: make arch
+        language: system
+        types: [python]
+        pass_filenames: false
       - id: secret-scan
         name: secret scan
         entry: .venv/bin/python scripts/secret_scan.py

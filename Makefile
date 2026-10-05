@@ -1,9 +1,16 @@
-.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck test test-fast schemas sim-smoke secrets tf-check frontend-check check run \
+.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch test test-fast pytest-cov \
+	coverage-gate schemas sim-smoke secrets audit tf-check frontend-check workflow-lint check run \
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
-	forecast-data forecast-signals forecast-backtest forecast-train
+	forecast-data forecast-signals forecast-backtest forecast-train \
+	nightly-science nightly-perf nightly-security perf-baseline
 
-# --- Phase 3 local dependencies (throwaway containers, loopback only, no cloud) ------------
+# Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
+# `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
+
+# --- Local dependencies (throwaway containers, loopback only, no cloud) -------------------
 # Postgres uses trust auth on 127.0.0.1 only: no password exists to leak.
+# CI_SERVICES=1 (set in CI): Postgres is a runner service container, so pg-up only waits.
+CI_SERVICES ?= 0
 PG_CONTAINER ?= praxis-pg
 PG_PORT ?= 55432
 PG_IMAGE ?= postgres:17-alpine
@@ -14,10 +21,18 @@ PUBSUB_PORT ?= 8085
 PUBSUB_IMAGE ?= gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
 PUBSUB_EMULATOR = 127.0.0.1:$(PUBSUB_PORT)
 
+# Pinned tool versions (bump deliberately; Dependabot does not see these).
+ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.12
+ZIZMOR_VERSION ?= 1.30.1
+GITLEAKS_IMAGE ?= ghcr.io/gitleaks/gitleaks:v8.30.1
+TRIVY_IMAGE ?= aquasec/trivy:0.75.0
+
 pg-up:
+ifneq ($(CI_SERVICES),1)
 	@docker start $(PG_CONTAINER) >/dev/null 2>&1 || docker run -d --name $(PG_CONTAINER) \
 		-p 127.0.0.1:$(PG_PORT):5432 -e POSTGRES_USER=praxis -e POSTGRES_HOST_AUTH_METHOD=trust \
 		$(PG_IMAGE) >/dev/null
+endif
 	@.venv/bin/python scripts/wait_for.py --postgres $(PRAXIS_TEST_DATABASE_URL)
 
 pg-down:
@@ -27,7 +42,7 @@ pubsub-up:
 	@docker start $(PUBSUB_CONTAINER) >/dev/null 2>&1 || docker run -d --name $(PUBSUB_CONTAINER) \
 		-p 127.0.0.1:$(PUBSUB_PORT):8085 $(PUBSUB_IMAGE) \
 		gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=praxis-local >/dev/null
-	@.venv/bin/python scripts/wait_for.py --http http://$(PUBSUB_EMULATOR) --timeout 120
+	@.venv/bin/python scripts/wait_for.py --http http://$(PUBSUB_EMULATOR) --timeout 180
 
 pubsub-down:
 	-docker rm -f $(PUBSUB_CONTAINER)
@@ -36,6 +51,7 @@ setup:
 	uv sync
 	cd frontend && npm ci
 
+# --- Fast static gates --------------------------------------------------------------------
 lint:
 	.venv/bin/ruff check .
 	.venv/bin/ruff format --check .
@@ -43,21 +59,45 @@ lint:
 typecheck:
 	.venv/bin/mypy
 
-# Full suite incl. emulator integration tests (local Docker; CI runs them in a separate job).
-test: pg-up pubsub-up
-	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) .venv/bin/pytest --cov
-
-test-fast: pg-up
-	.venv/bin/pytest -m 'not slow' -q
+# Architecture contracts (layers, no ground truth in models, pure domain): pyproject.toml.
+arch:
+	.venv/bin/lint-imports
 
 schemas:
 	.venv/bin/python scripts/export_payload_schemas.py --check
 
-sim-smoke:
-	.venv/bin/python -m praxis.simulator --customers 10000 --days 28 --seed 42 --validate --schema-every 50
-
 secrets:
 	.venv/bin/python scripts/secret_scan.py
+
+# Known-vulnerability audit of the locked Python and production npm dependencies (network).
+audit:
+	@tmp=$$(mktemp) && uv export --locked --no-hashes --no-emit-project -o $$tmp >/dev/null && \
+		.venv/bin/pip-audit -r $$tmp; rc=$$?; rm -f $$tmp; exit $$rc
+	cd frontend && npm audit --omit=dev --audit-level=high
+
+# GitHub workflow lint (actionlint) and security audit (zizmor).
+workflow-lint:
+	docker run --rm -v $(CURDIR):/repo -w /repo $(ACTIONLINT_IMAGE) -color
+	uvx zizmor@$(ZIZMOR_VERSION) --offline .github/workflows
+
+# --- Tests ----------------------------------------------------------------------------------
+# Suite + coverage report (coverage.json feeds the per-module floors). Needs Postgres up.
+pytest-cov:
+	.venv/bin/pytest --cov --cov-report=term-missing:skip-covered --cov-report=json
+
+# Per-module floors on top of the global fail_under (scripts/coverage_gate.py).
+coverage-gate:
+	.venv/bin/python scripts/coverage_gate.py coverage.json
+
+# Full suite incl. emulator integration tests (local Docker; CI runs those in their own job).
+test: pg-up pubsub-up
+	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) $(MAKE) pytest-cov
+
+test-fast: pg-up
+	.venv/bin/pytest -m 'not slow' -q
+
+sim-smoke:
+	.venv/bin/python -m praxis.simulator --customers 10000 --days 28 --seed 42 --validate --schema-every 50
 
 # Terraform via Docker when no local binary is installed.
 TF = $(shell command -v terraform 2>/dev/null || echo docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -v $(CURDIR)/infra/terraform:/work -w /work hashicorp/terraform:latest)
@@ -69,7 +109,9 @@ tf-check:
 frontend-check:
 	cd frontend && npm run typecheck && npm run lint
 
-check: lint typecheck test events-check schemas secrets frontend-check tf-check
+# Everything CI runs on a push / PR, in one command.
+check: lint typecheck arch test coverage-gate events-check schemas secrets audit frontend-check \
+	tf-check workflow-lint
 
 # --- Phase 2 data platform (local DuckDB; no cloud resources) -----------------------------
 SIM_DIR ?= data/sim
@@ -146,8 +188,10 @@ events-local: _events-db
 
 # Small chaos smoke used by `make check` / CI (exit code 1 if the oracle does not match).
 events-check: _events-db
+	@mkdir -p data/events
 	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(EVENTS_DB) run-local \
-		--customers 300 --days 28 --crash-rate 0.01 --duplicate-rate 0.2 >/dev/null
+		--customers 500 --days 28 --crash-rate 0.01 --duplicate-rate 0.2 \
+		--report data/events/events-check.json >/dev/null
 
 # Live latency over the emulator: paced producer, concurrent consumers.
 events-bench: _events-db pubsub-up
@@ -189,3 +233,34 @@ forecast-backtest:
 forecast-train:
 	.venv/bin/python -m praxis.forecasting --db $(FC_DB) train --backtest-report $(FC_DIR)/backtest.json \
 		--out data/models/demand
+
+# --- Nightly gates (`.github/workflows/nightly.yml`; also runnable locally) ---------------
+# Too slow for every push. A failure here is a gate failure: investigate, never re-run until green.
+PERF_DIR ?= data/perf
+PERF_RUN = mkdir -p $(PERF_DIR) && \
+	.venv/bin/python -m praxis.simulator --customers 10000 --days 28 --seed 42 > $(PERF_DIR)/sim.json && \
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(EVENTS_DB) run-local \
+		--customers 1000 --days 28 --report $(PERF_DIR)/events.json >/dev/null
+
+# Science regression: rebuild the DEVELOPMENT world (seed 1; never the held-out seed 42) and
+# apply every model's pre-registered acceptance. Each model phase appends its check here.
+nightly-science:
+	$(MAKE) forecast-data FC_SEED=1
+	$(MAKE) forecast-backtest FC_SEED=1
+
+# Performance regression vs benchmarks/perf_baseline.json (per environment; scripts/perf_check.py).
+nightly-perf: _events-db
+	$(PERF_RUN)
+	.venv/bin/python scripts/perf_check.py $(PERF_DIR)/sim.json $(PERF_DIR)/events.json
+
+# Record a new baseline for THIS environment. Only with evidence (e.g. a measured speed-up).
+perf-baseline: _events-db
+	$(PERF_RUN)
+	.venv/bin/python scripts/perf_check.py $(PERF_DIR)/sim.json $(PERF_DIR)/events.json --write
+
+# Dependency audit + secrets in the FULL git history + Terraform misconfiguration (MEDIUM+;
+# accepted findings live in .trivyignore with a reason and an expiry).
+nightly-security: audit
+	docker run --rm -v $(CURDIR):/repo $(GITLEAKS_IMAGE) git /repo --redact --no-banner
+	docker run --rm -v $(CURDIR):/repo -w /repo $(TRIVY_IMAGE) config infra/terraform \
+		--severity MEDIUM,HIGH,CRITICAL --ignorefile .trivyignore --exit-code 1 --quiet

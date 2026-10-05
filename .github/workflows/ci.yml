@@ -1,5 +1,7 @@
 name: ci
 
+# Every step calls a Makefile target: `make check` locally == this workflow. Add a new gate
+# to the Makefile first, then call it here (CLAUDE.md "CI/CD and code health").
 on:
   pull_request:
   push:
@@ -8,12 +10,33 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  PRAXIS_TEST_DATABASE_URL: postgresql+psycopg://praxis@127.0.0.1:5432/postgres
+  CI_SERVICES: "1" # Postgres is a service container; `make pg-up` only waits for it
+  PG_PORT: "5432"
 
 jobs:
+  static:
+    name: static (lint, types, architecture, schemas, secrets, workflows)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: make lint typecheck arch schemas secrets workflow-lint
+
   backend:
+    name: backend tests + coverage floors
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       # Throwaway Postgres (trust auth, reachable only inside the runner).
       postgres:
@@ -26,24 +49,20 @@ jobs:
           --health-cmd "pg_isready -U praxis" --health-interval 2s --health-timeout 5s
           --health-retries 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
       - run: uv sync --locked
-      - run: .venv/bin/python scripts/wait_for.py --postgres "$PRAXIS_TEST_DATABASE_URL"
-      - run: .venv/bin/ruff check .
-      - run: .venv/bin/ruff format --check .
-      - run: .venv/bin/mypy
-      - run: .venv/bin/pytest --cov
-      - run: .venv/bin/python scripts/export_payload_schemas.py --check
-      - run: .venv/bin/python scripts/secret_scan.py
-      - run: uv export --no-hashes --no-emit-project -o /tmp/req.txt && .venv/bin/pip-audit -r /tmp/req.txt
+      - run: make pg-up pytest-cov coverage-gate
 
-  # Phase 3: producer + consumers over the real Pub/Sub API (emulator; no cloud, no cost).
   pubsub-emulator:
+    name: Pub/Sub emulator integration
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
-      # Throwaway Postgres (trust auth, reachable only inside the runner).
       postgres:
         image: postgres:17-alpine
         env:
@@ -53,28 +72,23 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U praxis" --health-interval 2s --health-timeout 5s
           --health-retries 30
-    env:
-      PUBSUB_EMULATOR_HOST: 127.0.0.1:8085
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
       - run: uv sync --locked
-      - name: Start Pub/Sub emulator
-        run: >-
-          docker run -d --name pubsub -p 127.0.0.1:8085:8085
-          gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-          gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=praxis-local
-      - run: .venv/bin/python scripts/wait_for.py --http http://127.0.0.1:8085 --timeout 180
-      - run: .venv/bin/python scripts/wait_for.py --postgres "$PRAXIS_TEST_DATABASE_URL"
-      - run: .venv/bin/pytest tests/integration -m pubsub_emulator -v --no-cov
+      - run: make pubsub-verify
 
-  # Phase 3: chaos smoke (duplicates, delay, reorder, crashes); the command exits 1 unless the
-  # final control-plane state equals the independent oracle. (Replay: pytest scenario 11.)
+  # Chaos smoke (duplicates, delay, reorder, crashes): exit 1 unless the final control-plane
+  # state equals the independent oracle.
   event-chaos:
+    name: event chaos vs oracle
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
-      # Throwaway Postgres (trust auth, reachable only inside the runner).
       postgres:
         image: postgres:17-alpine
         env:
@@ -85,56 +99,59 @@ jobs:
           --health-cmd "pg_isready -U praxis" --health-interval 2s --health-timeout 5s
           --health-retries 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
       - run: uv sync --locked
-      - run: .venv/bin/python scripts/wait_for.py --postgres "$PRAXIS_TEST_DATABASE_URL"
-      - name: Create database
-        run: >-
-          .venv/bin/python -c "from sqlalchemy import create_engine, text;
-          e = create_engine('$PRAXIS_TEST_DATABASE_URL', isolation_level='AUTOCOMMIT');
-          e.connect().execute(text('CREATE DATABASE praxis_events'))"
-      - run: >-
-          .venv/bin/python -m praxis.streaming
-          --database-url postgresql+psycopg://praxis@127.0.0.1:5432/praxis_events migrate
-      - name: Chaos run (exit 1 unless the final state equals the oracle)
-        env:
-          PRAXIS_LOG_LEVEL: ERROR
-        run: >-
-          .venv/bin/python -m praxis.streaming
-          --database-url postgresql+psycopg://praxis@127.0.0.1:5432/praxis_events run-local
-          --customers 500 --days 28 --duplicate-rate 0.2 --crash-rate 0.01
-          --report event-chaos.json > /dev/null
-      - uses: actions/upload-artifact@v4
+      - run: make events-check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
         with:
           name: event-chaos-report
-          path: event-chaos.json
+          path: data/events/events-check.json
+          if-no-files-found: warn
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: make audit
 
   frontend:
+    name: frontend
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+      - run: make frontend-check
 
   terraform:
+    name: terraform fmt + validate
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra/terraform
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-      - run: terraform fmt -recursive -check
-      - run: terraform -chdir=envs/dev init -backend=false -input=false
-      - run: terraform -chdir=envs/dev validate
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+      - run: make tf-check

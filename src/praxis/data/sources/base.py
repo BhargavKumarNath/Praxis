@@ -87,7 +87,7 @@ def require_secret(name: str, secret: SecretStr | None) -> dict[str, str]:
     return {"api_key": secret.get_secret_value()}
 
 
-def make_record(
+def make_record(  # noqa: PLR0913 - complexity-debt
     request: RequestSpec,
     *,
     entity_id: str,

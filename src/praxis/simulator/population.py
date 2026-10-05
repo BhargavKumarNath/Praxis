@@ -85,7 +85,7 @@ def _choice(rng: np.random.Generator, shares: list[float], n: int) -> I8:
     return rng.choice(len(p), size=n, p=p / p.sum()).astype(np.int8)
 
 
-def generate_population(config: SimulationConfig, seed: int) -> Population:
+def generate_population(config: SimulationConfig, seed: int) -> Population:  # noqa: PLR0915 - complexity-debt
     cfg = config.population
     n = cfg.n_customers
     rng = rng_for(seed, STREAM_POPULATION)

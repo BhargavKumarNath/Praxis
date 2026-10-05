@@ -87,7 +87,7 @@ class StreamValidator:
             raise StreamViolation(f"timestamp moved backwards for entity {entity}")
         self._entity_last[entity] = when
 
-    def _check_customer(self, etype: str, cid: str, p: dict[str, Any]) -> None:
+    def _check_customer(self, etype: str, cid: str, p: dict[str, Any]) -> None:  # noqa: C901 - complexity-debt
         state = self._customer.get(cid)
         try:
             if etype == "customer.created":
@@ -118,7 +118,7 @@ class StreamValidator:
         except InvalidTransition as exc:
             raise StreamViolation(f"{exc} (customer {cid})") from exc
 
-    def _check_invoice(self, etype: str, cid: str, p: dict[str, Any]) -> None:
+    def _check_invoice(self, etype: str, cid: str, p: dict[str, Any]) -> None:  # noqa: C901 - complexity-debt
         inv_id = p["invoice_id"]
         try:
             if etype == "invoice.created":

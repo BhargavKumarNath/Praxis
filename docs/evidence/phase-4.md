@@ -151,6 +151,14 @@ See Results. Calibration offsets of the served model (scaled units, q0.05..q0.95
   of `ForecastMetrics` is Phase 11.
 * One evaluation world (seed 42, 1K customers). The dev world agreed closely (vWAPE ratio 0.775 vs 0.776), but
   results at 10K+ customers are not measured.
+* **Cross-rebuild reproducibility is not exact** (found 2026-10-05 by the first local `nightly-science` run).
+  Rebuilding a world from its seed gives bit-identical demand, served and active counts, but the
+  `feat_region_daily` view averages floats in physical row order, which differs between DuckDB builds: three
+  service-context columns differ by ~1e-16. That changes the panel `data_version` and moves LightGBM metrics at
+  the 1e-4 level (dev world: vWAPE 0.1404 -> 0.1405, coverage 50 0.494 -> 0.496; acceptance unaffected).
+  Retraining on the *same* warehouse is bit-identical (what the reproducibility checks above test). Fix pending:
+  order-independent aggregation of context features (e.g. exact `math.fsum` over ordered hourly rows, or
+  DECIMAL averaging in the view).
 * `load_price_plan` reads exposures bounded above only (needs full history for the first price); fine on DuckDB,
   needs a price dimension before running on BigQuery with partition filters.
 
@@ -170,5 +178,5 @@ PASS
 | No target leakage | perturbation property test + negative control; temporal fold assertions; static segment; planned price whitelisted and tested |
 | Prediction intervals tested for coverage | 50% 0.492, 80% 0.795, 90% 0.898 pooled; per-slice coverage reported, spike-day failure disclosed |
 | Stale-feature behaviour defined | ADR 0010 policy (fresh model / stale fallback / reject), tested in service, API and CLI |
-| Model artifact reproducible | content-derived version; retrain gives identical files; checksums verified on load; tamper tests |
+| Model artifact reproducible | content-derived version; retrain on the same warehouse gives identical files; checksums verified on load; tamper tests. Not exact across warehouse rebuilds (see Known limitations) |
 | Inference path emits monitoring metrics | `ForecastMetrics` counters + latency, structured `forecast.*` logs with model version, `/metrics` endpoint |

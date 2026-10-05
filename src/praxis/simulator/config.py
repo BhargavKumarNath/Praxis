@@ -192,7 +192,7 @@ class SimulationConfig(_Cfg):
     behaviour: Behaviour
 
     @model_validator(mode="after")
-    def _check(self) -> Self:
+    def _check(self) -> Self:  # noqa: C901, PLR0912 - complexity-debt
         pids = [p.id for p in self.products]
         rids = [r.id for r in self.regions]
         if len(set(pids)) != len(pids) or len(set(rids)) != len(rids):

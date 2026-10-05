@@ -1,0 +1,15 @@
+{
+  "environments": {
+    "local": {
+      "max_memory_ratio": 1.5,
+      "metrics": {
+        "events_chaos_events_per_s": 2436.5,
+        "events_chaos_peak_rss_mb": 531.9,
+        "simulator_events_per_s": 72121.7,
+        "simulator_peak_rss_mb": 108.6
+      },
+      "min_throughput_ratio": 0.5,
+      "recorded_at": "2026-10-04"
+    }
+  }
+}

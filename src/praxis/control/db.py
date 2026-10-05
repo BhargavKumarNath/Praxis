@@ -14,7 +14,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, exc
 
-from praxis.streaming.transport import TransientError
+from praxis.errors import TransientError
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 

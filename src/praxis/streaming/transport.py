@@ -8,6 +8,10 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
+# Re-exported: consumers classify failures with the shared taxonomy (praxis.errors).
+from praxis.errors import PermanentError as PermanentError
+from praxis.errors import TransientError as TransientError
+
 # Attributes Pub/Sub adds when its dead-letter policy forwards a message.
 DEAD_LETTER_SOURCE_SUBSCRIPTION = "CloudPubSubDeadLetterSourceSubscription"
 DEAD_LETTER_SOURCE_DELIVERY_COUNT = "CloudPubSubDeadLetterSourceDeliveryCount"
@@ -53,19 +57,6 @@ class Worker(Protocol):
     def process(self, deliveries: Sequence[Delivery]) -> list[Disposition]:
         """One disposition per delivery, same order. May raise ``ConsumerCrashed``."""
         ...
-
-
-class TransientError(RuntimeError):
-    """A failure that may succeed on redelivery (database down, timeout, deadlock)."""
-
-
-class PermanentError(RuntimeError):
-    """A failure that can never succeed for this message; dead-letter immediately."""
-
-    def __init__(self, reason: str, detail: str) -> None:
-        super().__init__(f"{reason}: {detail}")
-        self.reason = reason
-        self.detail = detail
 
 
 class ConsumerCrashed(BaseException):

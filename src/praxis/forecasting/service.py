@@ -36,7 +36,7 @@ from praxis.forecasting.warehouse import (
     load_panel,
     load_price_plan,
 )
-from praxis.streaming.metrics import LatencySample
+from praxis.observability import LatencySample
 
 logger = logging.getLogger(__name__)
 

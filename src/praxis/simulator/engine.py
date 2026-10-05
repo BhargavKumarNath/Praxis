@@ -222,7 +222,7 @@ class Engine:
             )
 
     # --------------------------------------------------------------------- run
-    def run(self) -> Iterator[Event]:
+    def run(self) -> Iterator[Event]:  # noqa: C901, PLR0912, PLR0915 - complexity-debt
         cfg, pop, beh = self.cfg, self.pop, self.cfg.behaviour
         n, n_p = pop.n, len(self.prod_ids)
         state = np.full(n, UNBORN, dtype=np.int8)

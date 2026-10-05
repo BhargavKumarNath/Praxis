@@ -20,8 +20,8 @@ from praxis.control.store import (
     snapshot_checksum,
 )
 from praxis.domain.projections import fold_customer
+from praxis.errors import TransientError
 from praxis.streaming.faults import DatabaseOutage
-from praxis.streaming.transport import TransientError
 from tests.streaming.helpers import customer_lifecycle, invoice_lifecycle, logged
 
 OPS = "operational"

@@ -61,3 +61,21 @@ def test_secret_patterns_detect_samples(sample: str) -> None:
 
     assert any(p.search(sample) for p in PATTERNS.values())
     assert re.search(r"\w", sample)
+
+
+# Ratchet: functions over the complexity budget carry `complexity-debt`. Lower this number
+# when you refactor one; never raise it (CLAUDE.md "CI/CD and code health").
+COMPLEXITY_DEBT_MAX = 10
+
+
+def test_complexity_debt_only_shrinks() -> None:
+    markers = [
+        f"{path.relative_to(ROOT)}:{n}"
+        for path in sorted((ROOT / "src").rglob("*.py"))
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if "complexity-debt" in line
+    ]
+    assert len(markers) <= COMPLEXITY_DEBT_MAX, (
+        f"{len(markers)} complexity-debt markers > {COMPLEXITY_DEBT_MAX}: split the new "
+        f"function instead of adding a noqa. Markers: {markers}"
+    )
