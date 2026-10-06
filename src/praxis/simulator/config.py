@@ -145,6 +145,12 @@ class Intervention(_Cfg):
     treated_fraction: float = Field(gt=0, lt=1)
     price_multiplier: float = Field(gt=0)
     salt: str
+    # Failure injection: share of control units charged the treatment price (logged as
+    # control). Excluded from the canonical JSON when 0, so worlds without contamination keep
+    # the config_hash (and every event id and golden checksum) they had before the field existed.
+    contamination_fraction: float = Field(
+        default=0.0, ge=0.0, lt=1.0, exclude_if=lambda v: v == 0.0
+    )
 
 
 class Pricing(_Cfg):

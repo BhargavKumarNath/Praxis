@@ -72,6 +72,15 @@ Phase 8 are left to a later ADR.
 `demand_spikes` and `product_outages` are empty in the default world; tests and later
 phases add them. Overlapping interventions on one product are rejected.
 
+`pricing.interventions` are randomised price tests: arms come from
+`praxis.domain.experiments.assign_arm(salt, customer_id, treated_fraction)`, the same function
+the Phase 5 analysis uses to audit logged arms. `contamination_fraction` (default 0, then
+excluded from the canonical JSON so existing `config_hash` values are unchanged) charges that
+share of control customers the treatment price while logging them as control: failure
+injection for the experiment-validity checks (ADR 0012). Pre-registered worlds:
+`forecast_eval.toml` (Phase 4), `elasticity_eval.toml` and `elasticity_contamination.toml`
+(Phase 5).
+
 ## Known simplifications
 
 * Customer dynamics are daily; no intra-day price response.

@@ -1,0 +1,122 @@
+{
+  "artifact_checksum": "7aeb4dc45d432f827e90696856e33c41ca14601daff5b72baaddfa2d0789bf50",
+  "artifact_format": 1,
+  "code_revision": "863009a-dirty",
+  "config": {
+    "diagnostics": {
+      "ess_bulk_min": 400.0,
+      "ess_tail_min": 400.0,
+      "max_divergences": 0,
+      "ppc_p_range": [
+        0.025,
+        0.975
+      ],
+      "prior_sensitivity_max_shift_sd": 0.5,
+      "rhat_max": 1.01
+    },
+    "eligibility": {
+      "min_pre_units": 56,
+      "pre_window_days": 28,
+      "require_created_by_pre_start": true
+    },
+    "estimation": {
+      "ci_level": 0.95,
+      "min_units_per_cell": 50
+    },
+    "hierarchical": {
+      "chains": 4,
+      "draws": 2000,
+      "interval": 0.9,
+      "priors": {
+        "cell_sd": 0.5,
+        "industry_sd": 1.0,
+        "mu_mean": -1.0,
+        "mu_sd": 1.5,
+        "tier_sd": 1.0
+      },
+      "seed": 20261006,
+      "sensitivity": {
+        "narrow": {
+          "cell_sd": 0.15,
+          "industry_sd": 0.3,
+          "mu_mean": -1.0,
+          "mu_sd": 0.5,
+          "tier_sd": 0.3
+        },
+        "wide": {
+          "cell_sd": 1.5,
+          "industry_sd": 3.0,
+          "mu_mean": 0.0,
+          "mu_sd": 5.0,
+          "tier_sd": 3.0
+        }
+      },
+      "target_accept": 0.99,
+      "tune": 2000
+    },
+    "outcome": {
+      "log_offset": 0.5,
+      "min_active_days": 14
+    },
+    "validity": {
+      "balance_alpha": 0.001,
+      "interference_alpha": 0.001,
+      "max_contamination_rate": 0.0,
+      "max_missing_rate": 0.1,
+      "max_missing_rate_diff": 0.02,
+      "price_tolerance_micros": 1,
+      "smd_flag": 0.1,
+      "srm_alpha": 0.001
+    }
+  },
+  "config_hash": "d8846c4a43a6aafac18cc8792fde71af5f4e0263f87e9d1c6f3f0fb370a71fe4",
+  "created_at": "2026-10-06T21:01:24.000188+00:00",
+  "data_version": "units-efcc3bdae7231916",
+  "experiments": [
+    "px-2026-02-api-requests",
+    "px-2026-02-cpu-minutes",
+    "px-2026-02-gpu-minutes",
+    "px-2026-02-data-transfer",
+    "px-2026-02-premium-latency"
+  ],
+  "feature_version": "experiment_units.v1",
+  "files": {
+    "estimates.json": "0c88946c28d29eec52fdf78bea639284967eda00b9111e4e0caf8ecd6d23d458"
+  },
+  "is_synthetic": true,
+  "metrics": {
+    "diagnostics": {
+      "divergences": 0.0,
+      "ess_bulk_min": 2241.681712105175,
+      "ess_tail_min": 3198.9470340013627,
+      "rhat_max": 1.0017274776158687
+    },
+    "posterior_predictive_p": {
+      "chi2_discrepancy": 0.429375,
+      "max_cell": 0.86425,
+      "min_cell": 0.39,
+      "sd_across_cells": 0.574875
+    },
+    "prior_sensitivity_max_shift_sd": 0.20919771753028368,
+    "units": {
+      "eligible": 16584,
+      "in_model": 16299,
+      "missing_outcome_rate": 0.017185238784370477,
+      "outcome_observed": 16299
+    },
+    "validity_passed": true
+  },
+  "model": "two-stage hierarchical Bayesian (PyMC) over log-log cell slopes (ADR 0012)",
+  "model_name": "price_elasticity",
+  "model_version": "elasticity-hier-7aeb4dc45d43",
+  "parameters": {
+    "chains": 4,
+    "draws": 2000,
+    "interval": 0.9,
+    "pymc": "6.3.2",
+    "seed": 20261006,
+    "target_accept": 0.99,
+    "tune": 2000
+  },
+  "registry_hash": "6b4f4d882bdd2c73e29a2413330bfbc8e61352bc71170ecaca8e8ab825afbd4a"
+}

@@ -1,0 +1,66 @@
+# Experiment registry: the BUSINESS-SIDE record of randomised price tests (Phase 5).
+#
+# This is what the pricing team decided and wrote down before the tests started; the analysis
+# (praxis.elasticity) reads only this file and the warehouse, never the simulator. The simulated
+# world that executes these tests is configs/simulator/scenarios/elasticity_eval.toml; a test
+# checks the two agree. Pre-registered 2026-10-06.
+#
+# Per test:
+#   assignment_unit   who is randomised (customer; one arm per customer per test)
+#   salt              assignment hash salt (praxis.domain.experiments.assign_arm)
+#   treated_fraction  share of units assigned to treatment
+#   control price     the product's list price on the assignment date (read from exposures)
+#   treatment price   round(control price x treatment_price_ratio), +-1 micro
+#   assignment_date   first day of treatment = first day of the outcome window
+#   end_date          last day of the outcome window (inclusive)
+#   eligibility and the pre-period are global rules in configs/elasticity/elasticity.toml
+
+[[experiments]]
+id = "px-2026-02-api-requests"
+product = "api_requests"
+assignment_unit = "customer"
+salt = "px-2026-02-api-requests-v1"
+treated_fraction = 0.5
+treatment_price_ratio = 1.2
+assignment_date = 2026-02-02
+end_date = 2026-03-01
+
+[[experiments]]
+id = "px-2026-02-cpu-minutes"
+product = "cpu_minutes"
+assignment_unit = "customer"
+salt = "px-2026-02-cpu-minutes-v1"
+treated_fraction = 0.5
+treatment_price_ratio = 0.8333333333333334
+assignment_date = 2026-02-02
+end_date = 2026-03-01
+
+[[experiments]]
+id = "px-2026-02-gpu-minutes"
+product = "gpu_minutes"
+assignment_unit = "customer"
+salt = "px-2026-02-gpu-minutes-v1"
+treated_fraction = 0.5
+treatment_price_ratio = 1.2
+assignment_date = 2026-02-02
+end_date = 2026-03-01
+
+[[experiments]]
+id = "px-2026-02-data-transfer"
+product = "data_transfer_gb"
+assignment_unit = "customer"
+salt = "px-2026-02-data-transfer-v1"
+treated_fraction = 0.5
+treatment_price_ratio = 0.8333333333333334
+assignment_date = 2026-02-02
+end_date = 2026-03-01
+
+[[experiments]]
+id = "px-2026-02-premium-latency"
+product = "premium_latency"
+assignment_unit = "customer"
+salt = "px-2026-02-premium-latency-v1"
+treated_fraction = 0.5
+treatment_price_ratio = 1.2
+assignment_date = 2026-02-02
+end_date = 2026-03-01

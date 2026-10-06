@@ -15,7 +15,6 @@ Customers react to service quality with a one-day lag. All randomness comes from
 
 from __future__ import annotations
 
-import hashlib
 from collections import defaultdict
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -25,6 +24,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from praxis.domain.experiments import assignment_uniform
 from praxis.simulator.config import FAILURE_REASONS, PAYMENT_METHODS, TIERS, SimulationConfig
 from praxis.simulator.events import Draft, EventFactory
 from praxis.simulator.infrastructure import HOURS, Infrastructure, RegionDay
@@ -60,11 +60,7 @@ class _DayCtx:
 
 
 def _uniform_from_hash(salt: str, ids: list[str]) -> F64:
-    out = np.empty(len(ids))
-    for i, cid in enumerate(ids):
-        d = hashlib.blake2b(f"{salt}:{cid}".encode(), digest_size=8).digest()
-        out[i] = int.from_bytes(d, "big") / 2**64
-    return out
+    return np.array([assignment_uniform(salt, cid) for cid in ids], dtype=np.float64)
 
 
 class Engine:
@@ -99,6 +95,17 @@ class Engine:
             _uniform_from_hash(iv.salt, population.ids) < iv.treated_fraction
             for iv in config.pricing.interventions
         ]
+        # World-level failure injection (Phase 5): a fraction of CONTROL units is charged the
+        # treatment price anyway. Their exposure is logged truthfully (arm = control, the price
+        # actually charged), so the analysis can detect it. Independent of the arm hash.
+        self._priced_as_treated = [
+            treated
+            | (
+                _uniform_from_hash(f"{iv.salt}:contamination", population.ids)
+                < iv.contamination_fraction
+            )
+            for iv, treated in zip(config.pricing.interventions, self._treated, strict=True)
+        ]
 
     # ------------------------------------------------------------------ helpers
     def _build_global_multipliers(self) -> F64:
@@ -114,7 +121,9 @@ class Engine:
 
     def _prices(self, day: int) -> I64:
         mult = np.tile(self._global_mult[day], (self.pop.n, 1))
-        for iv, treated in zip(self.cfg.pricing.interventions, self._treated, strict=True):
+        for iv, treated in zip(
+            self.cfg.pricing.interventions, self._priced_as_treated, strict=True
+        ):
             if iv.start_day <= day < iv.end_day:
                 mult[treated, self.prod_ids.index(iv.product)] *= iv.price_multiplier
         prices: I64 = np.rint(self.ref_price[None, :] * mult).astype(np.int64)

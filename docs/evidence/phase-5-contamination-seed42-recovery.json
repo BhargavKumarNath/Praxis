@@ -1,0 +1,101 @@
+{
+  "checks": [
+    {
+      "detail": {
+        "rates": {
+          "px-2026-02-api-requests": {
+            "configured": 0.2,
+            "detected": 0.19990200881920628
+          },
+          "px-2026-02-data-transfer": {
+            "configured": 0.2,
+            "detected": 0.18911309244486157
+          }
+        }
+      },
+      "name": "contamination_detected",
+      "passed": true
+    },
+    {
+      "detail": {
+        "itt_pooled": -1.2053350611014886,
+        "iv": -1.3380423351641075,
+        "rel_error": 0.004874981902308312,
+        "truth": -1.331551047903578
+      },
+      "name": "iv_recovers_elasticity",
+      "passed": true
+    },
+    {
+      "detail": {
+        "px-2026-02-api-requests": {
+          "itt": -1.011582731485713,
+          "iv": -1.2643208469534797
+        },
+        "px-2026-02-data-transfer": {
+          "itt": -1.1923001521230392,
+          "iv": -1.4714680253983834
+        }
+      },
+      "name": "itt_attenuated",
+      "passed": true
+    },
+    {
+      "detail": {
+        "failed": []
+      },
+      "name": "validity_gates",
+      "passed": true
+    }
+  ],
+  "data_version": "units-5aa4d28414f7e763",
+  "failure_cases": {
+    "dose": {
+      "cut": {
+        "estimate": -1.2929866868726156,
+        "truth": -1.4337430558433357
+      },
+      "raise": {
+        "estimate": -1.1009091187028306,
+        "truth": -1.209799709411909
+      }
+    },
+    "naive_pre_post_vs_randomised": {
+      "px-2026-02-api-requests": {
+        "itt": -1.011582731485713,
+        "naive_pre_post": -0.9848062632504181
+      },
+      "px-2026-02-cpu-minutes": {
+        "itt": -1.3855596339229277,
+        "naive_pre_post": -1.6734572884170467
+      },
+      "px-2026-02-data-transfer": {
+        "itt": -1.1923001521230392,
+        "naive_pre_post": -1.7200702427913608
+      },
+      "px-2026-02-gpu-minutes": {
+        "itt": -1.2718040870984155,
+        "naive_pre_post": -0.9446098459753823
+      },
+      "px-2026-02-premium-latency": {
+        "itt": -1.1679066910551832,
+        "naive_pre_post": -0.9245991781455494
+      }
+    },
+    "ols_tier_estimates": {
+      "enterprise": -0.6161150503658515,
+      "growth": -1.0795287294716092,
+      "starter": -1.7046345757411514
+    },
+    "pooled_truth": -1.331551047903578,
+    "tier_truth": {
+      "enterprise": -0.7104266790152927,
+      "growth": -1.2009312778717753,
+      "starter": -1.8618623756012393
+    }
+  },
+  "mode": "contamination",
+  "notice": "SYNTHETIC: recovery of simulator ground truth; not real business results",
+  "passed": true,
+  "world_config_hash": "c838b853690104da5bc37d4d72dac8a7d9d691dee0d2a3182ea2c7546e050365"
+}

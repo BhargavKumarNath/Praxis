@@ -2,6 +2,7 @@
 	coverage-gate schemas sim-smoke secrets audit tf-check frontend-check workflow-lint check run \
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
 	forecast-data forecast-signals forecast-backtest forecast-train \
+	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
 	nightly-science nightly-perf nightly-security perf-baseline
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
@@ -234,6 +235,48 @@ forecast-train:
 	.venv/bin/python -m praxis.forecasting --db $(FC_DB) train --backtest-report $(FC_DIR)/backtest.json \
 		--out data/models/demand
 
+# --- Phase 5 price elasticity (local DuckDB + PyMC; no cloud) ------------------------------
+# Pre-registered evaluation world (ADR 0012): 8,000 customers, 28 pre-period days, five
+# concurrent randomised price tests. Seed 42 = held-out evaluation (run once); EL_SEED=1 = dev.
+EL_SCENARIO ?= configs/simulator/scenarios/elasticity_eval.toml
+EL_SEED ?= 42
+EL_CUSTOMERS ?= 8000
+EL_NAME ?= eval
+EL_DIR ?= data/elasticity/$(EL_NAME)-seed$(EL_SEED)-c$(EL_CUSTOMERS)
+EL_DB = $(EL_DIR)/warehouse.duckdb
+EL_DBT = DBT_TARGET_PATH=$(CURDIR)/$(EL_DIR)/dbt/target DBT_LOG_PATH=$(CURDIR)/$(EL_DIR)/dbt/logs \
+	PRAXIS_DUCKDB_PATH=$(EL_DB) .venv/bin/dbt
+
+# simulate -> raw load -> dbt marts (offline)
+elasticity-data:
+	rm -f $(EL_DB)
+	.venv/bin/python -m praxis.simulator --scenario $(EL_SCENARIO) --customers $(EL_CUSTOMERS) \
+		--seed $(EL_SEED) --validate --out $(EL_DIR)/sim >/dev/null
+	.venv/bin/python -m praxis.data --db $(EL_DB) --raw $(EL_DIR)/raw load-sim --dir $(EL_DIR)/sim
+	$(EL_DBT) run --project-dir dbt --profiles-dir dbt --quiet
+
+# truth-free analysis: validity gates + estimators + hierarchical model (+ artifact if gates pass)
+elasticity-analyze:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.elasticity --db $(EL_DB) analyze \
+		--out $(EL_DIR)/analysis --models data/models/elasticity
+
+# pre-registered ground-truth acceptance (configs/elasticity/acceptance.toml)
+elasticity-evaluate:
+	.venv/bin/python -m praxis.science elasticity --analysis $(EL_DIR)/analysis \
+		--sim $(EL_DIR)/sim --scenario $(EL_SCENARIO)
+
+# Contamination robustness world: detection, ITT dilution, IV recovery. Validity is expected to
+# flag the contaminated tests, so the analysis exits 1; the evaluation decides the outcome.
+elasticity-contamination:
+	$(MAKE) elasticity-data EL_SCENARIO=configs/simulator/scenarios/elasticity_contamination.toml EL_NAME=contamination
+	-PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.elasticity \
+		--db data/elasticity/contamination-seed$(EL_SEED)-c$(EL_CUSTOMERS)/warehouse.duckdb analyze \
+		--out data/elasticity/contamination-seed$(EL_SEED)-c$(EL_CUSTOMERS)/analysis
+	.venv/bin/python -m praxis.science elasticity \
+		--analysis data/elasticity/contamination-seed$(EL_SEED)-c$(EL_CUSTOMERS)/analysis \
+		--sim data/elasticity/contamination-seed$(EL_SEED)-c$(EL_CUSTOMERS)/sim \
+		--scenario configs/simulator/scenarios/elasticity_contamination.toml
+
 # --- Nightly gates (`.github/workflows/nightly.yml`; also runnable locally) ---------------
 # Too slow for every push. A failure here is a gate failure: investigate, never re-run until green.
 PERF_DIR ?= data/perf
@@ -247,6 +290,10 @@ PERF_RUN = mkdir -p $(PERF_DIR) && \
 nightly-science:
 	$(MAKE) forecast-data FC_SEED=1
 	$(MAKE) forecast-backtest FC_SEED=1
+	$(MAKE) elasticity-data EL_SEED=1
+	$(MAKE) elasticity-analyze EL_SEED=1
+	$(MAKE) elasticity-evaluate EL_SEED=1
+	$(MAKE) elasticity-contamination EL_SEED=1
 
 # Performance regression vs benchmarks/perf_baseline.json (per environment; scripts/perf_check.py).
 nightly-perf: _events-db

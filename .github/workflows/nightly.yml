@@ -22,7 +22,7 @@ env:
 
 jobs:
   science:
-    name: science regression (forecast acceptance, dev world)
+    name: science regression (forecast + elasticity acceptance, dev world)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -38,7 +38,10 @@ jobs:
         if: always()
         with:
           name: science-reports
-          path: data/forecast/*/backtest.json
+          path: |
+            data/forecast/*/backtest.json
+            data/elasticity/*/analysis/report.json
+            data/elasticity/*/analysis/recovery.json
           if-no-files-found: warn
 
   perf:

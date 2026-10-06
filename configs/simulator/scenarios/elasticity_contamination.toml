@@ -1,0 +1,58 @@
+# Contamination robustness world (Phase 5). SYNTHETIC. Overlay on configs/simulator/default.toml.
+#
+# Pre-registered 2026-10-06 together with elasticity_eval.toml. Identical to that world except
+# that 20% of CONTROL customers in two tests (api_requests, data_transfer_gb) are charged the
+# treatment price anyway (an implementation bug in a real platform). Their exposures are logged
+# truthfully (arm = control, the price actually charged). The analysis must detect the
+# contamination; the intention-to-treat estimate is diluted and the instrumented estimate
+# (assignment as instrument for the price actually charged) must recover the elasticity.
+
+[run]
+days = 56
+
+[[pricing.interventions]]
+id = "px-2026-02-api-requests"
+product = "api_requests"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 1.2
+salt = "px-2026-02-api-requests-v1"
+contamination_fraction = 0.2
+
+[[pricing.interventions]]
+id = "px-2026-02-cpu-minutes"
+product = "cpu_minutes"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 0.8333333333333334
+salt = "px-2026-02-cpu-minutes-v1"
+
+[[pricing.interventions]]
+id = "px-2026-02-gpu-minutes"
+product = "gpu_minutes"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 1.2
+salt = "px-2026-02-gpu-minutes-v1"
+
+[[pricing.interventions]]
+id = "px-2026-02-data-transfer"
+product = "data_transfer_gb"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 0.8333333333333334
+salt = "px-2026-02-data-transfer-v1"
+contamination_fraction = 0.2
+
+[[pricing.interventions]]
+id = "px-2026-02-premium-latency"
+product = "premium_latency"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 1.2
+salt = "px-2026-02-premium-latency-v1"

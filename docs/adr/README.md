@@ -13,5 +13,6 @@
 | [0009](0009-order-independent-event-processing.md) | Order-independent, idempotent event processing |
 | [0010](0010-daily-demand-forecasting.md) | Daily probabilistic demand forecasting with pre-registered acceptance |
 | [0011](0011-hybrid-demand-champion.md) | Hybrid demand champion: ridge mean + calibrated LightGBM quantiles |
+| [0012](0012-randomised-price-tests-and-hierarchical-elasticity.md) | Elasticity from randomised price tests, log-log slopes and a hierarchical Bayesian model |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

@@ -16,6 +16,8 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "google-cloud-pubsub>=2.25",
     "lightgbm>=4.7.0",
+    "pymc>=6.3.2",
+    "scipy>=1.18.1",
 ]
 
 [dependency-groups]
@@ -72,6 +74,11 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["src", "tests", "scripts"]
 
+# PyMC / ArviZ / SciPy ship no complete type information.
+[[tool.mypy.overrides]]
+module = ["pymc", "pymc.*", "arviz", "arviz.*", "pytensor", "pytensor.*", "scipy", "scipy.*"]
+ignore_missing_imports = true
+
 # google-cloud-pubsub ships no complete type information for these namespaces.
 [[tool.mypy.overrides]]
 module = ["google.cloud.pubsub_v1", "google.cloud.pubsub_v1.*", "google.protobuf", "google.protobuf.*"]
@@ -107,8 +114,8 @@ include_external_packages = true
 name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
-    "praxis.api",
-    "praxis.streaming | praxis.forecasting",
+    "praxis.api | praxis.science",
+    "praxis.streaming | praxis.forecasting | praxis.elasticity",
     "praxis.control | praxis.data | praxis.simulator",
     "praxis.events",
     "praxis.domain",
@@ -118,8 +125,9 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "Models never import the simulator (ground truth stays out of reach)"
 type = "forbidden"
-source_modules = ["praxis.forecasting"]
-forbidden_modules = ["praxis.simulator"]
+source_modules = ["praxis.forecasting", "praxis.elasticity"]
+# praxis.science is the only place that joins model output with ground truth (ADR 0012).
+forbidden_modules = ["praxis.simulator", "praxis.science"]
 # Evaluation CLI reads only the scenario *config* to label spike days for slicing.
 ignore_imports = ["praxis.forecasting.__main__ -> praxis.simulator.config"]
 
@@ -127,14 +135,14 @@ ignore_imports = ["praxis.forecasting.__main__ -> praxis.simulator.config"]
 name = "Domain and event contracts stay pure (no I/O frameworks)"
 type = "forbidden"
 source_modules = ["praxis.domain", "praxis.events"]
-forbidden_modules = ["sqlalchemy", "duckdb", "fastapi", "httpx", "google", "lightgbm", "alembic", "psycopg"]
+forbidden_modules = ["sqlalchemy", "duckdb", "fastapi", "httpx", "google", "lightgbm", "alembic", "psycopg", "pymc", "arviz"]
 
 [[tool.importlinter.contracts]]
 name = "Only the API layer uses the web framework"
 type = "forbidden"
 source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
-    "praxis.simulator", "praxis.streaming",
+    "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
@@ -154,5 +162,10 @@ forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 "src/praxis/forecasting/artifact.py" = 95
 "src/praxis/forecasting/service.py" = 95
 "src/praxis/forecasting/features.py" = 95
+"src/praxis/elasticity/validity.py" = 95   # experiment validity gates (SRM, assignment, exposure)
+"src/praxis/elasticity/dataset.py" = 95    # eligibility, assignment audit, outcome definition
+"src/praxis/elasticity/estimators.py" = 95
+"src/praxis/elasticity/artifact.py" = 95
+"src/praxis/science/*" = 95                # ground-truth acceptance decides the phase gate
 "src/praxis/api/*" = 95
 "src/praxis/*" = 85

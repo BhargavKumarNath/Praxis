@@ -1,0 +1,83 @@
+# Price-elasticity analysis (Phase 5). See ADR 0012 and docs/elasticity.md.
+#
+# Every rule and threshold here was PRE-REGISTERED on 2026-10-06, before any experiment world
+# was simulated or analysed. Never loosen one after seeing a result (CLAUDE.md s16): a change
+# needs a written justification (ADR) and the owner's approval. A test pins this file's hash.
+# Ground-truth acceptance lives separately in configs/elasticity/acceptance.toml.
+
+[eligibility]
+# Unit = (customer, product) within one test. Only PRE-TREATMENT information decides eligibility.
+pre_window_days = 28     # pre-period = the 28 days before the assignment date (four whole weeks)
+min_pre_units = 56       # >= 2 requested units/day on average in the pre-period: keeps log counts
+                         # away from the small-count regime where log(Y) is biased
+require_created_by_pre_start = true   # full pre-period history
+# customers churned before the assignment date are never eligible (not exposable)
+
+[outcome]
+# Outcome = requested units (served + throttled: unconstrained demand) per ACTIVE day in the
+# test window. Active days end at churn (inclusive). Fewer than min_active_days -> missing.
+min_active_days = 14
+log_offset = 0.5         # delta = log((Y_post + c)/d_post) - log((Y_pre + c)/d_pre)
+
+[estimation]
+ci_level = 0.95
+min_units_per_cell = 50  # tier x industry cells below this are not estimated unpooled
+
+[validity]
+srm_alpha = 0.001                 # chi-square sample-ratio-mismatch test on eligible units
+balance_alpha = 0.001             # omnibus pre-treatment balance test (difference in means)
+smd_flag = 0.10                   # |standardised mean difference| reported as a flag, not a gate
+max_missing_rate = 0.10           # outcome missing (churned early) per arm
+max_missing_rate_diff = 0.02      # |treatment - control| missing-outcome rate
+max_contamination_rate = 0.0      # control units charged the treatment price (clean design)
+price_tolerance_micros = 1        # rounding of round(list x ratio)
+interference_alpha = 0.001        # cross-test interaction flag (reported, not a gate)
+
+[hierarchical]
+# Two-stage hierarchical model over tier x industry cells (ADR 0012):
+#   b_c ~ Normal(theta_c, se_c);  theta_c ~ Normal(mu + a_tier + b_industry, sigma_cell)
+#
+# AMENDED 2026-10-06 on the development (seed 1) and synthetic test worlds, BEFORE the held-out
+# evaluation world (seed 42) was simulated (ADR 0012, "Amendment"). As first registered, tier and
+# industry effects had learned scales (HalfNormal(tier_sd), HalfNormal(industry_sd)) and
+# target_accept was 0.95. Every learned-scale parameterisation produced divergences in one of
+# the two worlds, so the main-effect scales are now FIXED priors and target_accept is 0.99.
+# No diagnostic gate, validity threshold or acceptance threshold changed.
+draws = 2000
+tune = 2000
+chains = 4
+target_accept = 0.99
+seed = 20261006
+interval = 0.90           # credible interval reported per cell (and tested for coverage)
+
+[hierarchical.priors]
+mu_mean = -1.0
+mu_sd = 1.5
+tier_sd = 1.0             # prior SD of each tier effect (ZeroSumNormal, fixed scale)
+industry_sd = 1.0         # prior SD of each industry effect (ZeroSumNormal, fixed scale)
+cell_sd = 0.5             # HalfNormal scale of sigma_cell (learned interaction SD)
+
+# Prior sensitivity: refit under each alternative and report the shift of the important
+# parameters (pooled and tier elasticities) in units of their posterior SD.
+[hierarchical.sensitivity.wide]
+mu_mean = 0.0
+mu_sd = 5.0
+tier_sd = 3.0
+industry_sd = 3.0
+cell_sd = 1.5
+
+[hierarchical.sensitivity.narrow]
+mu_mean = -1.0
+mu_sd = 0.5
+tier_sd = 0.3
+industry_sd = 0.3
+cell_sd = 0.15
+
+[diagnostics]
+# A model is not accepted merely because sampling completed (required_test.md s11).
+rhat_max = 1.01
+ess_bulk_min = 400
+ess_tail_min = 400
+max_divergences = 0
+ppc_p_range = [0.025, 0.975]        # posterior predictive p-values of each test statistic
+prior_sensitivity_max_shift_sd = 0.5

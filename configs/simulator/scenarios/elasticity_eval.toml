@@ -1,0 +1,60 @@
+# Price-elasticity evaluation world (Phase 5). SYNTHETIC. Overlay on configs/simulator/default.toml.
+#
+# Pre-registered 2026-10-06, before any elasticity estimator was written, run or evaluated.
+# Do not edit to flatter a model (CLAUDE.md s9); a test pins this file's hash. Days are offsets
+# from run.start_date (2026-01-05, a Monday).
+#
+# Design: 28 untreated days (pre-period, four whole weeks) then five CONCURRENT randomised price
+# tests, one per product, for four whole weeks (days 28..55). Each test randomises customers
+# 50/50 with its own salt, so the five tests are independent (a 2^5 factorial). Price ratios are
+# +20% or -1/6 (= 1/1.2) so |log ratio| is identical for every test (0.1823), mixing raises and
+# cuts. The business-side record of these tests is configs/experiments/elasticity_eval.toml.
+# Run with --customers 8000 (Makefile EL_CUSTOMERS); seed 42 = held-out evaluation, seed 1 = dev.
+
+[run]
+days = 56
+
+[[pricing.interventions]]
+id = "px-2026-02-api-requests"
+product = "api_requests"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 1.2
+salt = "px-2026-02-api-requests-v1"
+
+[[pricing.interventions]]
+id = "px-2026-02-cpu-minutes"
+product = "cpu_minutes"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 0.8333333333333334
+salt = "px-2026-02-cpu-minutes-v1"
+
+[[pricing.interventions]]
+id = "px-2026-02-gpu-minutes"
+product = "gpu_minutes"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 1.2
+salt = "px-2026-02-gpu-minutes-v1"
+
+[[pricing.interventions]]
+id = "px-2026-02-data-transfer"
+product = "data_transfer_gb"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 0.8333333333333334
+salt = "px-2026-02-data-transfer-v1"
+
+[[pricing.interventions]]
+id = "px-2026-02-premium-latency"
+product = "premium_latency"
+start_day = 28
+end_day = 56
+treated_fraction = 0.5
+price_multiplier = 1.2
+salt = "px-2026-02-premium-latency-v1"

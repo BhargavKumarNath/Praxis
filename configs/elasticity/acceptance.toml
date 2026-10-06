@@ -1,0 +1,29 @@
+# Ground-truth acceptance for price-elasticity recovery (Phase 5). Read by praxis.science only:
+# model code never sees ground truth. PRE-REGISTERED 2026-10-06 before any world was simulated
+# or analysed; a test pins this file's hash. Never loosen after a result (CLAUDE.md s16).
+#
+# Truth for a set of units = the design-variance-weighted mean of the simulator's latent
+# elasticity over exactly the units the analysis used (the OLS estimand; docs/elasticity.md).
+
+[recovery]
+require_validity = true              # every experiment-validity gate in the analysis passed
+require_diagnostics = true           # every Bayesian diagnostic gate passed
+sign_interval = 0.95                 # pooled CI and each tier's interval lie entirely below 0
+pooled_max_rel_error = 0.10          # log-log pooled estimate vs truth
+pooled_max_abs_z = 3.0               # |estimate - truth| / SE
+tier_max_rel_error = 0.25            # hierarchical tier elasticities vs truth
+# Segment ordering "where identifiable": a pair (tier-tier, industry-industry) is identifiable
+# when |truth difference| >= ordering_min_separation_sd x posterior SD of the difference. For
+# each identifiable pair the posterior mean must order the pair correctly with probability
+# >= ordering_min_posterior_prob. At least one pair must be identifiable.
+ordering_min_separation_sd = 3.0
+ordering_min_posterior_prob = 0.95
+cell_interval = 0.90                 # per-cell credible interval
+cell_min_coverage = 0.70             # share of cells whose truth lies inside it (13 of 18)
+pooling_must_not_increase_rmse = true  # hierarchical cells vs unpooled OLS cells, RMSE vs truth
+
+[contamination]
+# Only for worlds with contamination_fraction > 0 (elasticity_contamination.toml).
+rate_abs_tolerance = 0.03            # detected vs configured share of contaminated control units
+iv_max_rel_error = 0.15              # instrumented pooled estimate vs truth
+itt_must_attenuate = true            # |ITT| < |IV| on the contaminated tests
