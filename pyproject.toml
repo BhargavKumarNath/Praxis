@@ -18,6 +18,7 @@ dependencies = [
     "lightgbm>=4.7.0",
     "pymc>=6.3.2",
     "scipy>=1.18.1",
+    "httpx>=0.27",
 ]
 
 [dependency-groups]
@@ -26,7 +27,6 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
     "hypothesis>=6.110",
-    "httpx>=0.27",
     "jsonschema>=4.23",
     "ruff>=0.6",
     "mypy>=1.11",
@@ -94,6 +94,7 @@ markers = [
     "slow: long-running scale smoke test",
     "bigquery_live: hits a real BigQuery sandbox project; only via `make bq-verify`",
     "pubsub_emulator: needs the Pub/Sub emulator (PUBSUB_EMULATOR_HOST); make test / CI backend start it",
+    "stripe_live: hits the real Stripe Sandbox (test key + Stripe CLI in Docker); only via `make stripe-verify`",
 ]
 
 [tool.coverage.run]
@@ -115,7 +116,7 @@ name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
     "praxis.api | praxis.science",
-    "praxis.pricing",
+    "praxis.pricing | praxis.payments",
     "praxis.streaming | praxis.forecasting | praxis.elasticity",
     "praxis.control | praxis.data | praxis.simulator",
     "praxis.events",
@@ -144,9 +145,17 @@ type = "forbidden"
 source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
     "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
-    "praxis.pricing",
+    "praxis.pricing", "praxis.payments",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
+
+# Payments sees no simulator ground truth and no pricing internals: Stripe and the synthetic
+# provider only exchange provider-neutral snapshots and internal event contracts (ADR 0014).
+[[tool.importlinter.contracts]]
+name = "Payments are independent of the simulator, science and pricing"
+type = "forbidden"
+source_modules = ["praxis.payments"]
+forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "praxis.forecasting", "praxis.elasticity"]
 
 # --- Per-module coverage floors (`make coverage-gate`, scripts/coverage_gate.py). Ordered:
 # the FIRST matching glob wins. Critical = money, state machines, idempotency, event contracts,
@@ -170,5 +179,6 @@ forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 "src/praxis/elasticity/artifact.py" = 95
 "src/praxis/science/*" = 95                # ground-truth acceptance decides the phase gate
 "src/praxis/pricing/*" = 95                # optimiser, constraints, guardrails, audit store (s5)
+"src/praxis/payments/*" = 95               # webhooks, idempotent payment writes, inbox (s5)
 "src/praxis/api/*" = 95
 "src/praxis/*" = 85

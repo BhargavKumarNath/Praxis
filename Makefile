@@ -3,7 +3,8 @@
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
 	forecast-data forecast-signals forecast-backtest forecast-train \
 	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
-	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline
+	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
+	stripe-verify
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -27,6 +28,7 @@ ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.12
 ZIZMOR_VERSION ?= 1.30.1
 GITLEAKS_IMAGE ?= ghcr.io/gitleaks/gitleaks:v8.30.1
 TRIVY_IMAGE ?= aquasec/trivy:0.75.0
+STRIPE_CLI_IMAGE ?= stripe/stripe-cli:v1.53.0
 
 pg-up:
 ifneq ($(CI_SERVICES),1)
@@ -349,3 +351,11 @@ nightly-security: audit
 	docker run --rm -v $(CURDIR):/repo $(GITLEAKS_IMAGE) git /repo --redact --no-banner
 	docker run --rm -v $(CURDIR):/repo -w /repo $(TRIVY_IMAGE) config infra/terraform \
 		--severity MEDIUM,HIGH,CRITICAL --ignorefile .trivyignore --exit-code 1 --quiet
+
+# --- Phase 7 Stripe Sandbox (opt-in, live; never in CI) ------------------------------------
+# Needs a SANDBOX key (sk_test_...) as PRAXIS_STRIPE_SECRET_KEY in .env and Docker for the
+# Stripe CLI (`stripe listen` forwards real signed webhooks to a local uvicorn server).
+# Four customers on Test Clocks (deleted afterwards); never a load test (CLAUDE.md s5).
+stripe-verify: pg-up
+	PRAXIS_STRIPE_LIVE=1 STRIPE_CLI_IMAGE=$(STRIPE_CLI_IMAGE) .venv/bin/pytest tests/payments/test_stripe_sandbox.py \
+		-m stripe_live -v -p no:cacheprovider --no-cov

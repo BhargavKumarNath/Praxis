@@ -1,4 +1,4 @@
-"""Minimal FastAPI application: health endpoint plus correlation-ID middleware."""
+"""FastAPI application: health, demand forecasts, Stripe webhooks, correlation-ID middleware."""
 
 from __future__ import annotations
 
@@ -12,9 +12,13 @@ from pydantic import BaseModel
 
 from praxis import __version__
 from praxis.api.forecast import build_forecast_service, forecast_router
+from praxis.api.webhooks import webhook_router
 from praxis.config import Settings, get_settings
+from praxis.control.db import make_engine
 from praxis.forecasting.service import ForecastService
 from praxis.logging import configure_logging
+from praxis.payments.store import PostgresInbox
+from praxis.payments.webhook import WebhookReceiver
 from praxis.tracing import (
     CORRELATION_HEADER,
     current_correlation_id,
@@ -39,13 +43,28 @@ class ErrorResponse(BaseModel):
     detail: str | None = None
 
 
+def build_webhook_receiver(settings: Settings) -> WebhookReceiver | None:
+    """Webhooks need a signing secret and the control-plane database; else they answer 503."""
+    if settings.stripe_webhook_secret is None or settings.database_url is None:
+        return None
+    inbox = PostgresInbox(make_engine(settings.database_url.get_secret_value()))
+    return WebhookReceiver(
+        inbox,
+        [settings.stripe_webhook_secret.get_secret_value()],
+        tolerance_s=settings.stripe_webhook_tolerance_s,
+    )
+
+
 def create_app(
-    settings: Settings | None = None, forecast_service: ForecastService | None = None
+    settings: Settings | None = None,
+    forecast_service: ForecastService | None = None,
+    webhook_receiver: WebhookReceiver | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level.value)
     app = FastAPI(title="Praxis", version=__version__)
     app.include_router(forecast_router(forecast_service or build_forecast_service(settings)))
+    app.include_router(webhook_router(webhook_receiver or build_webhook_receiver(settings)))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:

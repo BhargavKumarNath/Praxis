@@ -242,7 +242,8 @@ outputs.
   +-0.4 to 0.5 (pooled), so at the CLV-proxy valuation no move is confidently profitable and
   every decision holds. Missed value is small in this world (GBP 22-183 per day). A powered churn
   experiment, a churn / CLV model (Phase 9) or a different valuation would let it act; any such
-  change needs a new pre-registered held-out seed (42 and 43 are spent for pricing).
+  change needs a new pre-registered held-out seed (42 and 43 are spent for pricing). **Assigned to
+  Phase 9** (owner decision 2026-10-07; work items in `project_progress.md`).
 * The observed churn rate used for scaling includes involuntary churn (conservative).
 * CLV is a proxy (daily contribution x min(1 / hazard, 365 days)); it makes churn the dominant
   term. Phase 9 replaces it.

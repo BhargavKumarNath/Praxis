@@ -15,5 +15,6 @@
 | [0011](0011-hybrid-demand-champion.md) | Hybrid demand champion: ridge mean + calibrated LightGBM quantiles |
 | [0012](0012-randomised-price-tests-and-hierarchical-elasticity.md) | Elasticity from randomised price tests, log-log slopes and a hierarchical Bayesian model |
 | [0013](0013-constrained-pricing-optimiser.md) | Constrained pricing optimiser: causal response, hard constraints, audited shadow decisions |
+| [0014](0014-stripe-webhooks-inbox-and-state-refetch.md) | Stripe integration: signed webhook inbox, state re-fetch, shared event contracts |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

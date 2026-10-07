@@ -44,7 +44,7 @@ def test_upgrade_creates_schema_and_is_rerunnable(empty_pg_url: str) -> None:
     engine = create_engine(empty_pg_url)
     assert set(inspect(engine).get_table_names()) >= TABLES
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0002"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
     engine.dispose()
 
 

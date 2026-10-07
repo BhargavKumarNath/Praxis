@@ -53,9 +53,14 @@ class Settings(BaseSettings):
     # Cost guard: caps applied to every deployable service.
     cloud_run_max_instances: int = Field(default=2, ge=1, le=10)
 
-    # Stripe: names only in Phase 0; the gateway lands in Phase 7.
+    # Stripe (Phase 7): sandbox only (the client refuses live keys). The API version is
+    # pinned so responses never change shape with the account default (ADR 0014).
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
+    stripe_api_version: str = Field(default="2026-09-30.endive", min_length=1)
+    stripe_api_base_url: str = "https://api.stripe.com"
+    stripe_timeout_s: float = Field(default=20.0, gt=0, le=60)
+    stripe_webhook_tolerance_s: int = Field(default=300, ge=1, le=900)
 
     # External data API keys (Phase 2). Open-Meteo and NESO Carbon Intensity need none.
     fred_api_key: SecretStr | None = None

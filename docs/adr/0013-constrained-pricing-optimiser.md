@@ -175,7 +175,11 @@ results stay in the evidence as the first, failed held-out evaluation.
 * The churn response is the binding evidence gap: the Phase 5 tests measure it to +-0.016 per
   unit log price, about the size of the effect, so under a CLV valuation most moves cannot be
   shown to help and the optimiser holds. Phase 9 (hazard / CLV model, longer horizons) or a
-  dedicated churn experiment is what would let prices move with confidence.
+  dedicated churn experiment is what would let prices move with confidence. **Phase 9 owns this
+  fix** (owner decision 2026-10-07; work items in `project_progress.md`, Phase 6 carry-over): feed
+  the Phase 9 churn and CLV models into the optimiser, keep the effect relative to the current
+  hazard, then re-run the shadow evaluation once on a new pre-registered held-out seed. Loosening
+  the policy thresholds is not a fix.
 * Cross-price effects are assumed absent (true in this simulator: demand for a product depends
   only on its own price). Customer-level price discrimination is out of scope.
 * No price executes in Phase 6 outside tests: the shadow world keeps its prices.

@@ -1,0 +1,126 @@
+{
+  "clocks_deleted": 4,
+  "inbox": {
+    "pending": 2,
+    "processed": 33
+  },
+  "replay": {
+    "deliveries": {
+      "accepted": 33,
+      "duplicate": 33
+    },
+    "events": 33,
+    "live_events_with_duplicate_delivery": 0
+  },
+  "scenarios": {
+    "decline_then_recovery": {
+      "customer_id": "cust_p7_aeb795f8_decline",
+      "seconds": 12.3,
+      "state": {
+        "churn_reason": null,
+        "customer": "active",
+        "customer_pending": 0,
+        "invoices": [
+          {
+            "attempts": 2,
+            "failure": "card_declined",
+            "invoice_id": "in_1UNsSGCDkSR7ec6fYLzijWT4",
+            "paid_minor": 4900,
+            "pending": 0,
+            "state": "paid"
+          }
+        ],
+        "ledger": [
+          1,
+          4900
+        ],
+        "subscription": "active"
+      }
+    },
+    "happy_path": {
+      "customer_id": "cust_p7_aeb795f8_happy",
+      "seconds": 9.0,
+      "state": {
+        "churn_reason": null,
+        "customer": "active",
+        "customer_pending": 0,
+        "invoices": [
+          {
+            "attempts": 1,
+            "failure": null,
+            "invoice_id": "in_1UNsS9CDkSR7ec6fifDLYFAT",
+            "paid_minor": 4900,
+            "pending": 0,
+            "state": "paid"
+          }
+        ],
+        "ledger": [
+          1,
+          4900
+        ],
+        "subscription": "active"
+      }
+    },
+    "idempotent_enrolment": {
+      "customer_id": "cust_p7_aeb795f8_retry",
+      "seconds": 6.5,
+      "state": {
+        "churn_reason": null,
+        "customer": "active",
+        "customer_pending": 0,
+        "invoices": [
+          {
+            "attempts": 1,
+            "failure": null,
+            "invoice_id": "in_1UNsSrCDkSR7ec6fuGWhIi4C",
+            "paid_minor": 4900,
+            "pending": 0,
+            "state": "paid"
+          }
+        ],
+        "ledger": [
+          1,
+          4900
+        ],
+        "subscription": "active"
+      }
+    },
+    "renewal_then_cancellation": {
+      "customer_id": "cust_p7_aeb795f8_renewal",
+      "seconds": 23.9,
+      "state": {
+        "churn_reason": "voluntary",
+        "customer": "churned",
+        "customer_pending": 0,
+        "invoices": [
+          {
+            "attempts": 1,
+            "failure": null,
+            "invoice_id": "in_1UNsSTCDkSR7ec6fiXHoaDLs",
+            "paid_minor": 4900,
+            "pending": 0,
+            "state": "paid"
+          },
+          {
+            "attempts": 1,
+            "failure": null,
+            "invoice_id": "in_1UNsSbCDkSR7ec6fKp63F2Ro",
+            "paid_minor": 4900,
+            "pending": 0,
+            "state": "paid"
+          }
+        ],
+        "ledger": [
+          2,
+          9800
+        ],
+        "subscription": "cancelled"
+      }
+    }
+  },
+  "stripe_requests": {
+    "DELETE": 5,
+    "GET": 94,
+    "POST": 27
+  }
+}
