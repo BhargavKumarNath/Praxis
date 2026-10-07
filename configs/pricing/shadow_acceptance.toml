@@ -1,0 +1,48 @@
+# Shadow-mode evaluation of the pricing optimiser (Phase 6). Read by praxis.science only: the
+# optimiser never sees ground truth. PRE-REGISTERED 2026-10-06, before the optimiser was run on
+# any world (development or evaluation); a test pins this file's hash. Never loosen after a
+# result (CLAUDE.md s16).
+#
+# AMENDED 2026-10-06 on the development world only, before the held-out seed 42, with the
+# owner's approval (ADR 0013, "Amendment"). The registered checks presupposed that the
+# optimiser should move prices (min_change_share 0.25, min_captured_share 0.50, direction and
+# calibration with no changes = fail). With the churn response measured as 0.012 +- 0.016 and
+# valued at the CLV proxy, holding is the honest decision; the registered method that moved
+# prices destroyed value on all 24 of its raises. The amended acceptance asks for no harm and
+# for honest predictions instead; change share and captured share are still REPORTED.
+#
+# World: configs/simulator/scenarios/pricing_shadow.toml (the Phase 4 forecast world continued
+# for 8 weeks). Seed 1 = development. Seed 42 = first held-out evaluation (run once: FAIL).
+# Seed 43 = held-out re-evaluation after the second method amendment (ADR 0013), registered
+# 2026-10-07 before any seed-43 world was built; run once. No threshold below changed.
+#
+# Truth for a decision (cycle starting day T, product p, candidate price c), per day over
+# T..T+6, from the simulator's own equations (Engine.expected_demand / churn_hazard) with the
+# world's actual active customers and service state on each day:
+#   true contribution(c) = sum_i E[requested_ip | c] * served_ratio_ip * (c * (1 - L) - cost_rp)
+#   true extra churners(c) = sum_i active [(1 - exp(-h_i(c))) - (1 - exp(-h_i(p0)))]
+#   true objective delta(c) = contribution(c) - contribution(p0) - CLV * extra churners(c)
+# L (payment loss) and CLV are the business valuation inputs recorded on the decision, so the
+# optimiser is scored on exactly its own objective, with TRUE demand and churn responses.
+
+[shadow]
+first_cycle_day = 196          # 2026-07-20 (Monday), the day after the forecast training data
+cycles = 8                     # weekly: days 196, 203, ..., 245
+cycle_days = 7
+
+[acceptance]
+max_constraint_violations = 0  # every change re-checked from its record against the policy
+max_shadow_executions = 0      # shadow mode never executes
+require_complete_records = true  # every required audit field present on every decision
+require_forecast_lineage = true  # the forecast artifact was trained on the world's shared prefix
+min_total_true_delta = 0.0     # sum of the true objective deltas of ALL decisions (hold and
+                               # freeze = 0): never worse than keeping every price
+min_direction_rate = 0.80      # changes whose true objective delta > 0 (vacuous with no change)
+min_changes_for_calibration = 5  # calibration is judged only with at least this many changes
+prediction_ratio_range = [0.5, 2.0]  # sum predicted / sum true contribution delta, over changes
+# reported, not gated: change share; captured share = sum true delta(chosen) / sum true
+# delta(best feasible candidate)
+churn_guardrail_must_hold = true  # true extra churn per exposed customer (evidence window)
+                                  # <= policy max_incremental_churn for every change
+stress_must_fail_safe = true   # stale or missing forecast, missing evidence, inflated
+                               # uncertainty: no change decision, and the expected reason code

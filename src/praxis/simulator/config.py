@@ -91,6 +91,12 @@ class Population(_Cfg):
     risky_payer_fraction: float = Field(ge=0, le=1)
     risky_beta: tuple[float, float]
     min_mix_share: float = Field(ge=0, lt=1)
+    # New customers arrive uniformly over days 1 .. horizon - 1; the horizon defaults to the run
+    # length. Setting it lets a longer run share the exact population (and therefore the exact
+    # first ``horizon`` days) of a shorter world (Phase 6: the pricing shadow world continues
+    # the Phase 4 forecast world). Excluded from the canonical JSON when unset, so every
+    # existing world keeps its config_hash, event ids and golden checksum.
+    arrival_horizon_days: int | None = Field(default=None, gt=1, exclude_if=lambda v: v is None)
 
 
 class CapacityShock(_Cfg):

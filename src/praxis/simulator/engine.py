@@ -11,6 +11,11 @@ canonical event dicts in global time order. Per day the order of operations is f
 
 Customers react to service quality with a one-day lag. All randomness comes from
 ``rng_for(seed, stream, day)`` so streams do not depend on iteration order.
+
+An optional observer receives a read-only ``DayView`` per day: the exact inputs of that day's
+demand and voluntary-churn equations. ``Engine.expected_demand`` and ``Engine.churn_hazard``
+(which ``run`` itself uses) re-evaluate them at other prices. Only ``praxis.science`` uses this,
+to score pricing decisions against counterfactual truth; observing never changes the output.
 """
 
 from __future__ import annotations
@@ -42,7 +47,32 @@ T_USAGE, T_REQUEST, T_CHURN = 23 * 3600, 23 * 3600 + 1, 23 * 3600 + 50 * 60
 
 F64 = NDArray[np.float64]
 I64 = NDArray[np.int64]
+BOOL = NDArray[np.bool_]
 Event = dict[str, Any]
+
+
+@dataclass(frozen=True)
+class DayView:
+    """Ground truth for one day (SYNTHETIC; never exposed through events).
+
+    Arrays are snapshots: (n,) per customer, (n, P) per customer and product, (R, P) per
+    region and product.
+    """
+
+    day: int
+    active: BOOL  # active during the day's demand step
+    prices: I64  # (n, P) prices actually charged (micros)
+    demand_scale: F64  # (n,) seasonality x growth x lagged service feedback
+    spike: F64  # (n, P) demand-spike multiplier
+    served_ratio: F64  # (n, P) expected share of requested units served (capacity, availability)
+    unit_cost: F64  # (R, P) diurnal-weighted mean hourly marginal cost (micros per unit)
+    region: NDArray[np.int8]  # (n,) region index
+    churn_service_term: F64  # (n,) service-quality part of the churn linear predictor
+    churn_failure_term: F64  # (n,) payment-failure part of the churn linear predictor
+    tier_hazard: F64  # (n,) base daily hazard of the current tier
+
+
+DayObserver = Callable[[DayView], None]
 
 
 @dataclass
@@ -64,8 +94,15 @@ def _uniform_from_hash(salt: str, ids: list[str]) -> F64:
 
 
 class Engine:
-    def __init__(self, config: SimulationConfig, seed: int, population: Population) -> None:
+    def __init__(
+        self,
+        config: SimulationConfig,
+        seed: int,
+        population: Population,
+        observer: DayObserver | None = None,
+    ) -> None:
         self.cfg = config
+        self.observer = observer
         self.seed = seed
         self.pop = population
         self.run_id = f"{seed}-{config.config_hash[:12]}"
@@ -90,6 +127,10 @@ class Engine:
         self.epoch0 = int(datetime(sd.year, sd.month, sd.day, tzinfo=UTC).timestamp())
         self.start_dow = config.run.start_date.weekday()
 
+        base = population.base_load[:, None] * population.mix / self.weights[None, :]
+        self._base_demand = np.where(
+            self.compute_cols[None, :], base * population.compute_intensity[:, None], base
+        )
         self._global_mult = self._build_global_multipliers()
         self._treated = [
             _uniform_from_hash(iv.salt, population.ids) < iv.treated_fraction
@@ -106,6 +147,38 @@ class Engine:
             )
             for iv, treated in zip(config.pricing.interventions, self._treated, strict=True)
         ]
+
+    # ------------------------------------------------------------- equations
+    def expected_demand(self, view: DayView, prices: I64) -> F64:
+        """Expected requested units (n, P) on ``view.day`` had ``prices`` been charged."""
+        return self._lambda(view.active, view.demand_scale, view.spike, prices)
+
+    def churn_hazard(self, view: DayView, prices: I64) -> F64:
+        """Daily voluntary-churn hazard (n,) on ``view.day`` had ``prices`` been charged."""
+        return self._hazard(
+            prices, view.churn_service_term, view.churn_failure_term, view.tier_hazard
+        )
+
+    def _lambda(self, active: BOOL, scale: F64, spike: F64, prices: I64) -> F64:
+        ratio = prices / self.ref_price[None, :]
+        elas = ratio ** self.pop.elasticity[:, None]
+        lam = self._base_demand * scale[:, None] * elas * spike
+        return np.where(active[:, None], lam, 0.0)
+
+    def _hazard(self, prices: I64, service_term: F64, failure_term: F64, tier_hazard: F64) -> F64:
+        beh = self.cfg.behaviour
+        price_idx = (self.pop.mix * (prices / self.ref_price[None, :])).sum(axis=1)
+        lin = beh.churn_price_beta * self.pop.churn_sens * np.log(price_idx) + service_term
+        lin = lin + failure_term
+        hazard: F64 = np.minimum(tier_hazard * np.exp(lin), beh.churn_hazard_cap)
+        return hazard
+
+    def _observe(self, view_args: dict[str, Any], svc_day: RegionDay) -> None:
+        if self.observer is None:
+            return
+        w = self.infra.diurnal[:, :, None]
+        unit_cost = (svc_day.cost_h * w).sum(axis=1) / w.sum(axis=1)
+        self.observer(DayView(unit_cost=unit_cost, region=self.pop.region, **view_args))
 
     # ------------------------------------------------------------------ helpers
     def _build_global_multipliers(self) -> F64:
@@ -243,10 +316,6 @@ class Engine:
         invoice_counter = 0
         pending: dict[int, list[tuple[int, str, int, int, str]]] = defaultdict(list)
         ivs = cfg.pricing.interventions
-        base_demand = pop.base_load[:, None] * pop.mix / self.weights[None, :]
-        base_demand = np.where(
-            self.compute_cols[None, :], base_demand * pop.compute_intensity[:, None], base_demand
-        )
 
         for day in range(cfg.run.days):
             ts0 = self.epoch0 + day * 86400
@@ -413,9 +482,8 @@ class Engine:
             growth_f = (1.0 + pop.growth) ** day
             svc = np.exp(-beh.demand_service_beta * pop.service_sens * degr_lag[pop.region])
             spike = self.infra.spike_on(day)[pop.region]
-            elas = ratio ** pop.elasticity[:, None]
-            lam = base_demand * (season * growth_f * svc)[:, None] * elas * spike
-            lam = np.where(active[:, None], lam, 0.0)
+            scale = season * growth_f * svc
+            lam = self._lambda(active, scale, spike, prices)
             shape = np.broadcast_to(pop.dispersion[:, None], lam.shape)
             requested = rng_d.poisson(rng_d.gamma(shape, lam / shape)).astype(np.int64)
 
@@ -480,16 +548,27 @@ class Engine:
             # ---- 4. voluntary churn and tier changes -----------------------------------
             rng_c = rng_for(self.seed, STREAM_CHURN, day)
             u_churn, u_tier, u_dir = rng_c.random(n), rng_c.random(n), rng_c.random(n)
-            lin = (
-                beh.churn_price_beta * pop.churn_sens * np.log(price_idx)
-                + pop.service_sens
-                * (
-                    beh.churn_latency_beta * svc_day.degradation[pop.region]
-                    + beh.churn_error_beta * svc_day.mean_err[pop.region]
-                )
-                + beh.churn_failure_beta * burden
+            service_term = pop.service_sens * (
+                beh.churn_latency_beta * svc_day.degradation[pop.region]
+                + beh.churn_error_beta * svc_day.mean_err[pop.region]
             )
-            hazard = np.minimum(self.tier_hazard[cur_tier] * np.exp(lin), beh.churn_hazard_cap)
+            failure_term = beh.churn_failure_beta * burden
+            tier_hazard = self.tier_hazard[cur_tier]
+            hazard = self._hazard(prices, service_term, failure_term, tier_hazard)
+            self._observe(
+                {
+                    "day": day,
+                    "active": active.copy(),
+                    "prices": prices,
+                    "demand_scale": scale,
+                    "spike": spike,
+                    "served_ratio": np.clip(ok, 0.0, 1.0),
+                    "churn_service_term": service_term,
+                    "churn_failure_term": failure_term.copy(),
+                    "tier_hazard": tier_hazard,
+                },
+                svc_day,
+            )
             churn_now = (state == ACTIVE) & (u_churn < 1.0 - np.exp(-hazard))
             for i in np.flatnonzero(churn_now).tolist():
                 cid = pop.ids[i]

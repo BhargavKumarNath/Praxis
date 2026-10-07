@@ -71,7 +71,19 @@ class RunResult:
         }
 
 
-def peak_rss_mb() -> float:
+def peak_rss_mb(status: Path = Path("/proc/self/status")) -> float:
+    """Peak resident memory of THIS process image, in MB.
+
+    Linux keeps ``ru_maxrss`` across fork + exec, so a simulator launched from a large parent
+    (e.g. a long pytest session) would report the parent's peak. ``VmHWM`` belongs to the
+    current address space only; ``ru_maxrss`` is the fallback where /proc is unavailable.
+    """
+    try:
+        for line in status.read_text(encoding="ascii").splitlines():
+            if line.startswith("VmHWM:"):
+                return int(line.split()[1]) / 1024.0  # kB
+    except OSError:
+        pass
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0  # KB on Linux
 
 

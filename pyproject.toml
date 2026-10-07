@@ -115,6 +115,7 @@ name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
     "praxis.api | praxis.science",
+    "praxis.pricing",
     "praxis.streaming | praxis.forecasting | praxis.elasticity",
     "praxis.control | praxis.data | praxis.simulator",
     "praxis.events",
@@ -125,7 +126,7 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "Models never import the simulator (ground truth stays out of reach)"
 type = "forbidden"
-source_modules = ["praxis.forecasting", "praxis.elasticity"]
+source_modules = ["praxis.forecasting", "praxis.elasticity", "praxis.pricing"]
 # praxis.science is the only place that joins model output with ground truth (ADR 0012).
 forbidden_modules = ["praxis.simulator", "praxis.science"]
 # Evaluation CLI reads only the scenario *config* to label spike days for slicing.
@@ -143,6 +144,7 @@ type = "forbidden"
 source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
     "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
+    "praxis.pricing",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
@@ -167,5 +169,6 @@ forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 "src/praxis/elasticity/estimators.py" = 95
 "src/praxis/elasticity/artifact.py" = 95
 "src/praxis/science/*" = 95                # ground-truth acceptance decides the phase gate
+"src/praxis/pricing/*" = 95                # optimiser, constraints, guardrails, audit store (s5)
 "src/praxis/api/*" = 95
 "src/praxis/*" = 85

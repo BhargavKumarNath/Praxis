@@ -16,4 +16,5 @@ make check             # lint, types, tests (local Postgres + Pub/Sub emulator v
 make run               # http://127.0.0.1:8000/healthz
 ```
 
-Status: Phase 4 complete (demand forecasting, see `docs/forecasting.md`; evidence `docs/evidence/phase-4.md`). Progress: `project_progress.md`; evidence: `docs/evidence/`.
+Status: Phase 6 complete (constrained pricing optimiser in shadow mode, `docs/pricing.md`;
+evidence `docs/evidence/phase-6.md`: first held-out run failed, re-evaluation passed). Progress: `project_progress.md`; evidence: `docs/evidence/`.

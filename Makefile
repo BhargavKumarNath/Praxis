@@ -3,7 +3,7 @@
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
 	forecast-data forecast-signals forecast-backtest forecast-train \
 	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
-	nightly-science nightly-perf nightly-security perf-baseline
+	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -277,6 +277,41 @@ elasticity-contamination:
 		--sim data/elasticity/contamination-seed$(EL_SEED)-c$(EL_CUSTOMERS)/sim \
 		--scenario configs/simulator/scenarios/elasticity_contamination.toml
 
+# --- Phase 6 pricing optimiser (local DuckDB + simulator truth; no cloud) -----------------
+# Shadow world = the Phase 4 forecast world continued for 8 weekly cycles (pre-registered).
+# PX_SEED=42 = held-out evaluation (run once); PX_SEED=1 = development. Needs the forecast
+# artifact trained on that seed's forecast world (make forecast-data forecast-backtest
+# forecast-train FC_SEED=<seed>) and the elasticity analysis of that seed (make elasticity-*).
+PX_SCENARIO ?= configs/simulator/scenarios/pricing_shadow.toml
+PX_SEED ?= 42
+PX_CUSTOMERS ?= 1000
+PX_DIR ?= data/pricing/seed$(PX_SEED)-c$(PX_CUSTOMERS)
+PX_DB = $(PX_DIR)/warehouse.duckdb
+PX_DBT = DBT_TARGET_PATH=$(CURDIR)/$(PX_DIR)/dbt/target DBT_LOG_PATH=$(CURDIR)/$(PX_DIR)/dbt/logs \
+	PRAXIS_DUCKDB_PATH=$(PX_DB) .venv/bin/dbt
+PX_ELASTICITY = data/elasticity/eval-seed$(PX_SEED)-c$(EL_CUSTOMERS)/analysis/report.json
+
+# simulate -> raw load -> dbt marts for the pricing shadow world (offline)
+pricing-data:
+	rm -f $(PX_DB)
+	.venv/bin/python -m praxis.simulator --scenario $(PX_SCENARIO) --customers $(PX_CUSTOMERS) \
+		--seed $(PX_SEED) --validate --out $(PX_DIR)/sim >/dev/null
+	.venv/bin/python -m praxis.data --db $(PX_DB) --raw $(PX_DIR)/raw load-sim --dir $(PX_DIR)/sim
+	$(PX_DBT) run --project-dir dbt --profiles-dir dbt --quiet
+
+# 8 shadow cycles + stress cycles, scored against simulator truth (shadow_acceptance.toml)
+pricing-shadow:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.science pricing-shadow --db $(PX_DB) \
+		--sim $(PX_DIR)/sim --scenario $(PX_SCENARIO) --forecast-models data/models/demand \
+		--elasticity-model data/models/elasticity --elasticity-report $(PX_ELASTICITY) \
+		--out $(PX_DIR)/shadow
+
+# Development world end to end (forecast artifact + elasticity evidence for seed 1 first).
+pricing-dev:
+	$(MAKE) forecast-data forecast-backtest forecast-train FC_SEED=1
+	$(MAKE) elasticity-data elasticity-analyze EL_SEED=1
+	$(MAKE) pricing-data pricing-shadow PX_SEED=1
+
 # --- Nightly gates (`.github/workflows/nightly.yml`; also runnable locally) ---------------
 # Too slow for every push. A failure here is a gate failure: investigate, never re-run until green.
 PERF_DIR ?= data/perf
@@ -294,6 +329,9 @@ nightly-science:
 	$(MAKE) elasticity-analyze EL_SEED=1
 	$(MAKE) elasticity-evaluate EL_SEED=1
 	$(MAKE) elasticity-contamination EL_SEED=1
+	$(MAKE) forecast-train FC_SEED=1
+	$(MAKE) pricing-data PX_SEED=1
+	$(MAKE) pricing-shadow PX_SEED=1
 
 # Performance regression vs benchmarks/perf_baseline.json (per environment; scripts/perf_check.py).
 nightly-perf: _events-db

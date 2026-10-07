@@ -1,0 +1,1482 @@
+{
+  "checks": [
+    {
+      "name": "constraint_compliance",
+      "passed": true,
+      "violations": {}
+    },
+    {
+      "executions": 0,
+      "name": "no_shadow_execution",
+      "passed": true
+    },
+    {
+      "incomplete": {},
+      "name": "complete_records",
+      "passed": true
+    },
+    {
+      "name": "forecast_lineage",
+      "passed": true,
+      "prefix_data_version": "panel-edca81519a0e3165"
+    },
+    {
+      "name": "no_harm",
+      "passed": true,
+      "true_delta_per_day": 0
+    },
+    {
+      "changes": 0,
+      "name": "direction",
+      "passed": true,
+      "value": null
+    },
+    {
+      "judged": false,
+      "name": "prediction_calibration",
+      "passed": true,
+      "predicted_delta_contribution_per_day": 0,
+      "true_delta_contribution_per_day": 0,
+      "value": null
+    },
+    {
+      "breaches": {},
+      "name": "churn_guardrail_truth",
+      "passed": true
+    },
+    {
+      "cases": {
+        "evidence_unavailable": true,
+        "features_too_old": true,
+        "forecast_model_unavailable": true,
+        "inflated_uncertainty": true,
+        "stale_features": true
+      },
+      "name": "stress_fail_safe",
+      "passed": true
+    }
+  ],
+  "cycles": [
+    "2026-07-20",
+    "2026-07-27",
+    "2026-08-03",
+    "2026-08-10",
+    "2026-08-17",
+    "2026-08-24",
+    "2026-08-31",
+    "2026-09-07"
+  ],
+  "decisions": 40,
+  "elasticity_model_version": "elasticity-hier-625a64d8be51",
+  "forecast_artifact": "demand-hybrid-24c8b0b1de4d",
+  "forecast_prefix_data_version": "panel-edca81519a0e3165",
+  "is_synthetic": true,
+  "n_customers": 1000,
+  "passed": true,
+  "policy_version": "policy-ac62f347cbda",
+  "reason_counts": {
+    "no_improvement": 40
+  },
+  "reported": {
+    "captured_share": 0.0,
+    "change_share": 0.0,
+    "chosen_true_delta_per_day": 0,
+    "missed_true_delta_per_day": 183043112.2904979,
+    "naive_baseline_true_delta_per_day": -891032518310.1315,
+    "oracle_true_delta_per_day": 183043112.2904979
+  },
+  "rows": [
+    {
+      "as_of": "2026-07-20",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-8aefe5516b4e11ee4fbc",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8047863068.067722,
+        "true_delta_objective_per_day": -21569295120.283096,
+        "true_extra_churn_per_exposed_window": 0.09744110125712538,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-20",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-4df55042a567b600082f",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2376160529.690165,
+        "true_delta_objective_per_day": -18029155604.411446,
+        "true_extra_churn_per_exposed_window": 0.08451021725185602,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-20",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-1c2242e9a2796b95cad0",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 530658826.45829463,
+        "true_delta_objective_per_day": -5129784470.880391,
+        "true_extra_churn_per_exposed_window": 0.04714653034570414,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-20",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-4b3082ccfb9cbe409a13",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4474702459.285651,
+        "true_delta_objective_per_day": -24854495196.248287,
+        "true_extra_churn_per_exposed_window": 0.11481593145279301,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-20",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-690d07e6481a603be8b2",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 5829981747.225391,
+        "true_delta_objective_per_day": -8305639655.772398,
+        "true_extra_churn_per_exposed_window": 0.06892874463217305,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 46803056.46637902,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-27",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-75a8d161f26b1ca91ccf",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8197525760.468586,
+        "true_delta_objective_per_day": -22506591085.832924,
+        "true_extra_churn_per_exposed_window": 0.10077872626771558,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-27",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-068f745d360935f45ae3",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2395238612.8594103,
+        "true_delta_objective_per_day": -18813937190.209488,
+        "true_extra_churn_per_exposed_window": 0.08805779018808438,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-27",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-daa6a2f8a20ee499c6c4",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 535900908.4863685,
+        "true_delta_objective_per_day": -5780031882.100737,
+        "true_extra_churn_per_exposed_window": 0.05228447606943546,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-27",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-0ee709798808271d0d36",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4578697903.4223175,
+        "true_delta_objective_per_day": -25715819626.895008,
+        "true_extra_churn_per_exposed_window": 0.11858969753848195,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-07-27",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-7ecd27ab94238a00ce4b",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6079476709.275345,
+        "true_delta_objective_per_day": -8699008210.764366,
+        "true_extra_churn_per_exposed_window": 0.07210419437448763,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 49105240.4651598,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-03",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-9c9767deb3ddb9ac111a",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8077987401.659603,
+        "true_delta_objective_per_day": -27660207643.75996,
+        "true_extra_churn_per_exposed_window": 0.11698579288549696,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-03",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-b8ac1df08ec14f898d0c",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2379214822.807257,
+        "true_delta_objective_per_day": -21848265701.481236,
+        "true_extra_churn_per_exposed_window": 0.10086930141421258,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-03",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-d76b58a29b685573e179",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 533529364.325387,
+        "true_delta_objective_per_day": -7498599198.702472,
+        "true_extra_churn_per_exposed_window": 0.06606669372718804,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-03",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-dc445afe2a2034117a23",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4557514955.721516,
+        "true_delta_objective_per_day": -30764515800.72012,
+        "true_extra_churn_per_exposed_window": 0.1376914453863779,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-03",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-41185757dfd029ee615d",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6104443323.941537,
+        "true_delta_objective_per_day": -11536346335.641327,
+        "true_extra_churn_per_exposed_window": 0.08567072706976732,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 8586425.032669634,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-10",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-b5abdc6da6cc4c6f0c86",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8274248977.200113,
+        "true_delta_objective_per_day": -25539451640.238853,
+        "true_extra_churn_per_exposed_window": 0.11042706122588576,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-10",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-e6ed50fd261920d93d67",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2435427779.922844,
+        "true_delta_objective_per_day": -19944603065.36991,
+        "true_extra_churn_per_exposed_window": 0.09361802022541871,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-10",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-aa771f75f3595431e11a",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 542316972.2420096,
+        "true_delta_objective_per_day": -6814021527.570732,
+        "true_extra_churn_per_exposed_window": 0.06034276725366823,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-10",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-0fc886707e10f05d3962",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4661601890.940997,
+        "true_delta_objective_per_day": -28166180493.450592,
+        "true_extra_churn_per_exposed_window": 0.12788257541901654,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-10",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-cae0d0de513ac6a9af52",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6326325178.91584,
+        "true_delta_objective_per_day": -10248522229.128313,
+        "true_extra_churn_per_exposed_window": 0.08002278427444624,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 35275902.279310554,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-17",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-d6829c1af93e3e766fd8",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8449335997.109152,
+        "true_delta_objective_per_day": -26151857646.875565,
+        "true_extra_churn_per_exposed_window": 0.11205877743433525,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-17",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-a1e7cddf44695a586260",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2445364591.8716536,
+        "true_delta_objective_per_day": -20908206754.477108,
+        "true_extra_churn_per_exposed_window": 0.09690406195743421,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-17",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-f0d94cad1cd52f2accd7",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 550430222.4054304,
+        "true_delta_objective_per_day": -7256840526.003876,
+        "true_extra_churn_per_exposed_window": 0.06321120191453913,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-17",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-96e6f44534e464a4bec4",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4743869915.699166,
+        "true_delta_objective_per_day": -28680324607.942375,
+        "true_extra_churn_per_exposed_window": 0.12890821754772355,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-17",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-47651111b97c0ebb6f70",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6534786496.899679,
+        "true_delta_objective_per_day": -10226092006.909441,
+        "true_extra_churn_per_exposed_window": 0.08011028995466792,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 42447797.6976476,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-24",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-b79d434671cfdbff5421",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8275710678.075497,
+        "true_delta_objective_per_day": -33007784946.72127,
+        "true_extra_churn_per_exposed_window": 0.1339536819656067,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-24",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-64e8ac5e21ef652aa750",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2284205111.53767,
+        "true_delta_objective_per_day": -25984389664.318645,
+        "true_extra_churn_per_exposed_window": 0.11731928886988195,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-24",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-0f2995598c525b9608d9",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 553519679.9861181,
+        "true_delta_objective_per_day": -8450540026.980131,
+        "true_extra_churn_per_exposed_window": 0.0728915643561017,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-24",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-7fb902a22c5696bf299d",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4668635593.776352,
+        "true_delta_objective_per_day": -35758829461.598854,
+        "true_extra_churn_per_exposed_window": 0.15576232949691182,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-24",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-fdbb66643cad9228b1ec",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6466235184.29013,
+        "true_delta_objective_per_day": -13196783277.912148,
+        "true_extra_churn_per_exposed_window": 0.09411957240092898,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 824690.3493312895,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-31",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-d73587fbbfc96f0d64b6",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8231592086.095861,
+        "true_delta_objective_per_day": -45672709473.60747,
+        "true_extra_churn_per_exposed_window": 0.17347962411198864,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-31",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-0ec66350ba8cf750e62c",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2262846075.3871236,
+        "true_delta_objective_per_day": -34790045620.74174,
+        "true_extra_churn_per_exposed_window": 0.15292278278268104,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-31",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-4517e8970f911fbc900a",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 551680812.4237772,
+        "true_delta_objective_per_day": -11749222287.048004,
+        "true_extra_churn_per_exposed_window": 0.09954075036239318,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-31",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-4975dbcf1e8c38951104",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4663269256.176527,
+        "true_delta_objective_per_day": -47700567523.25588,
+        "true_extra_churn_per_exposed_window": 0.1994411907250444,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-08-31",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-2708e85df488a23b53ce",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6504438704.755929,
+        "true_delta_objective_per_day": -18573440369.307896,
+        "true_extra_churn_per_exposed_window": 0.11938584710725024,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-09-07",
+      "chosen_price_micros": null,
+      "current_price_micros": 368000,
+      "decision_id": "dec-0285c5c0902730158185",
+      "naive_baseline": {
+        "extrapolation": 1.0152306797290584,
+        "price_micros": 1104000,
+        "true_delta_contribution_per_day": 8500470605.703445,
+        "true_delta_objective_per_day": -52300833255.0316,
+        "true_extra_churn_per_exposed_window": 0.20952350776042777,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "api_requests",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-09-07",
+      "chosen_price_micros": null,
+      "current_price_micros": 13200,
+      "decision_id": "dec-6de6d71921be129643cf",
+      "naive_baseline": {
+        "extrapolation": 1.1939224684724346,
+        "price_micros": 39600,
+        "true_delta_contribution_per_day": 2258456296.308725,
+        "true_delta_objective_per_day": -37695077470.912674,
+        "true_extra_churn_per_exposed_window": 0.1767837208227726,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "cpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-09-07",
+      "chosen_price_micros": null,
+      "current_price_micros": 45000,
+      "decision_id": "dec-ccc1941b59c402797403",
+      "naive_baseline": {
+        "extrapolation": 1.0986122886681098,
+        "price_micros": 135000,
+        "true_delta_contribution_per_day": 557960192.9807272,
+        "true_delta_objective_per_day": -14016644013.059208,
+        "true_extra_churn_per_exposed_window": 0.12624454637879978,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "gpu_minutes",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-09-07",
+      "chosen_price_micros": null,
+      "current_price_micros": 80500,
+      "decision_id": "dec-2ff6d63d05a9da233089",
+      "naive_baseline": {
+        "extrapolation": 1.2383742310432684,
+        "price_micros": 241500,
+        "true_delta_contribution_per_day": 4733087379.574759,
+        "true_delta_objective_per_day": -49545954273.04485,
+        "true_extra_churn_per_exposed_window": 0.2212282684716258,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "data_transfer_gb",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    },
+    {
+      "as_of": "2026-09-07",
+      "chosen_price_micros": null,
+      "current_price_micros": 972000,
+      "decision_id": "dec-8a3010989a00988ab8db",
+      "naive_baseline": {
+        "extrapolation": 1.1755733298042381,
+        "price_micros": 2916000,
+        "true_delta_contribution_per_day": 6628041475.172121,
+        "true_delta_objective_per_day": -19941903424.921066,
+        "true_extra_churn_per_exposed_window": 0.13506436738805164,
+        "violations": [
+          "price_ceiling",
+          "max_step",
+          "extrapolation_limit",
+          "churn_guardrail"
+        ]
+      },
+      "oracle_true_delta_per_day": 0.0,
+      "predicted_delta_contribution_per_day": 0.0,
+      "predicted_delta_objective_per_day": 0.0,
+      "product": "premium_latency",
+      "projected_extra_churn_upper": 0.0,
+      "reason_codes": [
+        "no_improvement"
+      ],
+      "status": "hold",
+      "true_delta_contribution_per_day": 0.0,
+      "true_delta_objective_per_day": 0.0,
+      "true_extra_churn_per_exposed_window": 0.0
+    }
+  ],
+  "seed": 1,
+  "status_counts": {
+    "hold": 40
+  },
+  "stress": [
+    {
+      "case": "stale_features",
+      "expected_reason": "forecast_stale",
+      "passed": true,
+      "reasons": [
+        [
+          "forecast_stale"
+        ],
+        [
+          "forecast_stale"
+        ],
+        [
+          "forecast_stale"
+        ],
+        [
+          "forecast_stale"
+        ],
+        [
+          "forecast_stale"
+        ]
+      ],
+      "statuses": [
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable"
+      ]
+    },
+    {
+      "case": "features_too_old",
+      "expected_reason": "forecast_unavailable",
+      "passed": true,
+      "reasons": [
+        [
+          "forecast_unavailable"
+        ],
+        [
+          "forecast_unavailable"
+        ],
+        [
+          "forecast_unavailable"
+        ],
+        [
+          "forecast_unavailable"
+        ],
+        [
+          "forecast_unavailable"
+        ]
+      ],
+      "statuses": [
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable"
+      ]
+    },
+    {
+      "case": "forecast_model_unavailable",
+      "expected_reason": "model_unavailable",
+      "passed": true,
+      "reasons": [
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ]
+      ],
+      "statuses": [
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable"
+      ]
+    },
+    {
+      "case": "evidence_unavailable",
+      "expected_reason": "model_unavailable",
+      "passed": true,
+      "reasons": [
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ],
+        [
+          "model_unavailable"
+        ]
+      ],
+      "statuses": [
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable",
+        "unavailable"
+      ]
+    },
+    {
+      "case": "inflated_uncertainty",
+      "expected_reason": "uncertainty_elasticity_sd",
+      "passed": true,
+      "reasons": [
+        [
+          "uncertainty_elasticity_sd"
+        ],
+        [
+          "uncertainty_elasticity_sd"
+        ],
+        [
+          "uncertainty_elasticity_sd"
+        ],
+        [
+          "uncertainty_elasticity_sd"
+        ],
+        [
+          "uncertainty_elasticity_sd"
+        ]
+      ],
+      "statuses": [
+        "frozen",
+        "frozen",
+        "frozen",
+        "frozen",
+        "frozen"
+      ]
+    }
+  ],
+  "world_config_hash": "02be88f76fa306e77ecfc074b99c5cf5404fc266932f8bd59323be05166f3b32"
+}

@@ -1,0 +1,67 @@
+# Pricing policy (Phase 6). The business rules the constrained optimiser must obey. SYNTHETIC
+# business. PRE-REGISTERED 2026-10-06 before the optimiser was run on any world; a test pins
+# this file's hash. Its hash is the decision `policy_version`; any change is a new policy
+# version and must be justified in an ADR, never made to flatter a shadow result.
+#
+# Decision unit: the list price of one product (the business sets one list price per product).
+# A cycle decides every product once. Prices are integer micro-GBP per billing unit.
+
+[policy]
+name = "praxis-pricing"
+mode = "shadow"                   # shadow | recommend | execute (CLAUDE.md: start in shadow)
+allow_execute = false             # execute mode also needs this switch (and the CLI flag)
+horizon_days = 7                  # forecast horizons 1..7: the period one decision is planned for
+price_tick_micros = 100           # candidate prices are multiples of this tick
+grid_points = 41                  # candidate prices across the max-step range (plus the current)
+
+[constraints]
+max_step = 0.05                   # a cycle moves a price by at most x(1 + 0.05) or /(1 + 0.05)
+cooldown_days = 14                # no change within 14 days of the last list-price change
+min_contribution_margin = 0.20    # (net price - marginal cost) / net price, in every region served
+max_utilization = 0.85            # projected regional utilisation after the change (if it rises)
+capacity_quantile = 0.9           # forecast quantile used for the capacity check (pessimistic)
+max_incremental_churn = 0.005     # projected extra churn probability per exposed customer over the
+                                  # churn evidence window (28 days), at the one-sided 95% bound
+
+[uncertainty]
+max_elasticity_sd = 0.25          # freeze if a material tier's elasticity posterior SD exceeds it
+material_tier_share = 0.05        # a tier is material above this share of the product's demand
+min_prob_improvement = 0.90       # freeze a change unless P(objective improves) >= 0.90
+risk_aversion = 0.5               # objective = E[delta] - 0.5 x SD[delta]
+max_forecast_relative_width = 1.0 # freeze if (q90 - q10) / point of the product's demand exceeds it
+z_grid = 199                      # equal-probability elasticity shock grid (deterministic)
+
+[evidence]
+max_extrapolation = 0.1823        # |log(price / price when tested)| <= tested |log ratio| (ADR 0012)
+max_evidence_age_days = 365       # randomised evidence older than this cannot move a price
+churn_upper_z = 1.6449            # one-sided 95% bound on the churn response to price
+require_fresh_forecast = true     # the stale fallback forecast never moves a price
+
+[valuation]
+payment_loss_lookback_days = 56   # share of invoiced value finally uncollected
+cost_lookback_days = 7            # recent marginal cost per region and product
+utilization_lookback_days = 14    # recent peak daily-mean utilisation per region
+customer_lookback_days = 28       # active users, contribution and churn hazard for the CLV proxy
+clv_lifetime_cap_days = 365       # CLV proxy = daily contribution x min(1 / hazard, cap) (Phase 9
+                                  # replaces this proxy with a churn / CLV model)
+
+# Static commercial bounds per product (absolute, micro-GBP).
+[products.api_requests]
+floor_micros = 200000
+ceiling_micros = 800000
+
+[products.cpu_minutes]
+floor_micros = 6000
+ceiling_micros = 24000
+
+[products.gpu_minutes]
+floor_micros = 22500
+ceiling_micros = 90000
+
+[products.data_transfer_gb]
+floor_micros = 35000
+ceiling_micros = 140000
+
+[products.premium_latency]
+floor_micros = 450000
+ceiling_micros = 1800000

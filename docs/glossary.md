@@ -59,3 +59,10 @@
 | Development / evaluation world | Seed used to build and debug a method versus the held-out seed used once for the gate. |
 | Hybrid champion | Served demand model (ADR 0011): ridge expected demand + calibrated LightGBM quantiles. |
 | Stale-feature fallback | Seasonal moving average served when features are 2-7 days old; older means no forecast. |
+| Decision record | Content-addressed audit record of one pricing decision (inputs, candidates, constraints, reasons); append-only. |
+| Policy version | Hash of the pricing policy file plus mode; stamped on every decision. |
+| Hold / frozen | Keep the price: hold = the current price is best; frozen = evidence or confidence too weak to move it. |
+| Extrapolation limit | Bound on abs(log(price / price when tested)): elasticity is only identified in the tested range. |
+| Churn slope | Change in 28-day churn probability per unit log price, from randomised tests; partially pooled. |
+| Shadow evaluation | Scoring recorded shadow decisions against the simulator's counterfactual truth. |
+| Oracle (feasible) | The truly best candidate the decision considered; the reference for missed value. |

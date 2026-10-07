@@ -1,0 +1,90 @@
+# Pricing shadow world (Phase 6). SYNTHETIC. Overlay on configs/simulator/default.toml.
+#
+# Pre-registered 2026-10-06, before any pricing code was run on any world. Do not edit to flatter
+# the optimiser (CLAUDE.md s9); a test pins this file's hash.
+#
+# This is the Phase 4 forecast evaluation world (configs/simulator/scenarios/forecast_eval.toml,
+# copied verbatim below the [population] table; a test checks the copy) CONTINUED for eight more
+# weeks. The forecast artifact was trained on days 0..195 of that world. `arrival_horizon_days`
+# keeps the population (and therefore days 0..195) identical to the 196-day world: new customers
+# arrive over days 1..195 only, so the shadow window (days 196..251) has no new sign-ups.
+# Shadow decision cycles start on days 196, 203, ..., 245 (Mondays); each is scored on its own
+# seven days. No price is changed in this world: shadow mode never executes.
+
+[run]
+days = 252  # 196 days of the forecast world + 8 weekly shadow cycles
+
+[population]
+arrival_horizon_days = 196
+
+[[infrastructure.demand_spikes]]
+region = "eu_west"
+start_day = 40
+end_day = 46
+multiplier = 1.6
+
+[[infrastructure.demand_spikes]]
+region = "us_west"
+start_day = 61
+end_day = 65
+multiplier = 1.7
+
+[[infrastructure.demand_spikes]]
+region = "us_east"
+product = "api_requests"
+start_day = 95
+end_day = 100
+multiplier = 2.0
+
+[[infrastructure.demand_spikes]]
+region = "ap_southeast"
+start_day = 120
+end_day = 128
+multiplier = 1.5
+
+[[infrastructure.demand_spikes]]
+region = "eu_central"
+product = "gpu_minutes"
+start_day = 150
+end_day = 155
+multiplier = 2.5
+
+[[infrastructure.demand_spikes]]
+region = "us_west"
+product = "data_transfer_gb"
+start_day = 170
+end_day = 178
+multiplier = 1.8
+
+[[infrastructure.demand_spikes]]
+region = "eu_west"
+product = "premium_latency"
+start_day = 184
+end_day = 188
+multiplier = 1.9
+
+[[infrastructure.capacity_shocks]]
+region = "us_east"
+start_day = 130
+end_day = 138
+capacity_multiplier = 0.75
+
+[[pricing.price_changes]]
+product = "cpu_minutes"
+day = 70
+multiplier = 1.10
+
+[[pricing.price_changes]]
+product = "api_requests"
+day = 110
+multiplier = 0.92
+
+[[pricing.price_changes]]
+product = "data_transfer_gb"
+day = 140
+multiplier = 1.15
+
+[[pricing.price_changes]]
+product = "premium_latency"
+day = 160
+multiplier = 1.08

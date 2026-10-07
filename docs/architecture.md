@@ -60,7 +60,9 @@ The loop is only complete when outcomes flow back into ingestion (right to left 
 ```text
 src/praxis/        Python package: api, config, logging, tracing, events (envelope, payloads, codec),
                    domain (state machines, projections), simulator (Phase 1), data (Phase 2),
-                   streaming (Phase 3 transport, producer, consumers), control (Postgres + Alembic)
+                   streaming (Phase 3 transport, producer, consumers), control (Postgres + Alembic),
+                   forecasting (Phase 4), elasticity (Phase 5), pricing (Phase 6 optimiser, audit
+                   store), science (the only package joining model output with ground truth)
 tests/             unit, contract, simulator, data, streaming, control, integration (emulator)
 schemas/events/    Versioned JSON Schemas: envelope and per-event payloads (payloads/)
 configs/simulator/ Stable simulator world definition (TOML)
@@ -72,7 +74,8 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
 
 ## Boundaries that must not erode
 
-* The optimiser owns pricing; the LLM never does (ADR 0004).
+* The optimiser owns pricing; the LLM never does (ADR 0004). No price executes without a
+  persisted decision record; Postgres enforces it by trigger (ADR 0013, `docs/pricing.md`).
 * All payment operations go through `PaymentGateway` (ADR 0003).
 * Retraining never implies promotion (ADR 0005).
 * Large-scale tests use the synthetic gateway only (ADR 0006).

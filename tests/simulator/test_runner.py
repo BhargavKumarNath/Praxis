@@ -76,3 +76,30 @@ def test_cli_prints_summary_and_writes_output(
     assert "retrieved_at" not in summary
     assert summary["n_customers"] == 60 and summary["quality_status"] == "validated"
     assert (tmp_path / "events.ndjson").exists()
+
+
+def test_peak_rss_is_not_inherited_from_a_large_parent(tmp_path: Path) -> None:
+    """Regression: ru_maxrss survives fork + exec, so a big pytest parent inflated the 10K
+    scale smoke's reading past its budget. VmHWM is the child's own high-water mark."""
+    import subprocess
+    import sys
+
+    from praxis.simulator.runner import peak_rss_mb
+
+    code = (
+        "blob = bytearray(300 * 1024 * 1024)\n"
+        "for i in range(0, len(blob), 4096): blob[i] = 1\n"
+        "import subprocess, sys\n"
+        "print(subprocess.run([sys.executable, '-c', "
+        "'from praxis.simulator.runner import peak_rss_mb; print(peak_rss_mb())'], "
+        "capture_output=True, text=True, check=True).stdout)"
+    )
+    done = subprocess.run(  # noqa: S603 - fixed interpreter and code, no external input
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True
+    )
+    child = float(done.stdout)
+    assert child < 250.0  # the 300 MB parent is not counted
+    status = tmp_path / "status"
+    status.write_text("Name:\tx\nVmHWM:\t  2048 kB\n")
+    assert peak_rss_mb(status) == 2.0
+    assert peak_rss_mb(tmp_path / "missing") > 0  # ru_maxrss fallback

@@ -20,6 +20,10 @@ vars:
   # FRED values are published weeks after the period they describe. A macro value is only
   # usable as a feature from observed_date + this many days (prevents look-ahead leakage).
   macro_release_lag_days: 45
+  # Products whose marginal cost is extracted from service.metric_observed payloads. BigQuery
+  # needs literal JSON paths, and a compile-time query would hit the warehouse, so the catalogue
+  # is listed here; tests/pricing/test_dbt_cost.py keeps it equal to the simulator's products.
+  marginal_cost_products: [api_requests, cpu_minutes, data_transfer_gb, gpu_minutes, premium_latency]
 
 models:
   praxis:

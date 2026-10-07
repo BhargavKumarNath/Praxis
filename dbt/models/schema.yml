@@ -113,6 +113,26 @@ models:
                   - insufficient_funds
                   - processor_error
 
+  - name: fct_marginal_cost_daily
+    description: Daily marginal cost per region and product (SYNTHETIC), Phase 6 optimiser input.
+    data_tests:
+      - unique_grain: {arguments: {columns: [event_date, region_id, product]}}
+    columns:
+      - name: region_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_region'), field: region_id}}
+      - name: product
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_product'), field: product_id}}
+      - name: hours
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [24], quote: false}}
+      - name: avg_cost_micros
+        data_tests: [not_null]
+
   - name: fct_price_exposures
     columns:
       - name: exposure_id

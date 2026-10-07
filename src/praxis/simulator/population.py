@@ -145,7 +145,8 @@ def generate_population(config: SimulationConfig, seed: int) -> Population:  # n
     mix = share / share.sum(axis=1, keepdims=True)
 
     is_new = rng.random(n) < cfg.new_customer_fraction
-    created_day = np.where(is_new, rng.integers(1, max(2, config.run.days), n), 0).astype(np.int64)
+    horizon = cfg.arrival_horizon_days or config.run.days
+    created_day = np.where(is_new, rng.integers(1, max(2, horizon), n), 0).astype(np.int64)
     tenure = np.where(
         is_new, 0, 1 + rng.exponential(cfg.existing_tenure_mean_days, n).astype(np.int64)
     ).astype(np.int64)

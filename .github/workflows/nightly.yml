@@ -22,7 +22,7 @@ env:
 
 jobs:
   science:
-    name: science regression (forecast + elasticity acceptance, dev world)
+    name: science regression (forecast + elasticity + pricing shadow acceptance, dev world)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -42,6 +42,7 @@ jobs:
             data/forecast/*/backtest.json
             data/elasticity/*/analysis/report.json
             data/elasticity/*/analysis/recovery.json
+            data/pricing/*/shadow/shadow.json
           if-no-files-found: warn
 
   perf:
