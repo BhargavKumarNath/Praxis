@@ -13,6 +13,7 @@ from praxis.events.codec import ATTR_STATEFUL
 OPERATIONAL = "operational"
 WAREHOUSE = "warehouse"
 MONITORING = "monitoring"
+DUNNING = "dunning"  # Phase 8: payment events -> dunning decisions (stateful events only)
 DLQ_INSPECT = "dlq-inspect"
 
 
@@ -56,6 +57,14 @@ class Topology:
             if sub.role == role:
                 return sub
         raise KeyError(role)
+
+    def only(self, roles: tuple[str, ...]) -> Topology:
+        """The same topology restricted to the subscriptions of ``roles``."""
+        return Topology(
+            self.events_topic,
+            self.dead_letter_topic,
+            tuple(s for s in self.subscriptions if s.role in roles),
+        )
 
     @property
     def topics(self) -> tuple[str, str]:
@@ -101,6 +110,7 @@ def build_topology(
             sub(OPERATIONAL, (ATTR_STATEFUL, "true")),
             sub(WAREHOUSE),
             sub(MONITORING),
+            sub(DUNNING, (ATTR_STATEFUL, "true")),
             SubscriptionSpec(
                 name=f"{dlq}-inspect",
                 role=DLQ_INSPECT,

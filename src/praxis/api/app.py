@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from praxis import __version__
 from praxis.api.forecast import build_forecast_service, forecast_router
+from praxis.api.tasks import RetryHandler, tasks_router
 from praxis.api.webhooks import webhook_router
 from praxis.config import Settings, get_settings
 from praxis.control.db import make_engine
@@ -55,16 +56,27 @@ def build_webhook_receiver(settings: Settings) -> WebhookReceiver | None:
     )
 
 
+def build_retry_handler(settings: Settings) -> RetryHandler | None:
+    """Production wiring (Stripe + Cloud Tasks) only when fully configured; else 503."""
+    from praxis.dunning.wiring import build_cloud_executor
+
+    executor = build_cloud_executor(settings)
+    return executor.execute if executor is not None else None
+
+
 def create_app(
     settings: Settings | None = None,
     forecast_service: ForecastService | None = None,
     webhook_receiver: WebhookReceiver | None = None,
+    retry_handler: RetryHandler | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level.value)
     app = FastAPI(title="Praxis", version=__version__)
     app.include_router(forecast_router(forecast_service or build_forecast_service(settings)))
     app.include_router(webhook_router(webhook_receiver or build_webhook_receiver(settings)))
+    token = settings.tasks_token.get_secret_value() if settings.tasks_token else None
+    app.include_router(tasks_router(retry_handler or build_retry_handler(settings), token))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:

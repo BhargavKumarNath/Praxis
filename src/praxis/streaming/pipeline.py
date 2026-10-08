@@ -51,8 +51,14 @@ class LocalPipeline:
     crash_plans: Mapping[str, CrashPlan] = field(default_factory=dict)
     batch_size: int = 100
     metrics: StreamMetrics = field(default_factory=StreamMetrics)
+    # Additional consumers by role (e.g. Phase 8 ``dunning``), built by higher layers.
+    extra_consumers: Mapping[str, Callable[[], Consumer]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        # The in-memory broker only keeps subscriptions that are actually consumed here, so
+        # adding a role to the topology never changes the delivery faults of existing runs.
+        self.roles = (*ROLES, *self.extra_consumers)
+        self.topology = self.topology.only((*self.roles, DLQ_INSPECT))
         self.broker = MemoryBroker(self.topology, faults=self.faults)
         self.archive = EventArchive(self.archive_root) if self.archive_root else None
         self.producer = EventProducer(self.broker, self.topology.events_topic, self.archive)
@@ -64,6 +70,7 @@ class LocalPipeline:
             OPERATIONAL: lambda: OperationalConsumer(self.store),
             WAREHOUSE: lambda: WarehouseConsumer(self.warehouse, "stream"),
             MONITORING: lambda: MonitoringConsumer(self.metrics),
+            **self.extra_consumers,
         }
 
     def _build(self, role: str) -> Worker:
@@ -102,7 +109,7 @@ class LocalPipeline:
 
     def drain(self) -> dict[str, DrainReport]:
         """Drain every consumer, then the DLQ inspector (which sees all dead letters)."""
-        for role in (*ROLES, DLQ_INSPECT):
+        for role in (*self.roles, DLQ_INSPECT):
             report = drain(
                 self.broker,
                 self.subscription(role),
@@ -131,7 +138,8 @@ class LocalPipeline:
 
     def backlog(self) -> dict[str, int]:
         return {
-            role: self.broker.backlog(self.subscription(role)) for role in (*ROLES, DLQ_INSPECT)
+            role: self.broker.backlog(self.subscription(role))
+            for role in (*self.roles, DLQ_INSPECT)
         }
 
 

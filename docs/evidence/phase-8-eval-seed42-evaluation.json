@@ -1,0 +1,925 @@
+{
+  "challenger": "classifier_lgbm_isotonic",
+  "champion": "survival_cure_weibull",
+  "checks": [
+    {
+      "below_reference": false,
+      "name": "champion_ece_consistent_with_calibration",
+      "null_p95": 0.0642815188198804,
+      "passed": true,
+      "reference_max": 0.03,
+      "value": 0.03408905153644869
+    },
+    {
+      "failed": [],
+      "name": "champion_segment_calibration",
+      "passed": true
+    },
+    {
+      "champion": 0.16479501541936198,
+      "name": "champion_brier_vs_table",
+      "passed": true,
+      "table": 0.16587031792780157
+    },
+    {
+      "champion": 0.6510713551654603,
+      "name": "champion_pr_auc_vs_table",
+      "passed": true,
+      "table": 0.6263346652502524
+    },
+    {
+      "base_rate": 0.21489547894369854,
+      "champion": 0.16479501541936198,
+      "name": "champion_brier_vs_base_rate",
+      "passed": true
+    },
+    {
+      "name": "gap_assignment_uniform",
+      "p": 0.8371034607059278,
+      "passed": true
+    },
+    {
+      "name": "gap_assignment_independent_of_reason",
+      "p": 0.6330786274889313,
+      "passed": true
+    },
+    {
+      "cells": 17,
+      "failed": [],
+      "name": "survival_current_status_fit",
+      "passed": true
+    },
+    {
+      "gated_reasons": [
+        "card_declined",
+        "insufficient_funds"
+      ],
+      "max": 0.06,
+      "max_abs_error": 0.033189910360309216,
+      "name": "champion_truth_recovery",
+      "passed": true
+    },
+    {
+      "ci95": [
+        2197.720948764045,
+        7599.495064719099
+      ],
+      "mean_per_episode": 4771.997042696629,
+      "name": "policy_net_value_gain",
+      "passed": true
+    },
+    {
+      "baseline": 0.5460674157303371,
+      "champion": 0.6112359550561798,
+      "name": "policy_recovery_rate",
+      "passed": true
+    },
+    {
+      "name": "policy_recovered_revenue",
+      "passed": true,
+      "ratio": 1.0568630653391156
+    },
+    {
+      "name": "fallback_equals_baseline",
+      "passed": true
+    },
+    {
+      "name": "policy_bounds",
+      "passed": true,
+      "violations": 0
+    }
+  ],
+  "config_hash": "976676558d8feb02bdf3ee7f24756aeeeaa3ccf7e5ee09924d9bbb5d558cc666",
+  "evaluation_episodes": 445,
+  "evaluation_recovered_true_share": 0.6269662921348315,
+  "is_synthetic": true,
+  "model_version": "recovery-surv-d12545184bfc",
+  "models": {
+    "base_rate": {
+      "brier": 0.21489547894369854,
+      "ece": 0.04980509057555605,
+      "log_loss": 0.6218834553764414,
+      "pr_auc": 0.2954057896555169,
+      "reliability": [
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 45.0,
+          "observed": 0.3111111111111111
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 45.0,
+          "observed": 0.24444444444444444
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 45.0,
+          "observed": 0.26666666666666666
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 45.0,
+          "observed": 0.28888888888888886
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 45.0,
+          "observed": 0.26666666666666666
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 44.0,
+          "observed": 0.38636363636363635
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 44.0,
+          "observed": 0.36363636363636365
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 44.0,
+          "observed": 0.3409090909090909
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 44.0,
+          "observed": 0.25
+        },
+        {
+          "mean_predicted": 0.2653061224489796,
+          "n": 44.0,
+          "observed": 0.36363636363636365
+        }
+      ]
+    },
+    "champion_ece_null_p95": 0.0642815188198804,
+    "champion_segments": {
+      "reason": [
+        {
+          "abs_error": 0.004707106651295895,
+          "allowed": 0.09065454435776063,
+          "mean_predicted": 0.24584185842434553,
+          "n": 141,
+          "observed": 0.24113475177304963,
+          "passed": true,
+          "segment": "card_declined"
+        },
+        {
+          "abs_error": 0.021930149356022166,
+          "allowed": 0.08307439979461576,
+          "mean_predicted": 0.28617795875208596,
+          "n": 185,
+          "observed": 0.3081081081081081,
+          "passed": true,
+          "segment": "insufficient_funds"
+        }
+      ],
+      "tier": [
+        {
+          "abs_error": 0.03413685965845403,
+          "allowed": 0.12631685748853783,
+          "mean_predicted": 0.33298743437109773,
+          "n": 87,
+          "observed": 0.2988505747126437,
+          "passed": true,
+          "segment": "enterprise"
+        },
+        {
+          "abs_error": 0.00268173536734867,
+          "allowed": 0.081710992358869,
+          "mean_predicted": 0.3179526713279398,
+          "n": 203,
+          "observed": 0.31527093596059114,
+          "passed": true,
+          "segment": "growth"
+        },
+        {
+          "abs_error": 0.017358566593594582,
+          "allowed": 0.0907289389570563,
+          "mean_predicted": 0.2858672398580183,
+          "n": 155,
+          "observed": 0.3032258064516129,
+          "passed": true,
+          "segment": "starter"
+        }
+      ]
+    },
+    "classifier_lgbm_isotonic": {
+      "brier": 0.18052532728089762,
+      "ece": 0.04553344695132968,
+      "log_loss": 0.5372460341792477,
+      "pr_auc": 0.5698086736111345,
+      "reliability": [
+        {
+          "mean_predicted": 0.1020036429872496,
+          "n": 45.0,
+          "observed": 0.08888888888888889
+        },
+        {
+          "mean_predicted": 0.1147540983606558,
+          "n": 45.0,
+          "observed": 0.06666666666666667
+        },
+        {
+          "mean_predicted": 0.11725865209471767,
+          "n": 45.0,
+          "observed": 0.1111111111111111
+        },
+        {
+          "mean_predicted": 0.2125925925925925,
+          "n": 45.0,
+          "observed": 0.26666666666666666
+        },
+        {
+          "mean_predicted": 0.26589371980676324,
+          "n": 45.0,
+          "observed": 0.3333333333333333
+        },
+        {
+          "mean_predicted": 0.2826086956521739,
+          "n": 44.0,
+          "observed": 0.29545454545454547
+        },
+        {
+          "mean_predicted": 0.3147233201581027,
+          "n": 44.0,
+          "observed": 0.29545454545454547
+        },
+        {
+          "mean_predicted": 0.4771005509641874,
+          "n": 44.0,
+          "observed": 0.4772727272727273
+        },
+        {
+          "mean_predicted": 0.603467365967366,
+          "n": 44.0,
+          "observed": 0.4318181818181818
+        },
+        {
+          "mean_predicted": 0.790689702454408,
+          "n": 44.0,
+          "observed": 0.7272727272727273
+        }
+      ]
+    },
+    "observed_rate": 0.30786516853932583,
+    "rate_table": {
+      "brier": 0.16587031792780157,
+      "ece": 0.05198072321178392,
+      "log_loss": 0.5011825212109866,
+      "pr_auc": 0.6263346652502524,
+      "reliability": [
+        {
+          "mean_predicted": 0.034422972037805664,
+          "n": 45.0,
+          "observed": 0.06666666666666667
+        },
+        {
+          "mean_predicted": 0.08032590564304394,
+          "n": 45.0,
+          "observed": 0.08888888888888889
+        },
+        {
+          "mean_predicted": 0.12621156229108632,
+          "n": 45.0,
+          "observed": 0.06666666666666667
+        },
+        {
+          "mean_predicted": 0.1762388732761671,
+          "n": 45.0,
+          "observed": 0.2
+        },
+        {
+          "mean_predicted": 0.19771815546962376,
+          "n": 45.0,
+          "observed": 0.2222222222222222
+        },
+        {
+          "mean_predicted": 0.23926598734587798,
+          "n": 44.0,
+          "observed": 0.36363636363636365
+        },
+        {
+          "mean_predicted": 0.2610612464510718,
+          "n": 44.0,
+          "observed": 0.2727272727272727
+        },
+        {
+          "mean_predicted": 0.35338865374260864,
+          "n": 44.0,
+          "observed": 0.4772727272727273
+        },
+        {
+          "mean_predicted": 0.47992277861852767,
+          "n": 44.0,
+          "observed": 0.5681818181818182
+        },
+        {
+          "mean_predicted": 0.7982674687795356,
+          "n": 44.0,
+          "observed": 0.7727272727272727
+        }
+      ]
+    },
+    "rows": 445,
+    "survival_cure_weibull": {
+      "brier": 0.16479501541936198,
+      "ece": 0.03408905153644869,
+      "log_loss": 0.5009050722071969,
+      "pr_auc": 0.6510713551654603,
+      "reliability": [
+        {
+          "mean_predicted": 0.023108712385371585,
+          "n": 45.0,
+          "observed": 0.022222222222222223
+        },
+        {
+          "mean_predicted": 0.08376668259544565,
+          "n": 45.0,
+          "observed": 0.15555555555555556
+        },
+        {
+          "mean_predicted": 0.1381058047793181,
+          "n": 45.0,
+          "observed": 0.15555555555555556
+        },
+        {
+          "mean_predicted": 0.1820401567585008,
+          "n": 45.0,
+          "observed": 0.13333333333333333
+        },
+        {
+          "mean_predicted": 0.23289737519027945,
+          "n": 45.0,
+          "observed": 0.2222222222222222
+        },
+        {
+          "mean_predicted": 0.2691541983000195,
+          "n": 44.0,
+          "observed": 0.3409090909090909
+        },
+        {
+          "mean_predicted": 0.3203884135178968,
+          "n": 44.0,
+          "observed": 0.3181818181818182
+        },
+        {
+          "mean_predicted": 0.4152057786011737,
+          "n": 44.0,
+          "observed": 0.3409090909090909
+        },
+        {
+          "mean_predicted": 0.6115133518382467,
+          "n": 44.0,
+          "observed": 0.5681818181818182
+        },
+        {
+          "mean_predicted": 0.8411786741278661,
+          "n": 44.0,
+          "observed": 0.8409090909090909
+        }
+      ]
+    }
+  },
+  "passed": true,
+  "policy": {
+    "baseline": {
+      "bound_violations": 0,
+      "captured_share_of_oracle": 0.9356530987675004,
+      "episodes": 445,
+      "failed_retries": 541,
+      "failed_retries_per_episode": 1.2157303370786516,
+      "mean_time_to_recovery_days": 6.946502057613169,
+      "net_value_minor": 40496762.188,
+      "recovered_revenue_minor": 41867968,
+      "recovery_rate": 0.5460674157303371,
+      "restricted_days_per_episode": 5.332584269662921,
+      "retries": 784
+    },
+    "challenger": {
+      "bound_violations": 0,
+      "captured_share_of_oracle": 0.9015273259471307,
+      "episodes": 445,
+      "failed_retries": 419,
+      "failed_retries_per_episode": 0.9415730337078652,
+      "mean_time_to_recovery_days": 6.54066985645933,
+      "net_value_minor": 39019736.879999995,
+      "recovered_revenue_minor": 40138440,
+      "recovery_rate": 0.4696629213483146,
+      "restricted_days_per_episode": 0.01348314606741573,
+      "retries": 628
+    },
+    "champion": {
+      "bound_violations": 0,
+      "captured_share_of_oracle": 0.9847161705462615,
+      "episodes": 445,
+      "failed_retries": 375,
+      "failed_retries_per_episode": 0.8426966292134831,
+      "mean_time_to_recovery_days": 9.823529411764707,
+      "net_value_minor": 42620300.872,
+      "recovered_revenue_minor": 44248709,
+      "recovery_rate": 0.6112359550561798,
+      "restricted_days_per_episode": 2.134831460674157,
+      "retries": 647
+    },
+    "champion_minus_baseline_net_value": {
+      "ci95": [
+        2197.720948764045,
+        7599.495064719099
+      ],
+      "mean_per_episode": 4771.997042696629
+    },
+    "fallback_model_unavailable": {
+      "bound_violations": 0,
+      "episodes": 445,
+      "failed_retries": 541,
+      "failed_retries_per_episode": 1.2157303370786516,
+      "mean_time_to_recovery_days": 6.946502057613169,
+      "net_value_minor": 40496762.188,
+      "recovered_revenue_minor": 41867968,
+      "recovery_rate": 0.5460674157303371,
+      "restricted_days_per_episode": 5.332584269662921,
+      "retries": 784
+    },
+    "oracle_net_value_minor": 43281812.716
+  },
+  "policy_version": "dunning-2cc08f560630",
+  "seed": 42,
+  "survival": {
+    "assignment_audit": {
+      "counts": {
+        "1": 327,
+        "10": 331,
+        "2": 341,
+        "3": 339,
+        "4": 357,
+        "5": 350,
+        "7": 360
+      },
+      "independent_of_reason_p": 0.6330786274889313,
+      "rows": 2405,
+      "uniform_p": 0.8371034607059278
+    },
+    "censored_eval_share": 0.5348314606741573,
+    "concordance_eval": {
+      "classifier_lgbm_isotonic": 0.5779079546443175,
+      "survival_cure_weibull": 0.6683293216947481
+    },
+    "current_status_fit_training": [
+      {
+        "abs_error": 0.016780927016439767,
+        "allowed": 0.11377251777139251,
+        "elapsed_days": 1,
+        "mean_predicted": 0.13070497764935116,
+        "n": 79,
+        "observed": 0.11392405063291139,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.032462852910580736,
+        "allowed": 0.16195333708133205,
+        "elapsed_days": 10,
+        "mean_predicted": 0.27883966450478365,
+        "n": 69,
+        "observed": 0.2463768115942029,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.02906825386330697,
+        "allowed": 0.12762413043949478,
+        "elapsed_days": 2,
+        "mean_predicted": 0.170093894888948,
+        "n": 78,
+        "observed": 0.14102564102564102,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.004326579753277021,
+        "allowed": 0.13424965163989677,
+        "elapsed_days": 3,
+        "mean_predicted": 0.1904786150519178,
+        "n": 77,
+        "observed": 0.19480519480519481,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.02494560068437035,
+        "allowed": 0.13589707173294294,
+        "elapsed_days": 4,
+        "mean_predicted": 0.21771668502171976,
+        "n": 83,
+        "observed": 0.1927710843373494,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.04033299929816661,
+        "allowed": 0.13410362089455488,
+        "elapsed_days": 5,
+        "mean_predicted": 0.22403481679378742,
+        "n": 87,
+        "observed": 0.26436781609195403,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.05642373862369765,
+        "allowed": 0.14386288567614758,
+        "elapsed_days": 7,
+        "mean_predicted": 0.25682927342449513,
+        "n": 83,
+        "observed": 0.3132530120481928,
+        "passed": true,
+        "reason": "card_declined"
+      },
+      {
+        "abs_error": 0.006320136261731335,
+        "allowed": 0.22786050351111142,
+        "elapsed_days": 10,
+        "mean_predicted": 0.38392376617729307,
+        "n": 41,
+        "observed": 0.3902439024390244,
+        "passed": true,
+        "reason": "expired_card"
+      },
+      {
+        "abs_error": 0.03255282600096787,
+        "allowed": 0.14755972418456176,
+        "elapsed_days": 4,
+        "mean_predicted": 0.13411384066569879,
+        "n": 48,
+        "observed": 0.16666666666666666,
+        "passed": true,
+        "reason": "expired_card"
+      },
+      {
+        "abs_error": 0.031316462518614085,
+        "allowed": 0.17952061565075583,
+        "elapsed_days": 5,
+        "mean_predicted": 0.19595626475411318,
+        "n": 44,
+        "observed": 0.22727272727272727,
+        "passed": true,
+        "reason": "expired_card"
+      },
+      {
+        "abs_error": 0.00813039439633295,
+        "allowed": 0.05,
+        "elapsed_days": 1,
+        "mean_predicted": 0.011100374834436282,
+        "n": 104,
+        "observed": 0.019230769230769232,
+        "passed": true,
+        "reason": "insufficient_funds"
+      },
+      {
+        "abs_error": 0.01327101298394806,
+        "allowed": 0.14154675954760743,
+        "elapsed_days": 10,
+        "mean_predicted": 0.5538115535244886,
+        "n": 111,
+        "observed": 0.5405405405405406,
+        "passed": true,
+        "reason": "insufficient_funds"
+      },
+      {
+        "abs_error": 0.005004412521015619,
+        "allowed": 0.05481885431143772,
+        "elapsed_days": 2,
+        "mean_predicted": 0.0443744912611731,
+        "n": 127,
+        "observed": 0.03937007874015748,
+        "passed": true,
+        "reason": "insufficient_funds"
+      },
+      {
+        "abs_error": 0.000830863151563721,
+        "allowed": 0.07759660870154962,
+        "elapsed_days": 3,
+        "mean_predicted": 0.09458086315156372,
+        "n": 128,
+        "observed": 0.09375,
+        "passed": true,
+        "reason": "insufficient_funds"
+      },
+      {
+        "abs_error": 0.0304241370039193,
+        "allowed": 0.1040628878429114,
+        "elapsed_days": 4,
+        "mean_predicted": 0.1587650521852699,
+        "n": 111,
+        "observed": 0.1891891891891892,
+        "passed": true,
+        "reason": "insufficient_funds"
+      },
+      {
+        "abs_error": 0.009812222093296852,
+        "allowed": 0.11474750597870237,
+        "elapsed_days": 5,
+        "mean_predicted": 0.22985719939430646,
+        "n": 121,
+        "observed": 0.2396694214876033,
+        "passed": true,
+        "reason": "insufficient_funds"
+      },
+      {
+        "abs_error": 0.01462056814604884,
+        "allowed": 0.12357637268859151,
+        "elapsed_days": 7,
+        "mean_predicted": 0.3810628850913612,
+        "n": 139,
+        "observed": 0.39568345323741005,
+        "passed": true,
+        "reason": "insufficient_funds"
+      }
+    ],
+    "truth_recovery": {
+      "classifier_lgbm_isotonic": {
+        "gated_reasons": [
+          "card_declined",
+          "insufficient_funds"
+        ],
+        "grid_days": [
+          1,
+          2,
+          3,
+          5,
+          7,
+          10,
+          14,
+          20
+        ],
+        "max_abs_error": 0.21381273235702547,
+        "max_abs_error_all_reasons": 0.21381273235702547,
+        "per_reason": {
+          "authentication_required": {
+            "episodes": 18,
+            "max_abs_error": 0.12985920602785356,
+            "predicted": [
+              0.1573,
+              0.1868,
+              0.3191,
+              0.3738,
+              0.47,
+              0.5112,
+              0.5112,
+              0.5112
+            ],
+            "true": [
+              0.0889,
+              0.1588,
+              0.2139,
+              0.2916,
+              0.3402,
+              0.3815,
+              0.4069,
+              0.4203
+            ]
+          },
+          "card_declined": {
+            "episodes": 141,
+            "max_abs_error": 0.1118052351443492,
+            "predicted": [
+              0.1061,
+              0.1296,
+              0.2149,
+              0.3077,
+              0.406,
+              0.457,
+              0.457,
+              0.457
+            ],
+            "true": [
+              0.1514,
+              0.2128,
+              0.2515,
+              0.2978,
+              0.3237,
+              0.3452,
+              0.3591,
+              0.3677
+            ]
+          },
+          "expired_card": {
+            "episodes": 63,
+            "max_abs_error": 0.08963353385232581,
+            "predicted": [
+              0.0914,
+              0.1147,
+              0.1808,
+              0.2697,
+              0.3778,
+              0.4475,
+              0.4475,
+              0.4475
+            ],
+            "true": [
+              0.0381,
+              0.0836,
+              0.1294,
+              0.2148,
+              0.2882,
+              0.3746,
+              0.4524,
+              0.5154
+            ]
+          },
+          "insufficient_funds": {
+            "episodes": 185,
+            "max_abs_error": 0.21381273235702547,
+            "predicted": [
+              0.1064,
+              0.1211,
+              0.1823,
+              0.2983,
+              0.4477,
+              0.5433,
+              0.5433,
+              0.5433
+            ],
+            "true": [
+              0.0101,
+              0.0453,
+              0.1054,
+              0.276,
+              0.4564,
+              0.6419,
+              0.7316,
+              0.7571
+            ]
+          },
+          "processor_error": {
+            "episodes": 38,
+            "max_abs_error": 0.1499675552847186,
+            "predicted": [
+              0.7535,
+              0.7535,
+              0.7667,
+              0.7783,
+              0.8064,
+              0.8202,
+              0.8202,
+              0.8202
+            ],
+            "true": [
+              0.7498,
+              0.8743,
+              0.9106,
+              0.9282,
+              0.9314,
+              0.9322,
+              0.9324,
+              0.9324
+            ]
+          }
+        }
+      },
+      "survival_cure_weibull": {
+        "gated_reasons": [
+          "card_declined",
+          "insufficient_funds"
+        ],
+        "grid_days": [
+          1,
+          2,
+          3,
+          5,
+          7,
+          10,
+          14,
+          20
+        ],
+        "max_abs_error": 0.033189910360309216,
+        "max_abs_error_all_reasons": 0.13721900103362034,
+        "per_reason": {
+          "authentication_required": {
+            "episodes": 18,
+            "max_abs_error": 0.13721900103362034,
+            "predicted": [
+              0.1196,
+              0.2278,
+              0.3117,
+              0.4201,
+              0.4774,
+              0.5169,
+              0.5358,
+              0.5439
+            ],
+            "true": [
+              0.0889,
+              0.1588,
+              0.2139,
+              0.2916,
+              0.3402,
+              0.3815,
+              0.4069,
+              0.4203
+            ]
+          },
+          "card_declined": {
+            "episodes": 141,
+            "max_abs_error": 0.033189910360309216,
+            "predicted": [
+              0.1523,
+              0.1949,
+              0.2238,
+              0.2646,
+              0.2938,
+              0.3267,
+              0.3591,
+              0.3946
+            ],
+            "true": [
+              0.1514,
+              0.2128,
+              0.2515,
+              0.2978,
+              0.3237,
+              0.3452,
+              0.3591,
+              0.3677
+            ]
+          },
+          "expired_card": {
+            "episodes": 63,
+            "max_abs_error": 0.08271489497104667,
+            "predicted": [
+              0.0205,
+              0.062,
+              0.1146,
+              0.2296,
+              0.3343,
+              0.4498,
+              0.5351,
+              0.5868
+            ],
+            "true": [
+              0.0381,
+              0.0836,
+              0.1294,
+              0.2148,
+              0.2882,
+              0.3746,
+              0.4524,
+              0.5154
+            ]
+          },
+          "insufficient_funds": {
+            "episodes": 185,
+            "max_abs_error": 0.027764597171743732,
+            "predicted": [
+              0.0157,
+              0.0609,
+              0.1297,
+              0.3038,
+              0.472,
+              0.643,
+              0.7407,
+              0.7836
+            ],
+            "true": [
+              0.0101,
+              0.0453,
+              0.1054,
+              0.276,
+              0.4564,
+              0.6419,
+              0.7316,
+              0.7571
+            ]
+          },
+          "processor_error": {
+            "episodes": 38,
+            "max_abs_error": 0.05291550024678204,
+            "predicted": [
+              0.7493,
+              0.8265,
+              0.8577,
+              0.8828,
+              0.8923,
+              0.898,
+              0.9007,
+              0.902
+            ],
+            "true": [
+              0.7498,
+              0.8743,
+              0.9106,
+              0.9282,
+              0.9314,
+              0.9322,
+              0.9324,
+              0.9324
+            ]
+          }
+        }
+      }
+    }
+  },
+  "survival_model": "survival_cure_weibull"
+}

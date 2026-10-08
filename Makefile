@@ -4,7 +4,7 @@
 	forecast-data forecast-signals forecast-backtest forecast-train \
 	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
 	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
-	stripe-verify
+	stripe-verify recovery-data recovery-train recovery-evaluate
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -314,6 +314,40 @@ pricing-dev:
 	$(MAKE) elasticity-data elasticity-analyze EL_SEED=1
 	$(MAKE) pricing-data pricing-shadow PX_SEED=1
 
+# --- Phase 8 payment recovery (local DuckDB + simulator truth; no cloud) -------------------
+# Pre-registered world (ADR 0015): 8,000 customers, 180 days, randomised retry timing.
+# RC_SEED=42 = held-out evaluation (build and evaluate ONCE); RC_SEED=1 = development.
+# Cutoffs = world start (2026-01-05) + the protocol days of configs/recovery/acceptance.toml.
+RC_SCENARIO ?= configs/simulator/scenarios/recovery_eval.toml
+RC_SEED ?= 42
+RC_CUSTOMERS ?= 8000
+RC_DIR ?= data/recovery/seed$(RC_SEED)-c$(RC_CUSTOMERS)
+RC_DB = $(RC_DIR)/warehouse.duckdb
+RC_MODELS ?= $(RC_DIR)/models
+RC_DBT = DBT_TARGET_PATH=$(CURDIR)/$(RC_DIR)/dbt/target DBT_LOG_PATH=$(CURDIR)/$(RC_DIR)/dbt/logs \
+	PRAXIS_DUCKDB_PATH=$(RC_DB) .venv/bin/dbt
+RC_GAPS = 1,2,3,4,5,7,10
+RC_KNOWN ?=  # nightly (seed 1 only): documented dev-world failures, benchmarks/recovery_dev_known_failures.json
+
+# simulate -> raw load -> the payment marts only (offline)
+recovery-data:
+	rm -f $(RC_DB)
+	.venv/bin/python -m praxis.simulator --scenario $(RC_SCENARIO) --customers $(RC_CUSTOMERS) \
+		--seed $(RC_SEED) --validate --out $(RC_DIR)/sim >/dev/null
+	.venv/bin/python -m praxis.data --db $(RC_DB) --raw $(RC_DIR)/raw load-sim --dir $(RC_DIR)/sim
+	$(RC_DBT) run --project-dir dbt --profiles-dir dbt --quiet --select +dim_customer +fct_invoices +fct_payments
+
+# truth-free: selection (day 100) -> artifact (day 120) + training diagnostics
+recovery-train:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.recovery --db $(RC_DB) train \
+		--selection-cutoff 2026-04-15 --train-cutoff 2026-05-05 --gap-choices $(RC_GAPS) \
+		--out $(RC_MODELS) --report $(RC_DIR)/train.json
+
+# pre-registered evaluation vs simulator truth (configs/recovery/acceptance.toml)
+recovery-evaluate:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.science recovery --db $(RC_DB) \
+		--sim $(RC_DIR)/sim --scenario $(RC_SCENARIO) --models $(RC_MODELS) --out $(RC_DIR)/evaluation $(RC_KNOWN)
+
 # --- Nightly gates (`.github/workflows/nightly.yml`; also runnable locally) ---------------
 # Too slow for every push. A failure here is a gate failure: investigate, never re-run until green.
 PERF_DIR ?= data/perf
@@ -334,6 +368,9 @@ nightly-science:
 	$(MAKE) forecast-train FC_SEED=1
 	$(MAKE) pricing-data PX_SEED=1
 	$(MAKE) pricing-shadow PX_SEED=1
+	$(MAKE) recovery-data RC_SEED=1
+	$(MAKE) recovery-train RC_SEED=1
+	$(MAKE) recovery-evaluate RC_SEED=1 RC_KNOWN=--known-failures=benchmarks/recovery_dev_known_failures.json
 
 # Performance regression vs benchmarks/perf_baseline.json (per environment; scripts/perf_check.py).
 nightly-perf: _events-db

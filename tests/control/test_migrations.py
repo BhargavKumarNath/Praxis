@@ -10,6 +10,7 @@ from alembic import command
 from sqlalchemy import Engine, create_engine, exc, inspect, text
 
 from praxis.control.db import MIGRATIONS_DIR, alembic_config, migrate
+from praxis.domain.dunning import DUNNING_TRANSITIONS, RETRY_JOB_TRANSITIONS
 from praxis.domain.states import (
     CUSTOMER_TRANSITIONS,
     INVOICE_TRANSITIONS,
@@ -26,12 +27,15 @@ TABLES = {
     "payment_ledger",
     "state_transitions",
     "dead_letters",
+    "dunning_cases",
+    "dunning_decisions",
+    "retry_jobs",
 }
 
 
-def _migration() -> ModuleType:
-    path = MIGRATIONS_DIR / "versions" / "0001_control_plane.py"
-    spec = importlib.util.spec_from_file_location("m0001", path)
+def _migration(name: str = "0001_control_plane") -> ModuleType:
+    path = MIGRATIONS_DIR / "versions" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"m{name[:4]}", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -44,7 +48,7 @@ def test_upgrade_creates_schema_and_is_rerunnable(empty_pg_url: str) -> None:
     engine = create_engine(empty_pg_url)
     assert set(inspect(engine).get_table_names()) >= TABLES
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
     engine.dispose()
 
 
@@ -69,7 +73,9 @@ def test_allowed_moves_equal_the_python_transition_closure() -> None:
         "subscription": SUBSCRIPTION_TRANSITIONS.reachable_pairs(),
         "invoice": INVOICE_TRANSITIONS.reachable_pairs(),
     }
-    seeded = _migration().ALLOWED_MOVES
+    seeded = {**_migration().ALLOWED_MOVES, **_migration("0004_dunning").ALLOWED_MOVES}
+    expected["dunning"] = DUNNING_TRANSITIONS.reachable_pairs()
+    expected["retry_job"] = RETRY_JOB_TRANSITIONS.reachable_pairs()
     assert set(seeded) == set(expected)
     for machine, pairs in expected.items():
         assert set(seeded[machine]) == {(a.value, b.value) for a, b in pairs}, machine

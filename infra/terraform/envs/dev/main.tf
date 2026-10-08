@@ -38,3 +38,10 @@ module "bigquery" {
   delete_contents_on_destroy = true
   labels                     = local.labels
 }
+
+module "tasks" {
+  source      = "../../modules/tasks"
+  project_id  = var.project_id
+  environment = local.environment
+  location    = var.region
+}

@@ -1,0 +1,16 @@
+# Recovery model hyper-parameters (Phase 8, ADR 0015). PRE-REGISTERED 2026-10-08 with
+# policy.toml and acceptance.toml, before any recovery code ran on any world; pinned by a test.
+
+[classifier]                  # P(first retry at elapsed e succeeds | x, e), monotone in e
+learning_rate = 0.05
+num_boost_round = 300
+num_leaves = 15
+min_data_in_leaf = 40
+lambda_l2 = 1.0
+seed = 7
+calibration_fraction = 0.25   # latest share of training rows (by failure time): isotonic fit
+
+[survival]                    # mixture-cure Weibull, interval-censored maximum likelihood
+ridge = 0.001                 # L2 on non-intercept coefficients (standardised features)
+max_iter = 3000
+gtol = 1e-7

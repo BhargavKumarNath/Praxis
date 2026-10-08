@@ -1,0 +1,27 @@
+# Dunning policy (Phase 8, ADR 0015). Business valuation and hard bounds shared by the
+# deterministic baseline and the model policy. PRE-REGISTERED 2026-10-08, before any recovery
+# code ran on any world; a test pins this file's hash. Hash = policy_version.
+#
+# Elapsed time is measured from the invoice's FIRST failed attempt, in days.
+
+[bounds]
+max_attempts = 3              # charges per invoice, the first included (never exceeded)
+horizon_days = 20             # no retry later than this: the identified support of the data
+grace_days = 7                # model policy: full access while elapsed < grace_days
+max_job_lateness_hours = 24   # a retry dispatched later than this is expired and re-planned
+
+[baseline]
+# The deterministic policy of project_plan.md Phase 8:
+#   attempt 1 fails -> grace, retry 3 days later
+#   attempt 2 fails -> restricted, retry 7 days later
+#   attempt 3 fails -> suspended (no further retry)
+retry_offsets_days = [3, 7]
+
+[valuation]
+retry_cost_minor = 30           # processing cost of one retry
+failed_retry_cost_minor = 150   # disruption per failed retry (customer friction, issuer risk)
+delay_cost_per_day = 0.004      # share of the amount lost per day until it is recovered
+
+[model]
+max_age_days = 45               # an older artifact is not used: baseline fallback
+feature_version = "recovery_features.v1"

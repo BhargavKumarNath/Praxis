@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     fred_api_key: SecretStr | None = None
     eia_api_key: SecretStr | None = None
 
+    # Dunning (Phase 8, ADR 0015). The retry-task endpoint answers 503 until configured.
+    # tasks_token: shared secret Cloud Tasks sends in X-Praxis-Task-Token (on top of Cloud
+    # Run IAM / OIDC). Unset recovery_model_dir = the deterministic baseline policy.
+    tasks_token: SecretStr | None = None
+    tasks_target_url: str | None = None
+    tasks_service_account: str | None = None
+    recovery_model_dir: Path | None = None
+
     # Demand forecasting (Phase 4). Unset model dir = forecast endpoints answer 503.
     forecast_model_dir: Path | None = None
     warehouse_path: Path = Path("data/warehouse/praxis.duckdb")

@@ -116,8 +116,9 @@ name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
     "praxis.api | praxis.science",
+    "praxis.dunning",
     "praxis.pricing | praxis.payments",
-    "praxis.streaming | praxis.forecasting | praxis.elasticity",
+    "praxis.streaming | praxis.forecasting | praxis.elasticity | praxis.recovery",
     "praxis.control | praxis.data | praxis.simulator",
     "praxis.events",
     "praxis.domain",
@@ -127,7 +128,10 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "Models never import the simulator (ground truth stays out of reach)"
 type = "forbidden"
-source_modules = ["praxis.forecasting", "praxis.elasticity", "praxis.pricing"]
+source_modules = [
+    "praxis.forecasting", "praxis.elasticity", "praxis.pricing", "praxis.recovery",
+    "praxis.dunning",
+]
 # praxis.science is the only place that joins model output with ground truth (ADR 0012).
 forbidden_modules = ["praxis.simulator", "praxis.science"]
 # Evaluation CLI reads only the scenario *config* to label spike days for slicing.
@@ -145,7 +149,7 @@ type = "forbidden"
 source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
     "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
-    "praxis.pricing", "praxis.payments",
+    "praxis.pricing", "praxis.payments", "praxis.recovery", "praxis.dunning",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
@@ -155,7 +159,7 @@ forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 name = "Payments are independent of the simulator, science and pricing"
 type = "forbidden"
 source_modules = ["praxis.payments"]
-forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "praxis.forecasting", "praxis.elasticity"]
+forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "praxis.forecasting", "praxis.elasticity", "praxis.recovery"]
 
 # --- Per-module coverage floors (`make coverage-gate`, scripts/coverage_gate.py). Ordered:
 # the FIRST matching glob wins. Critical = money, state machines, idempotency, event contracts,
@@ -180,5 +184,8 @@ forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "pr
 "src/praxis/science/*" = 95                # ground-truth acceptance decides the phase gate
 "src/praxis/pricing/*" = 95                # optimiser, constraints, guardrails, audit store (s5)
 "src/praxis/payments/*" = 95               # webhooks, idempotent payment writes, inbox (s5)
+"src/praxis/dunning/*" = 95                # dunning state machine, retry scheduler (s5, Phase 8)
+"src/praxis/recovery/__main__.py" = 85     # CLI wiring; the protocol it calls is >= 95
+"src/praxis/recovery/*" = 95               # recovery models, planner, fallback policy
 "src/praxis/api/*" = 95
 "src/praxis/*" = 85

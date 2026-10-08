@@ -1,0 +1,215 @@
+{
+  "artifact": "data/recovery/seed42-c8000/models/recovery-surv-d12545184bfc",
+  "assignment_audit": {
+    "counts": {
+      "1": 264,
+      "10": 259,
+      "2": 284,
+      "3": 282,
+      "4": 281,
+      "5": 294,
+      "7": 296
+    },
+    "independent_of_reason_p": 0.8627026696257597,
+    "rows": 1960,
+    "uniform_p": 0.6525250979673816
+  },
+  "champion": "survival_cure_weibull",
+  "model_version": "recovery-surv-d12545184bfc",
+  "selection": {
+    "classifier_lgbm_isotonic": {
+      "brier": 0.16548389513771283,
+      "log_loss": 0.5008212691009304,
+      "rows": 191
+    },
+    "rate_table": {
+      "brier": 0.15102104528214413,
+      "log_loss": 0.4603173099070818,
+      "rows": 191
+    },
+    "survival_cure_weibull": {
+      "brier": 0.1518773945063683,
+      "log_loss": 0.45844509043503057,
+      "rows": 191
+    }
+  },
+  "survival_fit_cells": [
+    {
+      "abs_error": 0.016780927016439767,
+      "allowed": 0.11377251777139251,
+      "elapsed_days": 1,
+      "mean_predicted": 0.13070497764935116,
+      "n": 79,
+      "observed": 0.11392405063291139,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.032462852910580736,
+      "allowed": 0.16195333708133205,
+      "elapsed_days": 10,
+      "mean_predicted": 0.27883966450478365,
+      "n": 69,
+      "observed": 0.2463768115942029,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.02906825386330697,
+      "allowed": 0.12762413043949478,
+      "elapsed_days": 2,
+      "mean_predicted": 0.170093894888948,
+      "n": 78,
+      "observed": 0.14102564102564102,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.004326579753277021,
+      "allowed": 0.13424965163989677,
+      "elapsed_days": 3,
+      "mean_predicted": 0.1904786150519178,
+      "n": 77,
+      "observed": 0.19480519480519481,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.02494560068437035,
+      "allowed": 0.13589707173294294,
+      "elapsed_days": 4,
+      "mean_predicted": 0.21771668502171976,
+      "n": 83,
+      "observed": 0.1927710843373494,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.04033299929816661,
+      "allowed": 0.13410362089455488,
+      "elapsed_days": 5,
+      "mean_predicted": 0.22403481679378742,
+      "n": 87,
+      "observed": 0.26436781609195403,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.05642373862369765,
+      "allowed": 0.14386288567614758,
+      "elapsed_days": 7,
+      "mean_predicted": 0.25682927342449513,
+      "n": 83,
+      "observed": 0.3132530120481928,
+      "passed": true,
+      "reason": "card_declined"
+    },
+    {
+      "abs_error": 0.006320136261731335,
+      "allowed": 0.22786050351111142,
+      "elapsed_days": 10,
+      "mean_predicted": 0.38392376617729307,
+      "n": 41,
+      "observed": 0.3902439024390244,
+      "passed": true,
+      "reason": "expired_card"
+    },
+    {
+      "abs_error": 0.03255282600096787,
+      "allowed": 0.14755972418456176,
+      "elapsed_days": 4,
+      "mean_predicted": 0.13411384066569879,
+      "n": 48,
+      "observed": 0.16666666666666666,
+      "passed": true,
+      "reason": "expired_card"
+    },
+    {
+      "abs_error": 0.031316462518614085,
+      "allowed": 0.17952061565075583,
+      "elapsed_days": 5,
+      "mean_predicted": 0.19595626475411318,
+      "n": 44,
+      "observed": 0.22727272727272727,
+      "passed": true,
+      "reason": "expired_card"
+    },
+    {
+      "abs_error": 0.00813039439633295,
+      "allowed": 0.05,
+      "elapsed_days": 1,
+      "mean_predicted": 0.011100374834436282,
+      "n": 104,
+      "observed": 0.019230769230769232,
+      "passed": true,
+      "reason": "insufficient_funds"
+    },
+    {
+      "abs_error": 0.01327101298394806,
+      "allowed": 0.14154675954760743,
+      "elapsed_days": 10,
+      "mean_predicted": 0.5538115535244886,
+      "n": 111,
+      "observed": 0.5405405405405406,
+      "passed": true,
+      "reason": "insufficient_funds"
+    },
+    {
+      "abs_error": 0.005004412521015619,
+      "allowed": 0.05481885431143772,
+      "elapsed_days": 2,
+      "mean_predicted": 0.0443744912611731,
+      "n": 127,
+      "observed": 0.03937007874015748,
+      "passed": true,
+      "reason": "insufficient_funds"
+    },
+    {
+      "abs_error": 0.000830863151563721,
+      "allowed": 0.07759660870154962,
+      "elapsed_days": 3,
+      "mean_predicted": 0.09458086315156372,
+      "n": 128,
+      "observed": 0.09375,
+      "passed": true,
+      "reason": "insufficient_funds"
+    },
+    {
+      "abs_error": 0.0304241370039193,
+      "allowed": 0.1040628878429114,
+      "elapsed_days": 4,
+      "mean_predicted": 0.1587650521852699,
+      "n": 111,
+      "observed": 0.1891891891891892,
+      "passed": true,
+      "reason": "insufficient_funds"
+    },
+    {
+      "abs_error": 0.009812222093296852,
+      "allowed": 0.11474750597870237,
+      "elapsed_days": 5,
+      "mean_predicted": 0.22985719939430646,
+      "n": 121,
+      "observed": 0.2396694214876033,
+      "passed": true,
+      "reason": "insufficient_funds"
+    },
+    {
+      "abs_error": 0.01462056814604884,
+      "allowed": 0.12357637268859151,
+      "elapsed_days": 7,
+      "mean_predicted": 0.3810628850913612,
+      "n": 139,
+      "observed": 0.39568345323741005,
+      "passed": true,
+      "reason": "insufficient_funds"
+    }
+  ],
+  "survival_fit_cells_failed": 0,
+  "training": {
+    "episodes": 2007,
+    "first_retry_rows": 1960,
+    "recovered": 802,
+    "selection_episodes": 1769
+  }
+}

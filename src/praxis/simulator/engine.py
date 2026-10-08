@@ -36,6 +36,7 @@ from praxis.simulator.infrastructure import HOURS, Infrastructure, RegionDay
 from praxis.simulator.population import Population, rng_for
 
 STREAM_DEMAND, STREAM_BILLING, STREAM_CHURN, STREAM_CONVERSION, STREAM_INFRA = 1, 2, 3, 4, 5
+STREAM_RECOVERY = 6  # drawn only in recovery worlds; other streams never depend on it
 
 UNBORN, PROSPECT, CONVERTED, ACTIVE, CHURNED, LOST = range(6)
 
@@ -75,6 +76,35 @@ class DayView:
 DayObserver = Callable[[DayView], None]
 
 
+@dataclass(frozen=True)
+class RecoveryTruth:
+    """Latent recovery parameters of one failed invoice (SYNTHETIC; recovery worlds only).
+
+    Drawn at the invoice's first failed attempt (``fail_day``). The payment becomes
+    collectible ``cure_days`` after that failure if ``cured``, else never.
+    """
+
+    invoice_id: str
+    customer_id: str
+    fail_day: int
+    reason: str
+    cure_prob: float
+    shape: float
+    scale_days: float
+    cured: bool
+    cure_days: float  # inf when not cured
+
+    def collectible_by(self, elapsed_days: float) -> float:
+        """True P(collectible by ``elapsed_days`` after the first failure | latent traits)."""
+        if elapsed_days <= 0:
+            return 0.0
+        cdf = 1.0 - float(np.exp(-((elapsed_days / self.scale_days) ** self.shape)))
+        return self.cure_prob * cdf
+
+
+RecoveryObserver = Callable[[RecoveryTruth], None]
+
+
 @dataclass
 class _DayCtx:
     """Mutable per-day handles shared with ``Engine._attempt``."""
@@ -87,6 +117,8 @@ class _DayCtx:
     state: NDArray[np.int8]
     burden: F64
     pending: dict[int, list[tuple[int, str, int, int, str]]]
+    u_cure: F64 | None = None  # recovery worlds only
+    u_time: F64 | None = None
 
 
 def _uniform_from_hash(salt: str, ids: list[str]) -> F64:
@@ -100,9 +132,12 @@ class Engine:
         seed: int,
         population: Population,
         observer: DayObserver | None = None,
+        recovery_observer: RecoveryObserver | None = None,
     ) -> None:
         self.cfg = config
         self.observer = observer
+        self.recovery_observer = recovery_observer
+        self._cures: dict[str, tuple[int, float, str]] = {}  # invoice -> (fail day, C, reason)
         self.seed = seed
         self.pop = population
         self.run_id = f"{seed}-{config.config_hash[:12]}"
@@ -226,16 +261,8 @@ class Engine:
                 prev_uid,
             )
         )
-        p_ok = (
-            self.pop.pay_reliability[i]
-            if number == 1
-            else min(
-                1.0,
-                self.cfg.billing.retry_success_base
-                + self.cfg.billing.retry_success_slope * self.pop.pay_reliability[i],
-            )
-        )
-        if ctx.u_pay[i] < p_ok:
+        if ctx.u_pay[i] < self._p_success(ctx, i, inv, number):
+            self._cures.pop(inv, None)
             ctx.add(
                 Draft(
                     ctx.ts0 + T_RESULT,
@@ -253,12 +280,7 @@ class Engine:
                 )
             )
             return
-        reason = FAILURE_REASONS[
-            min(
-                int(np.searchsorted(self._reason_cdf, ctx.u_reason[i])),
-                len(FAILURE_REASONS) - 1,
-            )
-        ]
+        reason = self._failure_reason(ctx, i, inv, number)
         final = number >= self.cfg.billing.max_attempts
         fail_uid = f"pfail:{inv}:{number}"
         ctx.add(
@@ -281,6 +303,7 @@ class Engine:
         )
         ctx.burden[i] += 1.0
         if final:
+            self._cures.pop(inv, None)
             if ctx.state[i] == ACTIVE:
                 ctx.state[i] = CHURNED
                 ctx.add(
@@ -299,9 +322,73 @@ class Engine:
                     )
                 )
         else:
-            ctx.pending[ctx.day + self.cfg.billing.retry_offsets_days[number - 1]].append(
+            ctx.pending[ctx.day + self._retry_gap(inv, number)].append(
                 (i, inv, number + 1, amount, fail_uid)
             )
+
+    # -------------------------------------------------------------- recovery truth
+    def _p_success(self, ctx: _DayCtx, i: int, inv: str, number: int) -> float:
+        """Probability that attempt ``number`` succeeds, compared with ``u_pay``."""
+        rel = float(self.pop.pay_reliability[i])
+        if number == 1:
+            return rel
+        if self.cfg.billing.recovery is None:
+            b = self.cfg.billing
+            return min(1.0, b.retry_success_base + b.retry_success_slope * rel)
+        fail_day, cure_days, _ = self._cures[inv]
+        # Collectibility is absorbing: the retry succeeds iff it happens at or after C.
+        return 1.0 if ctx.day - fail_day >= cure_days else 0.0
+
+    def _failure_reason(self, ctx: _DayCtx, i: int, inv: str, number: int) -> str:
+        rec = self.cfg.billing.recovery
+        if rec is not None and number > 1:
+            return self._cures[inv][2]  # the cause persists until the payment is collectible
+        reason = FAILURE_REASONS[
+            min(
+                int(np.searchsorted(self._reason_cdf, ctx.u_reason[i])),
+                len(FAILURE_REASONS) - 1,
+            )
+        ]
+        if rec is not None:
+            self._draw_cure(ctx, i, inv, reason)
+        return reason
+
+    def _draw_cure(self, ctx: _DayCtx, i: int, inv: str, reason: str) -> None:
+        rec = self.cfg.billing.recovery
+        if rec is None or ctx.u_cure is None or ctx.u_time is None:
+            raise RuntimeError("cure draws exist only in recovery worlds")
+        spec = rec.reasons[reason]
+        delta = float(self.pop.pay_reliability[i]) - rec.reference_reliability
+        cure_prob = 1.0 / (1.0 + np.exp(-(spec.cure_logit + rec.reliability_cure_beta * delta)))
+        scale = spec.scale_days * float(np.exp(-rec.reliability_speed_beta * delta))
+        cured = bool(ctx.u_cure[i] < cure_prob)
+        cure_days = (
+            scale * float(-np.log1p(-ctx.u_time[i])) ** (1.0 / spec.shape) if cured else np.inf
+        )
+        self._cures[inv] = (ctx.day, cure_days, reason)
+        if self.recovery_observer is not None:
+            self.recovery_observer(
+                RecoveryTruth(
+                    invoice_id=inv,
+                    customer_id=self.pop.ids[i],
+                    fail_day=ctx.day,
+                    reason=reason,
+                    cure_prob=float(cure_prob),
+                    shape=spec.shape,
+                    scale_days=scale,
+                    cured=cured,
+                    cure_days=cure_days,
+                )
+            )
+
+    def _retry_gap(self, inv: str, number: int) -> int:
+        """Days until attempt ``number + 1``: fixed offsets, or randomised in recovery worlds."""
+        rec = self.cfg.billing.recovery
+        if rec is None:
+            return self.cfg.billing.retry_offsets_days[number - 1]
+        u = assignment_uniform(f"{rec.salt}:retry-gap", f"{inv}:{number}")
+        choices = rec.gap_choices_days
+        return choices[min(int(u * len(choices)), len(choices) - 1)]
 
     # --------------------------------------------------------------------- run
     def run(self) -> Iterator[Event]:  # noqa: C901, PLR0912, PLR0915 - complexity-debt
@@ -439,6 +526,9 @@ class Engine:
             u_pay = rng_b.random(n)
             u_reason = rng_b.random(n)
             ctx = _DayCtx(day, ts0, add, u_pay, u_reason, state, burden, pending)
+            if cfg.billing.recovery is not None:
+                rng_r = rng_for(self.seed, STREAM_RECOVERY, day)
+                ctx.u_cure, ctx.u_time = rng_r.random(n), rng_r.random(n)
 
             for i, inv, number, amount, prev_uid in ctx.pending.pop(day, []):
                 self._attempt(ctx, i, inv, number, amount, prev_uid)

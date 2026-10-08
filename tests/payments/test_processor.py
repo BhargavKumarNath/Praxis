@@ -29,7 +29,9 @@ from tests.payments.conftest import _PipelinePublisher
 from tests.payments.helpers import T0, control_state
 
 pytestmark = pytest.mark.integration
-NOW = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
+# Inbox rows become due at the DATABASE clock (next_attempt_at DEFAULT now()), so the test
+# clock must not lag it: a fixed date here made these tests fail once the wall clock passed it.
+NOW = datetime.now(UTC).replace(microsecond=0) + timedelta(days=1)
 
 
 class Clock:

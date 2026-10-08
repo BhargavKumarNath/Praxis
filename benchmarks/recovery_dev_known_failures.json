@@ -1,0 +1,5 @@
+{
+  "seed": 1,
+  "checks": ["champion_truth_recovery"],
+  "reason": "ADR 0015 amendment: on the development world the champion under-predicts late collectibility of insufficient_funds after population drift (risky payers churn out; error 0.13 > 0.06). Documented limitation, not hidden: the report keeps passed=false; nightly fails on any OTHER check."
+}

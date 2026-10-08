@@ -10,6 +10,7 @@ import pytest
 from praxis.streaming.pubsub import subscription_request
 from praxis.streaming.topology import (
     DLQ_INSPECT,
+    DUNNING,
     MONITORING,
     OPERATIONAL,
     WAREHOUSE,
@@ -27,13 +28,14 @@ def test_default_names_follow_the_resource_prefix() -> None:
         OPERATIONAL: "praxis-dev-events-operational",
         WAREHOUSE: "praxis-dev-events-warehouse",
         MONITORING: "praxis-dev-events-monitoring",
+        DUNNING: "praxis-dev-events-dunning",
         DLQ_INSPECT: "praxis-dev-events-dlq-inspect",
     }
 
 
 def test_every_consumer_subscription_has_bounded_retries_and_a_dlq() -> None:
     t = build_topology()
-    for role in (OPERATIONAL, WAREHOUSE, MONITORING):
+    for role in (OPERATIONAL, WAREHOUSE, MONITORING, DUNNING):
         spec = t.by_role(role)
         assert spec.dead_letter_topic == t.dead_letter_topic
         assert spec.max_delivery_attempts == 5
@@ -49,6 +51,14 @@ def test_operational_filter_keeps_bulk_events_out_of_postgres() -> None:
     assert not spec.matches({"stateful": "false"})
     assert not spec.matches(None)
     assert build_topology().by_role(WAREHOUSE).matches(None)
+
+
+def test_dunning_sees_only_stateful_events_and_only_restricts_when_asked() -> None:
+    t = build_topology()
+    assert t.by_role(DUNNING).pubsub_filter() == 'attributes.stateful = "true"'
+    narrowed = t.only((OPERATIONAL, DLQ_INSPECT))
+    assert [s.role for s in narrowed.subscriptions] == [OPERATIONAL, DLQ_INSPECT]
+    assert narrowed.topics == t.topics
 
 
 def test_backoff_is_exponential_and_capped() -> None:
@@ -102,8 +112,8 @@ def test_terraform_declares_the_same_topology() -> None:
     for spec in t.subscriptions:
         suffix = spec.name.removeprefix("PREFIX-ENV-")
         assert f'"${{var.prefix}}-${{var.environment}}-{suffix}"' in main, suffix
-    assert main.count("dead_letter_policy {") == 3
-    assert 'filter                     = "attributes.stateful = \\"true\\""' in main
+    assert main.count("dead_letter_policy {") == 4
+    assert main.count('filter                     = "attributes.stateful = \\"true\\""') == 2
     assert re.search(r'max_delivery_attempts"\s*{[^}]*default\s*=\s*5', variables, re.S)
     assert 'minimum_backoff = "10s"' in main and 'maximum_backoff = "300s"' in main
     # Pub/Sub's service agent must be able to publish to the DLQ and ack the source.

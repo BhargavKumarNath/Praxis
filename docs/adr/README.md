@@ -16,5 +16,6 @@
 | [0012](0012-randomised-price-tests-and-hierarchical-elasticity.md) | Elasticity from randomised price tests, log-log slopes and a hierarchical Bayesian model |
 | [0013](0013-constrained-pricing-optimiser.md) | Constrained pricing optimiser: causal response, hard constraints, audited shadow decisions |
 | [0014](0014-stripe-webhooks-inbox-and-state-refetch.md) | Stripe integration: signed webhook inbox, state re-fetch, shared event contracts |
+| [0015](0015-dunning-states-recovery-models-and-retry-scheduling.md) | Dunning states, recovery models and scheduled retries |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

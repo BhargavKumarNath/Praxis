@@ -72,7 +72,9 @@ def _emulator_env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def topo() -> Topology:
     t = build_topology("praxis", f"it{uuid.uuid4().hex[:8]}", min_backoff_s=0, max_backoff_s=1)
-    assert len(ensure_topology(PROJECT, t)) == 6
+    assert (
+        len(ensure_topology(PROJECT, t)) == 7
+    )  # 2 topics + 5 subscriptions (operational, warehouse, monitoring, dunning, DLQ)
     return t
 
 
@@ -240,7 +242,7 @@ def test_cli_against_emulator(
     ]
     try:
         assert main([*env, "emulator-setup"]) == 0
-        assert len(command_output(capsys.readouterr().out)["created"]) == 6
+        assert len(command_output(capsys.readouterr().out)["created"]) == 7
         archive = tmp_path / "archive"
         assert (
             main([*env, "produce", "--customers", "10", "--days", "7", "--archive", str(archive)])

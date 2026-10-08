@@ -61,6 +61,8 @@ models:
         data_tests: [{accepted_values: {arguments: {values: [starter, growth, enterprise]}}}]
       - name: preferred_payment_method
         data_tests: [{accepted_values: {arguments: {values: [card, direct_debit, wallet]}}}]
+      - name: tenure_days_at_start
+        data_tests: [not_null]
       - name: churn_reason
         data_tests:
           - accepted_values:
@@ -112,6 +114,20 @@ models:
                   - expired_card
                   - insufficient_funds
                   - processor_error
+
+  - name: fct_invoices
+    description: One row per invoice (SYNTHETIC); Phase 8 recovery input.
+    columns:
+      - name: invoice_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_customer'), field: customer_id}}
+      - name: amount_minor
+        data_tests: [not_null]
+      - name: tier
+        data_tests: [{accepted_values: {arguments: {values: [starter, growth, enterprise]}}}]
 
   - name: fct_marginal_cost_daily
     description: Daily marginal cost per region and product (SYNTHETIC), Phase 6 optimiser input.

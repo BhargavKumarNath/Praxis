@@ -1,0 +1,67 @@
+{
+  "artifact_checksum": "d12545184bfc7d2c282037ffd918ef97a15e2cb30853d2318ef4e8250b0e5365",
+  "artifact_format": 1,
+  "challenger": "classifier_lgbm_isotonic",
+  "champion": "survival_cure_weibull",
+  "code_revision": "105c930-dirty",
+  "created_at": "2026-10-08T23:11:17.102632+00:00",
+  "data_version": "recovery-data-629fccc43dfe79e0",
+  "feature_version": "recovery_features.v1",
+  "files": {
+    "classifier.json": "73bdd206af4aa782a599bf2174b6f6a8ea83220f1749b3cfa98ffaa26fff3ad0",
+    "classifier.txt": "5652b6bad1f2f24cf121dd8a2c7397fc2a7e4fe86fcbfab0a81bb03f9d62ee60",
+    "rate_table.json": "b8634a37c493d9e690b5fceabd3332bbea8db6e2b1ce2e863ae68a7eca18d47a",
+    "survival.json": "faeeea924344cba0c69a3d737cec3f4d6de7ab3fbdfb14ee4cdbddea8ad73590"
+  },
+  "is_synthetic": true,
+  "model_config": {
+    "classifier": {
+      "calibration_fraction": 0.25,
+      "lambda_l2": 1.0,
+      "learning_rate": 0.05,
+      "min_data_in_leaf": 40,
+      "num_boost_round": 300,
+      "num_leaves": 15,
+      "seed": 7
+    },
+    "survival": {
+      "gtol": 1e-07,
+      "max_iter": 3000,
+      "ridge": 0.001
+    }
+  },
+  "model_config_hash": "f1fd1d80338079d7afaee5f01a069ccdd3e1481bc5cfc4e8b54eb830050359b6",
+  "model_name": "payment_recovery",
+  "model_version": "recovery-surv-d12545184bfc",
+  "policy_version": "dunning-2cc08f560630",
+  "selection": {
+    "classifier_lgbm_isotonic": {
+      "brier": 0.16548389513771283,
+      "log_loss": 0.5008212691009304,
+      "rows": 191
+    },
+    "rate_table": {
+      "brier": 0.15102104528214413,
+      "log_loss": 0.4603173099070818,
+      "rows": 191
+    },
+    "survival_cure_weibull": {
+      "brier": 0.1518773945063683,
+      "log_loss": 0.45844509043503057,
+      "rows": 191
+    }
+  },
+  "selection_cutoff": "2026-04-15T00:00:00+00:00",
+  "survival": {
+    "converged": true,
+    "iterations": 168,
+    "log_likelihood": -1450.1604052957448
+  },
+  "train_cutoff": "2026-05-05T00:00:00+00:00",
+  "training": {
+    "episodes": 2007,
+    "first_retry_rows": 1960,
+    "recovered": 802,
+    "selection_episodes": 1769
+  }
+}

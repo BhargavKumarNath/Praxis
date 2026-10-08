@@ -14,6 +14,7 @@ select
     c.industry,
     c.preferred_payment_method,
     c.is_existing,
+    c.tenure_days_at_start,
     c.created_at,
     ch.churned_at,
     ch.churn_reason,

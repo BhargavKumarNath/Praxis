@@ -11,6 +11,7 @@ output "subscriptions" {
     operational = google_pubsub_subscription.operational.name
     warehouse   = google_pubsub_subscription.warehouse.name
     monitoring  = google_pubsub_subscription.monitoring.name
+    dunning     = google_pubsub_subscription.dunning.name
     dlq_inspect = google_pubsub_subscription.dead_letter_inspect.name
   }
 }

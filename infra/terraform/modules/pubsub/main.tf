@@ -104,6 +104,33 @@ resource "google_pubsub_subscription" "monitoring" {
   labels = var.labels
 }
 
+# Phase 8: payment and churn events drive dunning decisions (ADR 0015). Stateful only.
+resource "google_pubsub_subscription" "dunning" {
+  name                       = "${var.prefix}-${var.environment}-events-dunning"
+  project                    = var.project_id
+  topic                      = google_pubsub_topic.events.id
+  ack_deadline_seconds       = 30
+  message_retention_duration = var.message_retention_duration
+  retain_acked_messages      = false
+  filter                     = "attributes.stateful = \"true\""
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "300s"
+  }
+
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dead_letter.id
+    max_delivery_attempts = var.max_delivery_attempts
+  }
+
+  expiration_policy {
+    ttl = ""
+  }
+
+  labels = var.labels
+}
+
 resource "google_pubsub_subscription" "dead_letter_inspect" {
   name                       = "${var.prefix}-${var.environment}-events-dlq-inspect"
   project                    = var.project_id
@@ -130,6 +157,7 @@ resource "google_pubsub_subscription_iam_member" "dlq_source_subscriber" {
     operational = google_pubsub_subscription.operational.name
     warehouse   = google_pubsub_subscription.warehouse.name
     monitoring  = google_pubsub_subscription.monitoring.name
+    dunning     = google_pubsub_subscription.dunning.name
   }
   project      = var.project_id
   subscription = each.value

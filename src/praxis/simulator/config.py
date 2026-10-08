@@ -164,6 +164,32 @@ class Pricing(_Cfg):
     interventions: tuple[Intervention, ...] = ()
 
 
+class ReasonRecovery(_Cfg):
+    """Ground truth for one failure reason (SYNTHETIC; never exposed through events)."""
+
+    cure_logit: float  # logit P(the failure ever becomes collectible) at the reference reliability
+    shape: float = Field(gt=0)  # Weibull shape of the time until it becomes collectible
+    scale_days: float = Field(gt=0)  # Weibull scale at the reference reliability
+
+
+class Recovery(_Cfg):
+    """Phase 8 recovery world: latent cure times and randomised retry timing.
+
+    After an invoice's first failed attempt the payment becomes collectible at a latent time C
+    (days after that failure), or never. A retry succeeds iff it happens at or after C, so
+    collectibility is absorbing. The logging policy draws every retry gap uniformly from
+    ``gap_choices_days`` (hash of salt, invoice, attempt), which identifies P(C <= t) for t up
+    to the largest reachable elapsed time (an exploration experiment on retry timing).
+    """
+
+    salt: str
+    gap_choices_days: tuple[int, ...]
+    reference_reliability: float = Field(gt=0, lt=1)
+    reliability_cure_beta: float  # logit(cure) += beta * (pay_reliability - reference)
+    reliability_speed_beta: float  # scale *= exp(-beta * (pay_reliability - reference))
+    reasons: dict[str, ReasonRecovery]
+
+
 class Billing(_Cfg):
     period_days: int = Field(gt=0)
     max_attempts: int = Field(ge=1, le=6)
@@ -171,6 +197,9 @@ class Billing(_Cfg):
     retry_success_base: float = Field(ge=0, le=1)
     retry_success_slope: float = Field(ge=0, le=1)
     failure_reason_weights: dict[str, float]
+    # Excluded from the canonical JSON when absent, so worlds without it keep their
+    # config_hash (and every event id and golden checksum).
+    recovery: Recovery | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class Behaviour(_Cfg):
@@ -239,6 +268,8 @@ class SimulationConfig(_Cfg):
             raise ValueError("retries must finish inside the billing period")
         if set(b.failure_reason_weights) != set(FAILURE_REASONS):
             raise ValueError("failure_reason_weights must cover every failure reason")
+        if b.recovery is not None:
+            _check_recovery(b.recovery, b)
         if set(self.population.method_beta) != set(PAYMENT_METHODS):
             raise ValueError("method_beta must cover every payment method")
         return self
@@ -273,6 +304,15 @@ class SimulationConfig(_Cfg):
 def _need(cond: bool, what: str) -> None:
     if not cond:
         raise ValueError(f"invalid {what} definition")
+
+
+def _check_recovery(rec: Recovery, billing: Billing) -> None:
+    if set(rec.reasons) != set(FAILURE_REASONS):
+        raise ValueError("recovery.reasons must cover every failure reason")
+    gaps = rec.gap_choices_days
+    _need(bool(gaps) and min(gaps) >= 1 and len(set(gaps)) == len(gaps), "recovery gap choices")
+    if (billing.max_attempts - 1) * max(gaps) >= billing.period_days:
+        raise ValueError("randomised retries must finish inside the billing period")
 
 
 def _check_interventions(items: tuple[Intervention, ...], pids: list[str]) -> None:

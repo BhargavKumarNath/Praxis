@@ -1,0 +1,61 @@
+# Pre-registered acceptance for Phase 8 recovery models and policy (read by praxis.science).
+# PRE-REGISTERED 2026-10-08, before any recovery code ran on any world; a test pins this file's
+# hash. Never loosen after a result (CLAUDE.md s16).
+#
+# AMENDED 2026-10-08 on the development world (seed 1) only, BEFORE seed 42 was built, with the
+# owner's approval (ADR 0015, "Amendment"). Two registered gates were statistically unsound at
+# this world size (~500 evaluation rows): (1) a perfectly calibrated model exceeds ECE 0.03 in
+# 87% of draws (median 0.041), so the ECE gate now asks whether the champion's ECE is
+# consistent with perfect calibration (<= the 95th percentile of ECE when outcomes are drawn
+# from its own predictions); the raw ECE and the 0.03 reference are still reported. (2) The
+# truth gate now applies to reasons with at least `truth_min_episodes` evaluation episodes;
+# smaller reasons are reported. Every tolerance and threshold is unchanged.
+#
+# World: configs/simulator/scenarios/recovery_eval.toml, 8,000 customers, 180 days.
+# Seed 1 = development. Seed 42 = held-out evaluation, built and evaluated ONCE.
+#
+# Protocol (times = simulator day of the event; an episode = an invoice whose first attempt
+# failed; "first-retry rows" = that invoice's second attempt, one row per episode):
+#   1. selection: fit both models on data observed before `selection_cutoff_day`; score the
+#      first-retry rows of episodes that failed in [selection_cutoff_day, train_cutoff_day) and
+#      were resolved before train_cutoff_day. Champion = lower log loss. Truth-free.
+#   2. artifact: refit both models on everything observed before `train_cutoff_day` (later
+#      outcomes are right-censored at the cutoff).
+#   3. evaluation: episodes whose first failure is in [train_cutoff_day, eval_end_day); all of
+#      their retries complete inside the world (20-day horizon, 180-day world).
+
+[protocol]
+selection_cutoff_day = 100
+train_cutoff_day = 120
+eval_end_day = 160
+
+[models]                          # first-retry rows of the evaluation window
+max_ece = 0.03                    # 10 equal-count bins; REPORTED reference since the amendment
+ece_null_reps = 2000              # AMENDED: gate = ECE <= 95th pct of ECE under perfect
+ece_null_seed = 0                 #   calibration (outcomes ~ Bernoulli(own predictions))
+segment_min_rows = 80             # reason and tier segments with at least this many rows
+segment_tolerance = 0.05          # |mean predicted - observed| <= max(tol, z * binomial SE)
+segment_z = 2.5
+champion_beats_table_brier = true  # Brier <= reason x gap empirical-rate table (training)
+champion_beats_table_pr_auc = true # PR-AUC >= that table's PR-AUC
+champion_beats_base_rate = true    # Brier < Brier of the training base rate
+
+[survival]
+fit_cell_min_rows = 40            # (reason, gap) cells of training first-retry rows
+fit_tolerance = 0.05              # |model - empirical current-status rate| <= max(tol, z * SE)
+fit_z = 3.0
+min_assignment_p = 0.001          # gap assignment: uniform, and independent of the reason
+truth_grid_days = [1, 2, 3, 5, 7, 10, 14, 20]
+max_truth_error = 0.06            # per reason: |mean model P(C<=t) - mean true P(C<=t)|, eval
+truth_min_episodes = 100          # AMENDED: gated reasons; smaller reasons are reported
+
+[policy]                          # closed-loop replay of every evaluation episode vs truth
+bootstrap_reps = 2000
+bootstrap_seed = 0
+require_net_gain = true           # paired 95% CI of (champion - baseline) net value > 0
+max_recovery_rate_drop = 0.02     # champion recovery rate >= baseline - 0.02
+min_recovered_revenue_ratio = 0.97  # champion recovered revenue >= 0.97 x baseline
+require_fallback_equals_baseline = true  # model unavailable -> baseline schedule, every episode
+max_bound_violations = 0          # attempts > max_attempts or a retry beyond horizon_days
+# reported, not gated: oracle value and captured share, failed retries per episode, time to
+# recovery, restricted days, the challenger model's policy, concordance

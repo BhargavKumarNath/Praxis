@@ -1,0 +1,58 @@
+# Payment recovery world (Phase 8). SYNTHETIC. Overlay on configs/simulator/default.toml.
+#
+# Pre-registered 2026-10-08, before any recovery code was run on any world. Do not edit to
+# flatter a model (CLAUDE.md s9); a test pins this file's hash. Seed 1 = development world,
+# seed 42 = held-out evaluation (built and evaluated once). Population size: Makefile RC_CUSTOMERS.
+#
+# Ground truth (ADR 0015). After an invoice's first failed attempt, with probability
+#   p = sigmoid(cure_logit[reason] + reliability_cure_beta * (pay_reliability - 0.9))
+# the payment becomes collectible C days later, C ~ Weibull(shape[reason],
+#   scale_days[reason] * exp(-reliability_speed_beta * (pay_reliability - 0.9))),
+# otherwise never. A retry at elapsed time e succeeds iff e >= C. The failure reason persists
+# across the invoice's attempts. pay_reliability is LATENT (only first-attempt outcomes reveal
+# it), so the observable conditional distribution is a mixture, not the generating family.
+#
+# Logging policy = a randomised retry-timing experiment: each retry gap is drawn uniformly from
+# gap_choices_days (hash of salt, invoice, attempt), so P(C <= t | x) is identified for
+# t in [1, 20] days. Nothing beyond 20 days after the first failure is identified.
+#
+# Reason profiles (difficult cohorts kept on purpose): card_declined rarely cures and its hazard
+# decreases (early retries pay off, late ones mostly fail); insufficient_funds cures late with an
+# increasing hazard (early retries mostly fail); processor_error is transient; expired_card needs
+# the customer to act; authentication_required sits in between. Risky payers (8%) cure less and
+# more slowly through pay_reliability.
+
+[run]
+days = 180
+
+[billing.recovery]
+salt = "recovery-eval-2026-10-08"
+gap_choices_days = [1, 2, 3, 4, 5, 7, 10]
+reference_reliability = 0.9
+reliability_cure_beta = 4.0
+reliability_speed_beta = 2.0
+
+[billing.recovery.reasons.insufficient_funds]
+cure_logit = 1.4
+shape = 2.2
+scale_days = 7.0
+
+[billing.recovery.reasons.card_declined]
+cure_logit = -0.4
+shape = 0.7
+scale_days = 2.5
+
+[billing.recovery.reasons.expired_card]
+cure_logit = 0.4
+shape = 1.2
+scale_days = 9.0
+
+[billing.recovery.reasons.processor_error]
+cure_logit = 2.9
+shape = 0.8
+scale_days = 0.5
+
+[billing.recovery.reasons.authentication_required]
+cure_logit = 0.0
+shape = 1.0
+scale_days = 4.0
