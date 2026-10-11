@@ -8,6 +8,7 @@ from typing import Any
 from praxis.pricing.config import PricingPolicy, load_policy
 from praxis.pricing.problem import (
     ChurnResponse,
+    ChurnSegment,
     PricingProblem,
     RegionContext,
     SegmentBaseline,
@@ -27,6 +28,28 @@ def policy(**sections: dict[str, Any]) -> PricingPolicy:
         else:
             base[name] = {**base[name], **fields}
     return PricingPolicy.model_validate(base)
+
+
+def churn(
+    response: float,
+    upper: float,
+    window_days: int = 28,
+    exposed: float = 0.0,
+    clv_micros: float = 0.0,
+    *,
+    sd: float = 0.0,
+    segment: str = "growth",
+    window_churn: float = 0.0,
+) -> ChurnResponse:
+    """One segment whose customers carry the whole bill (churn_exposure = exposed customers).
+
+    Then ``response`` is the extra churn probability per exposed customer per unit log price,
+    exactly the Phase 6 "slope", and the CLV penalty is exposed x CLV x response x log ratio.
+    """
+    segments = (
+        (ChurnSegment(segment, exposed, clv_micros, window_churn, exposed),) if exposed else ()
+    )
+    return ChurnResponse(response, sd, upper, window_days, segments)
 
 
 def problem(**overrides: Any) -> PricingProblem:
@@ -54,14 +77,15 @@ def problem(**overrides: Any) -> PricingProblem:
             "us_east": RegionContext("us_east", 110_000.0, 0.62),
         },
         "payment_loss_rate": 0.02,
-        "churn": ChurnResponse(
-            slope=0.02, slope_upper=0.07, window_days=28, exposed_customers=600.0, clv_micros=4e8
-        ),
+        "churn": churn(0.02, 0.07, 28, 600.0, 4e8),
         "forecast_relative_width": 0.3,
         "lineage": {
             "forecast_model_version": "test",
             "elasticity_model_version": "test",
             "market_snapshot": "market-test",
+            "customer_model_version": "churn-table-test",
+            "customer_snapshot": "customers-test",
+            "churn_response_version": "churn-test",
         },
     }
     fields.update(overrides)
@@ -79,14 +103,20 @@ def single_segment(
         "segments": (SegmentBaseline("eu_west", "growth", 1_000.0, 1_000.0, 1.0),),
         "regions": {"eu_west": RegionContext("eu_west", cost, 0.5)},
         "payment_loss_rate": 0.0,
-        "churn": ChurnResponse(0.0, 0.0, 28, 0.0, 0.0),
+        "churn": churn(0.0, 0.0),
     }
     return problem(**{**fields, **overrides})
 
 
-def open_policy(**constraints: Any) -> PricingPolicy:
+def open_policy(*, long_term: dict[str, Any] | None = None, **constraints: Any) -> PricingPolicy:
     """Loose bounds so that only the constraint under test can bind."""
     return policy(
+        long_term={
+            "max_segment_incremental_churn": {"starter": 0.99, "growth": 0.99, "enterprise": 0.99},
+            "max_segment_window_churn": 1.0,
+            "max_price_changes_per_customer": 1000,
+            **(long_term or {}),
+        },
         constraints={
             "max_step": 0.5,
             "cooldown_days": 0,

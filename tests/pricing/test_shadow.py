@@ -62,6 +62,12 @@ def test_compliance_accepts_the_optimisers_changes() -> None:
         (lambda r: r["guardrails"].update(min_net_margin=0.01), "margin floor"),
         (lambda r: r["guardrails"]["checks"].update(capacity=False), "guardrail outcome"),
         (lambda r: r.update(candidates=[]), "chosen candidate infeasible"),
+        # Phase 9 guardrails are re-derived from the record's INPUTS, not its guardrail block
+        (lambda r: r["inputs"]["churn"]["segments"][0].update(churn_exposure=600.0 * 9),
+         "segment churn guardrail (growth)"),
+        (lambda r: r["inputs"]["churn"]["segments"][0].update(window_churn=599.0),
+         "churn-risk ceiling (growth)"),
+        (lambda r: r["inputs"].update(price_change_counts={"3": 1}), "price-change frequency"),
     ],
 )  # fmt: skip
 def test_compliance_catches_every_doctored_record(edit: Any, violation: str) -> None:
@@ -149,6 +155,22 @@ def test_captured_share_definition() -> None:
     assert captured_share(-1.0, 0.0) == 0.0
 
 
+def test_long_term_compliance_ignores_small_segments_and_cuts() -> None:
+    rec = copy.deepcopy(change_record())
+    seg = rec["inputs"]["churn"]["segments"][0]
+    seg.update(exposed_customers=5.0, window_churn=5.0, churn_exposure=50.0)  # < 20 customers
+    rec["inputs"].update(price_change_counts={"2": 7})  # 2 + 1 = 3: at the limit, not over
+    assert compliance(rec, policy()) == []
+
+
+def test_truth_values_extra_churners_at_the_decisions_segment_clv() -> None:
+    from praxis.science.pricing_shadow import _segment_clv
+
+    prob = problem()
+    assert _segment_clv(prob, "growth") == 4e8
+    assert _segment_clv(prob, "enterprise") == 0.0  # the product had no such customers
+
+
 def test_truth_collector_scores_candidate_prices_with_the_engines_equations() -> None:
     world = load_config().with_overrides(n_customers=200, days=14)
     ref = world.products[0].ref_price_micros
@@ -164,4 +186,69 @@ def test_truth_collector_scores_candidate_prices_with_the_engines_equations() ->
     # demand falls with price; churn rises with price; the status quo has no extra churn
     assert acc.extra_churn[1] == 0.0
     assert acc.extra_churn[2] > 0 > acc.extra_churn[0]
+    # the per-tier split (current tier on each day) adds up to the total
+    assert acc.extra_by_tier.shape == (3, len(world.tiers))
+    assert acc.extra_by_tier.sum(axis=1) == pytest.approx(acc.extra_churn)
     assert np.all(np.isfinite(contrib)) and not math.isclose(contrib[0], contrib[2])
+
+
+def _row(as_of: str, product: str, status: str, price: int | None, delta: float) -> dict[str, Any]:
+    return {
+        "as_of": as_of,
+        "product": product,
+        "status": status,
+        "reason_codes": ["x"],
+        "chosen_price_micros": price,
+        "true_delta_objective_per_day": delta,
+        "true_delta_contribution_per_day": delta + 1.0,
+        "true_extra_churn_per_exposed_window": 0.001,
+    }
+
+
+def test_compare_reports_shows_what_the_later_method_did_with_each_earlier_change(
+    tmp_path: Any,
+) -> None:
+    import json
+
+    from praxis.science.__main__ import main as science_main
+    from praxis.science.pricing_shadow import compare_reports
+
+    world = {"world_config_hash": "w", "seed": 42}
+    before = {
+        **world,
+        "policy_version": "policy-a",
+        "rows": [
+            _row("2026-07-20", "api", "change", 420, -5.0),  # lost value: altered later
+            _row("2026-07-20", "gpu", "change", 50, 2.0),  # gained: kept
+            _row("2026-07-20", "cpu", "hold", None, 0.0),  # not a change: ignored
+            _row("2026-07-27", "api", "change", 420, -1.0),  # not decided later: skipped
+        ],
+    }
+    after = {
+        **world,
+        "policy_version": "policy-b",
+        "status_counts": {"hold": 1, "change": 1},
+        "rows": [
+            _row("2026-07-20", "api", "hold", None, 0.0),
+            _row("2026-07-20", "gpu", "change", 50, 2.0),
+        ],
+    }
+    out = compare_reports(before, after)
+    assert (out["before_changes"], out["before_losing_changes"]) == (2, 1)
+    assert (out["altered"], out["losing_altered"]) == (1, 1)
+    assert out["before_true_delta_per_day"] == -3.0 and out["after_true_delta_per_day"] == 2.0
+    assert out["rows"][0]["after"]["status"] == "hold" and out["rows"][0]["altered"]
+
+    a, b, o = tmp_path / "a.json", tmp_path / "b.json", tmp_path / "out" / "c.json"
+    a.write_text(json.dumps(before))
+    b.write_text(json.dumps(after))
+    assert (
+        science_main(["pricing-compare", "--before", str(a), "--after", str(b), "--out", str(o)])
+        == 0
+    )
+    assert json.loads(o.read_text())["losing_altered"] == 1
+    b.write_text(json.dumps({**after, "seed": 43}))
+    assert (
+        science_main(["pricing-compare", "--before", str(a), "--after", str(b), "--out", str(o)])
+        == 1
+    )

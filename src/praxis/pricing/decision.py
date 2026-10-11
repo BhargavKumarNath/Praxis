@@ -22,7 +22,8 @@ from typing import Any
 
 from praxis.pricing.config import Mode
 
-RECORD_FORMAT = 1
+RECORD_FORMAT = 4  # 2: segment churn + long-horizon guardrails; 3: robust churn class;
+# 4: + the meta-analytic churn member and lineage.churn_archive_version
 
 
 class Status(StrEnum):
@@ -43,6 +44,7 @@ class Reason(StrEnum):
     UNCERTAINTY_LOW_CONFIDENCE = "uncertainty_low_confidence"
     UNCERTAINTY_FORECAST_WIDTH = "uncertainty_forecast_width"
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    CHURN_RESPONSE_UNIDENTIFIED = "churn_response_unidentified"  # bill share too small
     EVIDENCE_TOO_OLD = "evidence_too_old"
     IMPLAUSIBLE_ELASTICITY = "implausible_elasticity"
     FORECAST_STALE = "forecast_stale"

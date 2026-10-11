@@ -14,6 +14,7 @@ import pytest
 
 from praxis.data.config import load_sources_config
 from praxis.data.warehouse import Warehouse
+from praxis.elasticity import churn
 from praxis.elasticity.__main__ import main as elasticity_main
 from praxis.elasticity.artifact import load_artifact
 from praxis.elasticity.config import load_elasticity_config, load_registry
@@ -89,6 +90,19 @@ def test_cli_end_to_end_on_the_preregistered_world(clean_world: Path) -> None:
     assert report["registry_hash"] == load_registry().config_hash
     (artifact_dir,) = models.iterdir()
     assert load_artifact(artifact_dir).manifest["data_version"] == report["data_version"]
+
+    # Phase 9: the causal churn response to the bill, from the same gated tests
+    churn_path = out / "churn_response.json"
+    assert elasticity_main([
+        "--db", str(clean_world / "wh.duckdb"), "churn-response",
+        "--report", str(out / "report.json"), "--out", str(churn_path),
+    ]) == 0  # fmt: skip
+    doc = json.loads(churn_path.read_text())
+    assert doc["report_data_version"] == report["data_version"]
+    assert doc["checksum"] == churn.checksum(doc) and doc["is_synthetic"]
+    assert set(doc["products"]) == {e.product for e in load_registry().experiments}
+    assert doc["units"] > 1000 and doc["voluntary_events"] > 0
+    assert all(v["se"] > 0 for v in doc["products"].values())
 
     args = ["elasticity", "--analysis", str(out), "--sim", str(clean_world / "sim")]
     science_main([*args, "--scenario", str(EVAL)])  # small world: outcome not asserted

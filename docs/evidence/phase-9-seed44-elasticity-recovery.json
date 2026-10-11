@@ -1,0 +1,291 @@
+{
+  "checks": [
+    {
+      "detail": {
+        "interval_high": {
+          "pooled": -1.3202736181403438,
+          "tier:enterprise": -0.6677547178153969,
+          "tier:growth": -1.1463441675000126,
+          "tier:starter": -1.841585207437332
+        }
+      },
+      "name": "sign",
+      "passed": true
+    },
+    {
+      "detail": {
+        "estimate": -1.3580645663600297,
+        "rel_error": 0.00905833252880154,
+        "se": 0.019277659313314464,
+        "truth": -1.3458731993784576,
+        "z": 0.6324090898915251
+      },
+      "name": "pooled_magnitude",
+      "passed": true
+    },
+    {
+      "detail": {
+        "enterprise": {
+          "estimate": -0.7304527235842782,
+          "rel_error": 0.017329487050687136,
+          "truth": -0.7180099789517693
+        },
+        "growth": {
+          "estimate": -1.1977051388852555,
+          "rel_error": 0.00024808689936586505,
+          "truth": -1.1974080776280012
+        },
+        "starter": {
+          "estimate": -1.9063046542125088,
+          "rel_error": 0.016027109457797117,
+          "truth": -1.8762340457921525
+        }
+      },
+      "name": "tier_magnitude",
+      "passed": true
+    },
+    {
+      "detail": {
+        "identifiable_pairs": 14,
+        "pairs": [
+          {
+            "a": "enterprise",
+            "b": "growth",
+            "estimated_difference": 0.46725241530097755,
+            "level": "tier",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.47939809867623184
+          },
+          {
+            "a": "enterprise",
+            "b": "starter",
+            "estimated_difference": 1.1758519306282307,
+            "level": "tier",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 1.1582240668403831
+          },
+          {
+            "a": "growth",
+            "b": "starter",
+            "estimated_difference": 0.7085995153272532,
+            "level": "tier",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.6788259681641513
+          },
+          {
+            "a": "ecommerce",
+            "b": "fintech",
+            "estimated_difference": -0.4776003209779383,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": -0.4285343192390789
+          },
+          {
+            "a": "ecommerce",
+            "b": "health",
+            "estimated_difference": -0.6074284199800825,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": -0.5166192396201961
+          },
+          {
+            "a": "ecommerce",
+            "b": "saas",
+            "estimated_difference": -0.20846605807917676,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": -0.25237522390488065
+          },
+          {
+            "a": "fintech",
+            "b": "gaming",
+            "estimated_difference": 0.6464988197202042,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.5347484301125709
+          },
+          {
+            "a": "fintech",
+            "b": "media",
+            "estimated_difference": 0.44348739861456044,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.5057478355186049
+          },
+          {
+            "a": "fintech",
+            "b": "saas",
+            "estimated_difference": 0.2691342628987615,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.17615909533419827
+          },
+          {
+            "a": "gaming",
+            "b": "health",
+            "estimated_difference": -0.7763269187223484,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": -0.622833350493688
+          },
+          {
+            "a": "gaming",
+            "b": "saas",
+            "estimated_difference": -0.37736455682144276,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": -0.3585893347783726
+          },
+          {
+            "a": "health",
+            "b": "media",
+            "estimated_difference": 0.5733154976167045,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.5938327558997221
+          },
+          {
+            "a": "health",
+            "b": "saas",
+            "estimated_difference": 0.39896236190090567,
+            "level": "industry",
+            "p_correct": 1.0,
+            "passed": true,
+            "truth_difference": 0.2642440157153154
+          },
+          {
+            "a": "media",
+            "b": "saas",
+            "estimated_difference": -0.17435313571579894,
+            "level": "industry",
+            "p_correct": 0.999375,
+            "passed": true,
+            "truth_difference": -0.32958874018440665
+          }
+        ]
+      },
+      "name": "segment_ordering",
+      "passed": true
+    },
+    {
+      "detail": {
+        "cells": 18,
+        "coverage": 0.6666666666666666,
+        "covered": {
+          "enterprise|ecommerce": false,
+          "enterprise|fintech": false,
+          "enterprise|gaming": false,
+          "enterprise|health": false,
+          "enterprise|media": true,
+          "enterprise|saas": true,
+          "growth|ecommerce": true,
+          "growth|fintech": true,
+          "growth|gaming": true,
+          "growth|health": false,
+          "growth|media": true,
+          "growth|saas": true,
+          "starter|ecommerce": true,
+          "starter|fintech": true,
+          "starter|gaming": true,
+          "starter|health": true,
+          "starter|media": true,
+          "starter|saas": false
+        }
+      },
+      "name": "cell_interval_coverage",
+      "passed": false
+    },
+    {
+      "detail": {
+        "rmse_vs_truth": {
+          "empirical_bayes": 0.10260436719603411,
+          "hierarchical": 0.09985867902095204,
+          "unpooled": 0.09190202294460571
+        }
+      },
+      "name": "pooling_justified",
+      "passed": false
+    },
+    {
+      "detail": {
+        "failed": []
+      },
+      "name": "validity_gates",
+      "passed": true
+    },
+    {
+      "detail": {
+        "divergences": true,
+        "ess_bulk": true,
+        "ess_tail": true,
+        "posterior_predictive": true,
+        "prior_sensitivity": true,
+        "rhat": true
+      },
+      "name": "bayesian_diagnostics",
+      "passed": true
+    }
+  ],
+  "data_version": "units-629d0eef6cb2c356",
+  "failure_cases": {
+    "dose": {
+      "cut": {
+        "estimate": -1.4554368814283944,
+        "truth": -1.450735411284096
+      },
+      "raise": {
+        "estimate": -1.243502808721831,
+        "truth": -1.2224737471800395
+      }
+    },
+    "naive_pre_post_vs_randomised": {
+      "px-2026-02-api-requests": {
+        "itt": -1.2619474615247577,
+        "naive_pre_post": -1.0151164247832893
+      },
+      "px-2026-02-cpu-minutes": {
+        "itt": -1.4305555031852313,
+        "naive_pre_post": -1.7130090669172664
+      },
+      "px-2026-02-data-transfer": {
+        "itt": -1.481951549890071,
+        "naive_pre_post": -1.720562188133353
+      },
+      "px-2026-02-gpu-minutes": {
+        "itt": -1.3487890556589122,
+        "naive_pre_post": -1.034674004709682
+      },
+      "px-2026-02-premium-latency": {
+        "itt": -1.1367451548391916,
+        "naive_pre_post": -0.9085992701631509
+      }
+    },
+    "ols_tier_estimates": {
+      "enterprise": -0.7264808762690063,
+      "growth": -1.1974243029101177,
+      "starter": -1.9013656770577012
+    },
+    "pooled_truth": -1.3458731993784576,
+    "tier_truth": {
+      "enterprise": -0.7180099789517693,
+      "growth": -1.1974080776280012,
+      "starter": -1.8762340457921525
+    }
+  },
+  "mode": "recovery",
+  "notice": "SYNTHETIC: recovery of simulator ground truth; not real business results",
+  "passed": false,
+  "world_config_hash": "ace8bdc4369c35cf96fe23d3a5bb3020a41df31f42f9be89b5f97b4d3ec26d8b"
+}

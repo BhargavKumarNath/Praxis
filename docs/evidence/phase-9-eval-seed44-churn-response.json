@@ -1,0 +1,84 @@
+{
+  "assignment_date": "2026-02-02",
+  "checksum": "c2403032e1a52e0787e6ffb518da81b6466e4e26e6cd1713bcb2856eb4350961",
+  "code_revision": "9526243-dirty",
+  "end_date": "2026-03-01",
+  "exposure_days": 178742.0,
+  "heterogeneity": {
+    "df": 4.0,
+    "p_value": 0.4646429614454507,
+    "q": 3.5878761973338857
+  },
+  "involuntary_events": 47.0,
+  "is_synthetic": true,
+  "method": "bill_shock_poisson.v1",
+  "nuisance": {
+    "log_h0_enterprise": -7.770845571928582,
+    "log_h0_growth": -6.820791169493406,
+    "log_h0_starter": -6.168418262135746,
+    "log_pre_spend_std": 0.10701969785748335
+  },
+  "pooled_fixed": {
+    "gamma": 1.8266680391442112,
+    "se": 0.8163666653597581
+  },
+  "products": {
+    "api_requests": {
+      "experiment_id": "px-2026-02-api-requests",
+      "gamma": 0.1538986729027778,
+      "log_ratio": 0.1823215567939546,
+      "mean_share": 0.38892021193514614,
+      "se": 1.354214560772097,
+      "se_model": 1.354214560772097,
+      "se_robust": 1.341733068180083,
+      "treated_units": 3291
+    },
+    "cpu_minutes": {
+      "experiment_id": "px-2026-02-cpu-minutes",
+      "gamma": 4.725628858883562,
+      "log_ratio": -0.1823215567939546,
+      "mean_share": 0.14849395861925918,
+      "se": 2.894200373262947,
+      "se_model": 2.894200373262947,
+      "se_robust": 2.892720246647924,
+      "treated_units": 3219
+    },
+    "data_transfer_gb": {
+      "experiment_id": "px-2026-02-data-transfer",
+      "gamma": 2.839134758432927,
+      "log_ratio": -0.1823215567939546,
+      "mean_share": 0.2253753569428391,
+      "se": 2.0083022609201926,
+      "se_model": 2.001757184388381,
+      "se_robust": 2.0083022609201926,
+      "treated_units": 3322
+    },
+    "gpu_minutes": {
+      "experiment_id": "px-2026-02-gpu-minutes",
+      "gamma": 8.230047212886804,
+      "log_ratio": 0.1823215567939546,
+      "mean_share": 0.02247489078190902,
+      "se": 7.423599832859526,
+      "se_model": 7.423599832859526,
+      "se_robust": 6.748502120265298,
+      "treated_units": 3228
+    },
+    "premium_latency": {
+      "experiment_id": "px-2026-02-premium-latency",
+      "gamma": 2.245420070200106,
+      "log_ratio": 0.1823215567939546,
+      "mean_share": 0.21473558172084645,
+      "se": 1.6749055869862797,
+      "se_model": 1.6749055869862797,
+      "se_robust": 1.5979914708299163,
+      "treated_units": 3284
+    }
+  },
+  "registry_hash": "6b4f4d882bdd2c73e29a2413330bfbc8e61352bc71170ecaca8e8ab825afbd4a",
+  "report_data_version": "units-629d0eef6cb2c356",
+  "response_format": 1,
+  "units": 6527,
+  "units_version": "billunits-5a879507867bf140",
+  "voluntary_events": 247.0,
+  "window_days": 28
+}

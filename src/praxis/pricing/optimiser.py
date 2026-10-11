@@ -112,6 +112,8 @@ def evidence_gate(problem: PricingProblem, policy: PricingPolicy) -> tuple[str, 
     if (problem.as_of - problem.evidence_date).days > policy.evidence.max_evidence_age_days:
         return (Reason.EVIDENCE_TOO_OLD,)
     reasons: list[str] = []
+    if problem.churn.bill_share < policy.evidence.min_bill_share:
+        reasons.append(Reason.CHURN_RESPONSE_UNIDENTIFIED)
     shares = problem.tier_shares()
     material = [t for t, s in shares.items() if s > policy.uncertainty.material_tier_share]
     if any(problem.elasticity[t].mean >= 0 for t in material):
@@ -315,11 +317,22 @@ def _guardrails(
     util = np.array([p.regions[r].utilization for r in ev.regions])
     projected_util = util * ev.capacity_ratio[at]
     checks = {name.value: bool(ok[at]) for name, ok in mask.items()}
+    x = ev.log_ratio[at : at + 1]
+    seg = cons.segment_projection(p, policy, x)
     return {
         "price_micros": int(ev.prices[at]),
         "passed": all(checks.values()),
         "checks": checks,
-        "projected_incremental_churn": float(cons.projected_churn(p, ev.log_ratio[at : at + 1])[0]),
+        "projected_incremental_churn": float(cons.projected_churn(p, x)[0]),
+        "segments": {
+            name: {
+                "projected_incremental_churn": float(seg.incremental[0, j]),
+                "projected_window_churn": float(seg.window[0, j]),
+                "limit": float(seg.limits[j]),
+            }
+            for j, name in enumerate(seg.names)
+        },
+        "customers_over_change_limit": cons.customers_over_change_limit(p, policy),
         "projected_max_utilization": float(projected_util.max()) if util.size else 0.0,
         "min_net_margin": float(ev.net_margin[at].min()) if ev.net_margin.size else 0.0,
         "extrapolation": None
@@ -362,15 +375,28 @@ def _inputs(p: PricingProblem) -> dict[str, Any]:
         "elasticity": {t: {"mean": e.mean, "sd": e.sd} for t, e in sorted(p.elasticity.items())},
         "payment_loss_rate": p.payment_loss_rate,
         "churn": {
-            "slope": p.churn.slope,
-            "slope_upper": p.churn.slope_upper,
-            "slope_sd": p.churn.slope_sd,
-            "relative_slope": p.churn.relative_slope,
-            "base_window_churn": p.churn.base_window_churn,
+            "response": p.churn.response,
+            "response_sd": p.churn.response_sd,
+            "response_upper": p.churn.response_upper,
             "window_days": p.churn.window_days,
-            "exposed_customers": p.churn.exposed_customers,
-            "clv_micros": p.churn.clv_micros,
+            "bill_response": p.churn.bill_response,
+            "bill_response_sd": p.churn.bill_response_sd,
+            "calibration_factor": p.churn.calibration_factor,
+            "calibration_sd_log": p.churn.calibration_sd_log,
+            "bill_share": p.churn.bill_share,
+            "alternatives": [list(a) for a in p.churn.alternatives],
+            "segments": [
+                {
+                    "segment": g.segment,
+                    "exposed_customers": g.exposed_customers,
+                    "clv_micros": g.clv_micros,
+                    "window_churn": g.window_churn,
+                    "churn_exposure": g.churn_exposure,
+                }
+                for g in p.churn.segments
+            ],
         },
+        "price_change_counts": {str(k): n for k, n in sorted(p.price_change_counts.items())},
         "forecast_relative_width": p.forecast_relative_width,
         "anchor_price_micros": p.anchor_price_micros,
         "evidence_date": None if p.evidence_date is None else p.evidence_date.isoformat(),
@@ -395,9 +421,17 @@ def _constraint_limits(p: PricingProblem, policy: PricingPolicy) -> dict[str, An
         "cooldown_days": c.cooldown_days,
         "in_cooldown": cons.in_cooldown(p, policy),
         "max_extrapolation": policy.evidence.max_extrapolation,
+        "min_bill_share": policy.evidence.min_bill_share,
         "min_contribution_margin": c.min_contribution_margin,
         "max_utilization": c.max_utilization,
         "max_incremental_churn": c.max_incremental_churn,
+        "max_segment_incremental_churn": dict(
+            sorted(policy.long_term.max_segment_incremental_churn.items())
+        ),
+        "max_segment_window_churn": policy.long_term.max_segment_window_churn,
+        "min_segment_customers": policy.long_term.min_segment_customers,
+        "max_price_changes_per_customer": policy.long_term.max_price_changes_per_customer,
+        "price_change_window_days": policy.long_term.price_change_window_days,
         "min_prob_improvement": policy.uncertainty.min_prob_improvement,
         "max_elasticity_sd": policy.uncertainty.max_elasticity_sd,
         "max_forecast_relative_width": policy.uncertainty.max_forecast_relative_width,

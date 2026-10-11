@@ -118,11 +118,11 @@ layers = [
     "praxis.api | praxis.science",
     "praxis.dunning",
     "praxis.pricing | praxis.payments",
-    "praxis.streaming | praxis.forecasting | praxis.elasticity | praxis.recovery",
+    "praxis.streaming | praxis.forecasting | praxis.elasticity | praxis.recovery | praxis.customer",
     "praxis.control | praxis.data | praxis.simulator",
     "praxis.events",
     "praxis.domain",
-    "praxis.config : praxis.logging : praxis.tracing : praxis.provenance : praxis.errors : praxis.observability",
+    "praxis.config : praxis.logging : praxis.tracing : praxis.provenance : praxis.errors : praxis.observability : praxis.glm",
 ]
 
 [[tool.importlinter.contracts]]
@@ -130,7 +130,7 @@ name = "Models never import the simulator (ground truth stays out of reach)"
 type = "forbidden"
 source_modules = [
     "praxis.forecasting", "praxis.elasticity", "praxis.pricing", "praxis.recovery",
-    "praxis.dunning",
+    "praxis.dunning", "praxis.customer",
 ]
 # praxis.science is the only place that joins model output with ground truth (ADR 0012).
 forbidden_modules = ["praxis.simulator", "praxis.science"]
@@ -149,7 +149,8 @@ type = "forbidden"
 source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
     "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
-    "praxis.pricing", "praxis.payments", "praxis.recovery", "praxis.dunning",
+    "praxis.pricing", "praxis.payments", "praxis.recovery", "praxis.dunning", "praxis.customer",
+    "praxis.glm",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
@@ -159,7 +160,7 @@ forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 name = "Payments are independent of the simulator, science and pricing"
 type = "forbidden"
 source_modules = ["praxis.payments"]
-forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "praxis.forecasting", "praxis.elasticity", "praxis.recovery"]
+forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "praxis.forecasting", "praxis.elasticity", "praxis.recovery", "praxis.customer"]
 
 # --- Per-module coverage floors (`make coverage-gate`, scripts/coverage_gate.py). Ordered:
 # the FIRST matching glob wins. Critical = money, state machines, idempotency, event contracts,
@@ -187,5 +188,8 @@ forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "pr
 "src/praxis/dunning/*" = 95                # dunning state machine, retry scheduler (s5, Phase 8)
 "src/praxis/recovery/__main__.py" = 85     # CLI wiring; the protocol it calls is >= 95
 "src/praxis/recovery/*" = 95               # recovery models, planner, fallback policy
+"src/praxis/customer/__main__.py" = 85     # CLI wiring; the models and values it calls are >= 95
+"src/praxis/customer/*" = 95               # churn hazard, CLV, segment value, guardrail inputs
+"src/praxis/glm.py" = 95                   # shared Poisson solver (hazard + churn response)
 "src/praxis/api/*" = 95
 "src/praxis/*" = 85

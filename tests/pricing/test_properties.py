@@ -20,6 +20,7 @@ from praxis.pricing.decision import Status
 from praxis.pricing.optimiser import optimise
 from praxis.pricing.problem import (
     ChurnResponse,
+    ChurnSegment,
     PricingProblem,
     RegionContext,
     SegmentBaseline,
@@ -31,6 +32,17 @@ from tests.pricing.helpers import AS_OF, PRODUCT, policy, problem
 TIERS = ("starter", "growth", "enterprise")
 REGIONS = ("r1", "r2", "r3")
 SETTINGS = settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+
+
+@st.composite
+def churn_segments(draw: st.DrawFn) -> ChurnSegment:
+    """A segment of customers with a churn exposure (sum of q_i s_ip) and its CLV."""
+    n = float(draw(st.integers(0, 2000)))
+    window = n * draw(st.floats(0.0, 0.2))
+    share = draw(st.floats(0.0, 1.0))
+    return ChurnSegment(
+        draw(st.sampled_from(TIERS)), n, draw(st.floats(0, 1e9)), window, window * share
+    )
 
 
 @st.composite
@@ -55,6 +67,12 @@ def cases(draw: st.DrawFn) -> tuple[PricingProblem, PricingPolicy]:
             "risk_aversion": draw(st.floats(0.0, 2.0)),
         },
         evidence={"max_extrapolation": draw(st.floats(0.01, 0.4))},
+        long_term={
+            "max_segment_incremental_churn": {t: draw(st.floats(0.0, 0.05)) for t in TIERS},
+            "max_segment_window_churn": draw(st.floats(0.01, 0.5)),
+            "min_segment_customers": draw(st.integers(1, 50)),
+            "max_price_changes_per_customer": draw(st.integers(1, 4)),
+        },
         products={PRODUCT: {"floor_micros": floor, "ceiling_micros": ceiling}},
     )
     regions = {
@@ -83,9 +101,17 @@ def cases(draw: st.DrawFn) -> tuple[PricingProblem, PricingPolicy]:
         "regions": regions,
         "payment_loss_rate": draw(st.floats(0.0, 0.3)),
         "churn": ChurnResponse(
-            slope, slope + draw(st.floats(0.0, 0.3)), 28, draw(st.floats(0, 1e4)), 1e8
+            slope,
+            draw(st.floats(0.0, 0.1)),
+            slope + draw(st.floats(0.0, 0.3)),
+            28,
+            tuple(draw(st.lists(churn_segments(), max_size=3, unique_by=lambda g: g.segment))),
+            alternatives=tuple(
+                draw(st.lists(st.tuples(st.floats(-0.2, 0.3), st.floats(0.0, 0.1)), max_size=2))
+            ),
         ),
         "forecast_relative_width": draw(st.floats(0.0, 0.9)),
+        "price_change_counts": draw(st.dictionaries(st.integers(0, 4), st.integers(0, 50))),
     }
     return problem(**fields), pol
 
@@ -112,6 +138,14 @@ def test_a_returned_price_never_violates_any_constraint(
     assert abs(math.log(price / prob.current_price_micros)) <= pol.max_log_step + 1e-12
     assert not in_cooldown(prob, pol)
     assert d.guardrails["passed"] is True
+    # long-horizon guardrails (Phase 9): no customer over the change-frequency limit, every
+    # judged segment within its churn limit and under the churn-risk ceiling after a raise
+    limit = pol.long_term.max_price_changes_per_customer
+    assert not any(k + 1 > limit and n for k, n in prob.price_change_counts.items())
+    for seg in d.guardrails["segments"].values():
+        assert seg["projected_incremental_churn"] <= seg["limit"] + 1e-12
+        if price > prob.current_price_micros:
+            assert seg["projected_window_churn"] <= pol.long_term.max_segment_window_churn + 1e-12
 
 
 @SETTINGS
@@ -148,6 +182,17 @@ def test_cooldown_and_uncertainty_freeze_are_respected(
     if too_uncertain:
         assert d.status is Status.FROZEN
         assert "uncertainty_elasticity_sd" in d.reason_codes
+
+
+@SETTINGS
+@given(cases(), st.floats(0.0, 0.0499))
+def test_an_unidentified_churn_response_never_moves_a_price(
+    case: tuple[PricingProblem, PricingPolicy], share: float
+) -> None:
+    prob, pol = case
+    churn = prob.churn.__class__(**{**prob.churn.__dict__, "bill_share": share})
+    d = optimise(problem(**{**prob.__dict__, "churn": churn}), pol)
+    assert d.status is not Status.CHANGE
 
 
 @SETTINGS

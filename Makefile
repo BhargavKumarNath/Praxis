@@ -4,7 +4,8 @@
 	forecast-data forecast-signals forecast-backtest forecast-train \
 	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
 	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
-	stripe-verify recovery-data recovery-train recovery-evaluate
+	stripe-verify recovery-data recovery-train recovery-evaluate \
+	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -267,6 +268,11 @@ elasticity-evaluate:
 	.venv/bin/python -m praxis.science elasticity --analysis $(EL_DIR)/analysis \
 		--sim $(EL_DIR)/sim --scenario $(EL_SCENARIO)
 
+# Phase 9: causal churn response to the bill from the same concurrent tests (needs analyze).
+churn-response:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.elasticity --db $(EL_DB) churn-response \
+		--report $(EL_DIR)/analysis/report.json --out $(EL_DIR)/analysis/churn_response.json
+
 # Contamination robustness world: detection, ITT dilution, IV recovery. Validity is expected to
 # flag the contaminated tests, so the analysis exits 1; the evaluation decides the outcome.
 elasticity-contamination:
@@ -292,6 +298,11 @@ PX_DB = $(PX_DIR)/warehouse.duckdb
 PX_DBT = DBT_TARGET_PATH=$(CURDIR)/$(PX_DIR)/dbt/target DBT_LOG_PATH=$(CURDIR)/$(PX_DIR)/dbt/logs \
 	PRAXIS_DUCKDB_PATH=$(PX_DB) .venv/bin/dbt
 PX_ELASTICITY = data/elasticity/eval-seed$(PX_SEED)-c$(EL_CUSTOMERS)/analysis/report.json
+PX_CHURN = data/elasticity/eval-seed$(PX_SEED)-c$(EL_CUSTOMERS)/analysis/churn_response.json
+# Phase 9 customer model: trained on the shadow world's prefix (before the first cycle).
+CV_START = 2026-01-05
+CV_CUTOFF = 2026-07-20
+CV_MODELS ?= data/models/customer
 
 # simulate -> raw load -> dbt marts for the pricing shadow world (offline)
 pricing-data:
@@ -306,13 +317,53 @@ pricing-shadow:
 	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.science pricing-shadow --db $(PX_DB) \
 		--sim $(PX_DIR)/sim --scenario $(PX_SCENARIO) --forecast-models data/models/demand \
 		--elasticity-model data/models/elasticity --elasticity-report $(PX_ELASTICITY) \
-		--out $(PX_DIR)/shadow
+		--churn-response $(PX_CHURN) --customer-models $(CV_MODELS) --out $(PX_DIR)/shadow \
+		$(if $(PX_ARCHIVE),--churn-archive $(PX_ARCHIVE))
+
+# Phase 9: churn hazard + CLV artifact on the pricing world's prefix (truth-free).
+customer-train:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.customer --db $(PX_DB) train \
+		--start $(CV_START) --cutoff $(CV_CUTOFF) --out $(CV_MODELS) --report $(PX_DIR)/customer_train.json
+
+# Segment monitoring report at the first cycle (exit 1 = an alert fired; a report, not a gate).
+customer-monitor:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.customer --db $(PX_DB) monitor \
+		--model $$(.venv/bin/python -c "import json;print(json.load(open('$(PX_DIR)/customer_train.json'))['artifact'])") \
+		--as-of $(CV_CUTOFF) --out $(PX_DIR)/customer_monitor.json
+
+# One complete pricing world for SEED through every gate (experiment world + Phase 5 analysis +
+# churn response, forecast world + backtest acceptance + artifact, pricing world + customer
+# model). Used for development sweeps over many seeds and for held-out worlds (build once).
+SEED ?= 1
+pricing-world:
+	$(MAKE) elasticity-data elasticity-analyze churn-response EL_SEED=$(SEED)
+	$(MAKE) forecast-data forecast-backtest forecast-train FC_SEED=$(SEED)
+	$(MAKE) pricing-data customer-train PX_SEED=$(SEED)
+
+# Meta-analytic archive of earlier churn experiments (ADR 0016 third amendment): DEVELOPMENT
+# experiment worlds only, never an evaluation seed. Prints the checksum to pin in policy.toml.
+ARCHIVE_SEEDS ?= 1 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 \
+	120 121 122 123 124
+ARCHIVE_OUT ?= configs/pricing/churn_archive.json
+# seed 1 (the nightly / pricing-dev world) is in the archive: decide it without its own test
+DEV_ARCHIVE = data/pricing/churn_archive_without_seed1.json
+churn-archive:
+	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.pricing churn-archive \
+		--out $(ARCHIVE_OUT) \
+		$(foreach s,$(ARCHIVE_SEEDS),data/elasticity/eval-seed$(s)-c$(EL_CUSTOMERS)/analysis/churn_response.json)
+
+# Two shadow reports of one world (Phase 9 controlled example: Phase 6 vs Phase 9 on seed 42).
+PX_BEFORE ?= docs/evidence/phase-6-eval-seed42-shadow.json
+pricing-compare:
+	.venv/bin/python -m praxis.science pricing-compare --before $(PX_BEFORE) \
+		--after $(PX_DIR)/shadow/shadow.json --out $(PX_DIR)/shadow/compare.json
 
 # Development world end to end (forecast artifact + elasticity evidence for seed 1 first).
 pricing-dev:
 	$(MAKE) forecast-data forecast-backtest forecast-train FC_SEED=1
-	$(MAKE) elasticity-data elasticity-analyze EL_SEED=1
-	$(MAKE) pricing-data pricing-shadow PX_SEED=1
+	$(MAKE) elasticity-data elasticity-analyze churn-response EL_SEED=1
+	$(MAKE) churn-archive ARCHIVE_OUT=$(DEV_ARCHIVE) ARCHIVE_SEEDS="$(filter-out 1,$(ARCHIVE_SEEDS))"
+	$(MAKE) pricing-data customer-train pricing-shadow PX_SEED=1 PX_ARCHIVE=$(DEV_ARCHIVE)
 
 # --- Phase 8 payment recovery (local DuckDB + simulator truth; no cloud) -------------------
 # Pre-registered world (ADR 0015): 8,000 customers, 180 days, randomised retry timing.
@@ -363,11 +414,14 @@ nightly-science:
 	$(MAKE) forecast-backtest FC_SEED=1
 	$(MAKE) elasticity-data EL_SEED=1
 	$(MAKE) elasticity-analyze EL_SEED=1
+	$(MAKE) churn-response EL_SEED=1
 	$(MAKE) elasticity-evaluate EL_SEED=1
 	$(MAKE) elasticity-contamination EL_SEED=1
 	$(MAKE) forecast-train FC_SEED=1
 	$(MAKE) pricing-data PX_SEED=1
-	$(MAKE) pricing-shadow PX_SEED=1
+	$(MAKE) customer-train PX_SEED=1
+	$(MAKE) churn-archive ARCHIVE_OUT=$(DEV_ARCHIVE) ARCHIVE_SEEDS="$(filter-out 1,$(ARCHIVE_SEEDS))"
+	$(MAKE) pricing-shadow PX_SEED=1 PX_ARCHIVE=$(DEV_ARCHIVE)
 	$(MAKE) recovery-data RC_SEED=1
 	$(MAKE) recovery-train RC_SEED=1
 	$(MAKE) recovery-evaluate RC_SEED=1 RC_KNOWN=--known-failures=benchmarks/recovery_dev_known_failures.json

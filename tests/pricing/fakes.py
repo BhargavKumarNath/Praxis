@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from praxis.elasticity import churn as churn_doc
 from praxis.elasticity.artifact import (
     ARTIFACT_FORMAT,
     ESTIMATES,
@@ -79,4 +80,35 @@ def write_report(
         ],
     }
     path.write_text(json.dumps(report))
+    return path
+
+
+def write_churn_response(
+    path: Path,
+    registry: ExperimentRegistry | None = None,
+    *,
+    report_data_version: str = DATA_VERSION,
+    gammas: dict[str, tuple[float, float]] | None = None,
+) -> Path:
+    """A checksummed churn-response document (``praxis.elasticity.churn`` format)."""
+    registry = registry or load_registry()
+    gammas = gammas or {e.product: (2.0, 1.0) for e in registry.experiments}
+    doc: dict[str, Any] = {
+        "response_format": churn_doc.RESPONSE_FORMAT,
+        "method": churn_doc.METHOD,
+        "is_synthetic": True,
+        "registry_hash": registry.config_hash,
+        "report_data_version": report_data_version,
+        "products": {
+            p: {"gamma": g, "se": se, "experiment_id": f"px-{p}", "mean_share": 0.2}
+            for p, (g, se) in gammas.items()
+        },
+        "elasticity_heterogeneity": {
+            "starter": {"variance": 0.5, "se": 0.05},
+            "growth": {"variance": 0.2, "se": 0.03},
+            "enterprise": {"variance": 0.08, "se": 0.04},
+        },
+    }
+    doc["checksum"] = churn_doc.checksum(doc)
+    path.write_text(json.dumps(doc))
     return path

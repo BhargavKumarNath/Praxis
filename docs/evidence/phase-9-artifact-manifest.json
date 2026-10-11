@@ -1,0 +1,47 @@
+{
+  "artifact_checksum": "dffb7210a62da7aafc482319a1b9612cf12c1be9254dc64a7fcf6c0d51a3f884",
+  "artifact_format": 1,
+  "challenger": "poisson_glm",
+  "champion": "tier_rate_table",
+  "code_revision": "9526243-dirty",
+  "config_hash": "1199d4215e16d558e6410389fb9c859d546fcd6e626ca7aa14b2a305acbf5711",
+  "created_at": "2026-10-10T11:17:03.950238+00:00",
+  "data_version": "customers-248db8802849f13e",
+  "feature_version": "customer_features.v1",
+  "files": {
+    "glm.json": "233c301fa913bdf2df71b539a501d5f7b7dad67d04b3339a2044e0abdce46d14",
+    "involuntary.json": "01bf14f47eab4a84ed8f8c42e5629b89cd4d7b52f607cfb482affb7cf831aef7",
+    "rate_table.json": "0b62ec87b3223269647f1fad609211f5014bd9ff667b413467b2905f6768a34e"
+  },
+  "is_synthetic": true,
+  "label": {
+    "first_snapshot_day": 56,
+    "snapshot_step_days": 28,
+    "window_days": 28
+  },
+  "metrics": {
+    "backtest_glm_deviance": 741.8242124385639,
+    "backtest_table_deviance": 730.9623607634967,
+    "train_exposure_days": 106212.0,
+    "train_involuntary_events": 18.0,
+    "train_rows": 3870,
+    "train_voluntary_events": 140.0
+  },
+  "model_name": "customer_churn",
+  "model_version": "churn-table-dffb7210a62d",
+  "parameters": {
+    "backtest_windows": 3,
+    "max_iter": 100,
+    "rate_prior_weight": 28.0,
+    "ridge": 1.0,
+    "tol": 1e-10
+  },
+  "snapshot_dates": [
+    "2026-03-02",
+    "2026-03-30",
+    "2026-04-27",
+    "2026-05-25",
+    "2026-06-22"
+  ],
+  "training_cutoff": "2026-07-20"
+}

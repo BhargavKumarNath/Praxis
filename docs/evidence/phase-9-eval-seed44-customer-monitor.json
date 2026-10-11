@@ -1,0 +1,410 @@
+{
+  "alerts": [
+    {
+      "alert": "calibration_ratio",
+      "segment": "enterprise",
+      "value": 1.6633799625452526
+    }
+  ],
+  "as_of": "2026-07-20",
+  "calibration": {
+    "expected": 25.710965818143727,
+    "factor": 0.9728752529351061,
+    "observed": 25.0,
+    "sd_log": 0.19802950859533489,
+    "window_start": "2026-06-22"
+  },
+  "champion": "tier_rate_table",
+  "customers": 711,
+  "is_synthetic": true,
+  "model_version": "churn-table-dffb7210a62d",
+  "segments": {
+    "enterprise": {
+      "calibration_ratio": 1.6633799625452526,
+      "clv_sensitivity": [
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 90,
+          "mean_clv": 10036328376.247671
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 180,
+          "mean_clv": 19225115499.499474
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 365,
+          "mean_clv": 35748621563.65283
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 730,
+          "mean_clv": 60744241238.547264
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 1095,
+          "mean_clv": 78221306803.70494
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 90,
+          "mean_clv": 9976414351.14085
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 180,
+          "mean_clv": 19001120038.29779
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 365,
+          "mean_clv": 34938870853.34638
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 730,
+          "mean_clv": 58205002112.634766
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 1095,
+          "mean_clv": 73698143434.99063
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 90,
+          "mean_clv": 9919732530.20647
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 180,
+          "mean_clv": 18790820268.914776
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 365,
+          "mean_clv": 34190148470.52973
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 730,
+          "mean_clv": 55922809642.72627
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 1095,
+          "mean_clv": 69736980763.7615
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 90,
+          "mean_clv": 9814866166.596516
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 180,
+          "mean_clv": 18405863160.154003
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 365,
+          "mean_clv": 32848261657.3549
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 730,
+          "mean_clv": 51987989276.099525
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 1095,
+          "mean_clv": 63140152429.84477
+        }
+      ],
+      "last_window": {
+        "customers": 153.0,
+        "expected_voluntary": 3.4077060842153593,
+        "involuntary": 0.0,
+        "retention": 0.9607843137254902,
+        "voluntary": 6.0
+      },
+      "price_change_exposure": {
+        "0": 1,
+        "1": 20,
+        "2": 83,
+        "3": 57
+      },
+      "retention_90d": 0.8726114649681529,
+      "value": {
+        "customers": 161,
+        "involuntary_hazard": 0.00019076574222493572,
+        "mean_clv_micros": 34190148470.52973,
+        "mean_daily_margin_micros": 116563540.03496559,
+        "mean_expected_days": 306.68785070296684,
+        "mean_window_churn": 0.021864512286989046,
+        "segment": "enterprise",
+        "total_clv_micros": 5504613903755.287
+      }
+    },
+    "growth": {
+      "calibration_ratio": 1.0377609789379734,
+      "clv_sensitivity": [
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 90,
+          "mean_clv": 2942122042.600889
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 180,
+          "mean_clv": 5594965886.587035
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 365,
+          "mean_clv": 10257196271.230682
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 730,
+          "mean_clv": 16998369857.706474
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 1095,
+          "mean_clv": 21428763907.049023
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 90,
+          "mean_clv": 2924603158.255732
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 180,
+          "mean_clv": 5530115824.544114
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 365,
+          "mean_clv": 10027361272.566284
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 730,
+          "mean_clv": 16303668695.711714
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 1095,
+          "mean_clv": 20232123430.61814
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 90,
+          "mean_clv": 2908029202.258437
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 180,
+          "mean_clv": 5469228361.791841
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 365,
+          "mean_clv": 9814811340.971687
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 730,
+          "mean_clv": 15678840423.884005
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 1095,
+          "mean_clv": 19182406197.14492
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 90,
+          "mean_clv": 2877365483.683335
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 180,
+          "mean_clv": 5357766436.554222
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 365,
+          "mean_clv": 9433779047.022182
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 730,
+          "mean_clv": 14600455889.536852
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 1095,
+          "mean_clv": 17430133101.80988
+        }
+      ],
+      "last_window": {
+        "customers": 350.0,
+        "expected_voluntary": 10.581549830259469,
+        "involuntary": 2.0,
+        "retention": 0.9628571428571429,
+        "voluntary": 11.0
+      },
+      "price_change_exposure": {
+        "0": 5,
+        "1": 34,
+        "2": 146,
+        "3": 141
+      },
+      "retention_90d": 0.8888888888888888,
+      "value": {
+        "customers": 326,
+        "involuntary_hazard": 8.43015519740675e-05,
+        "mean_clv_micros": 9814811340.971687,
+        "mean_daily_margin_micros": 34430917.074087456,
+        "mean_expected_days": 297.90656604236074,
+        "mean_window_churn": 0.029398417424878923,
+        "segment": "growth",
+        "total_clv_micros": 3199628497156.77
+      }
+    },
+    "starter": {
+      "calibration_ratio": 0.6954836980256208,
+      "clv_sensitivity": [
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 90,
+          "mean_clv": 867820263.8693924
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 180,
+          "mean_clv": 1586636756.0761075
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 365,
+          "mean_clv": 2699969567.578304
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 730,
+          "mean_clv": 3957639724.128563
+        },
+        {
+          "annual_rate": 0.0,
+          "horizon_days": 1095,
+          "mean_clv": 4543473817.101642
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 90,
+          "mean_clv": 862726137.2199606
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 180,
+          "mean_clv": 1568777739.5686302
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 365,
+          "mean_clv": 2643096692.8506217
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 730,
+          "mean_clv": 3815647415.676323
+        },
+        {
+          "annual_rate": 0.05,
+          "horizon_days": 1095,
+          "mean_clv": 4335823314.393161
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 90,
+          "mean_clv": 857906500.4951066
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 180,
+          "mean_clv": 1552006092.3519561
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 365,
+          "mean_clv": 2590449223.4617953
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 730,
+          "mean_clv": 3687407944.6160364
+        },
+        {
+          "annual_rate": 0.1,
+          "horizon_days": 1095,
+          "mean_clv": 4151929088.2917542
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 90,
+          "mean_clv": 848988905.233029
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 180,
+          "mean_clv": 1521293559.709614
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 365,
+          "mean_clv": 2495939153.4425964
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 730,
+          "mean_clv": 3464798279.2220583
+        },
+        {
+          "annual_rate": 0.2,
+          "horizon_days": 1095,
+          "mean_clv": 3840884372.6315985
+        }
+      ],
+      "last_window": {
+        "customers": 227.0,
+        "expected_voluntary": 11.721709903668899,
+        "involuntary": 0.0,
+        "retention": 0.9647577092511013,
+        "voluntary": 8.0
+      },
+      "price_change_exposure": {
+        "0": 9,
+        "1": 24,
+        "2": 94,
+        "3": 97
+      },
+      "retention_90d": 0.8469750889679716,
+      "value": {
+        "customers": 224,
+        "involuntary_hazard": 0.0002646898043951553,
+        "mean_clv_micros": 2590449223.4617953,
+        "mean_daily_margin_micros": 10590239.555449454,
+        "mean_expected_days": 254.94886621228247,
+        "mean_window_churn": 0.04990693665146173,
+        "segment": "starter",
+        "total_clv_micros": 580260626055.4421
+      }
+    }
+  }
+}

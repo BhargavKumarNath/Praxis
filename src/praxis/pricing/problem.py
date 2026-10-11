@@ -41,18 +41,57 @@ class RegionContext:
 
 
 @dataclass(frozen=True)
-class ChurnResponse:
-    """Causal churn response to this product's price (randomised tests) and its valuation."""
+class ChurnSegment:
+    """The product's customers in one segment (tier in force), valued by the CLV model.
 
-    slope: float  # d P(churn within window) / d log price (posterior mean)
-    slope_upper: float  # one-sided upper confidence bound of the slope (guardrail)
-    window_days: int  # the evidence window the probabilities refer to
-    exposed_customers: float  # active customers who use this product
-    clv_micros: float  # CLV proxy per customer (valuation of one lost customer)
-    slope_sd: float = 0.0  # posterior SD of the slope (enters the decision's uncertainty)
-    # Audit of how the absolute slope was built: relative slope x current window churn rate.
-    relative_slope: float = 0.0  # d log(churn rate) / d log price (posterior mean)
-    base_window_churn: float = 0.0  # churn probability over the window observed before as_of
+    ``churn_exposure`` = sum over the segment's customers of q_i * s_ip (calibrated baseline
+    voluntary churn probability over the window x the product's share of the customer's
+    bill): extra voluntary churners per unit of (response x log price change), first order.
+    """
+
+    segment: str
+    exposed_customers: float  # active customers who used the product in the spend window
+    clv_micros: float  # value of one lost customer of this segment (Phase 9 CLV model)
+    window_churn: float  # expected voluntary churners over the window at the current price
+    churn_exposure: float
+
+
+@dataclass(frozen=True)
+class ChurnResponse:
+    """Causal voluntary-churn response to this product's price, and its valuation (ADR 0016).
+
+    Extra voluntary churners of segment g over the window at log price change x:
+    ``response * churn_exposure_g * x``. ``response`` is the bill elasticity of churn from the
+    randomised tests (pooled across products); its SD also carries the uncertainty of the
+    recent hazard calibration. Valued at each segment's CLV.
+    """
+
+    response: float  # posterior mean
+    response_sd: float
+    response_upper: float  # one-sided upper confidence bound (guardrails)
+    window_days: int
+    segments: tuple[ChurnSegment, ...] = ()
+    # audit: how the response was built
+    bill_response: float = 0.0  # pooled gamma_p (bill elasticity of voluntary churn)
+    bill_response_sd: float = 0.0
+    calibration_factor: float = 1.0  # recent observed / expected voluntary churn
+    calibration_sd_log: float = 0.0
+    bill_share: float = 1.0  # the product's mean bill share in the experiment that measured it
+    # other credible posteriors (mean, SD) of the response: the decision must hold under each
+    alternatives: tuple[tuple[float, float], ...] = ()
+
+    @property
+    def exposed_customers(self) -> float:
+        return sum(g.exposed_customers for g in self.segments)
+
+    @property
+    def total_exposure(self) -> float:
+        return sum(g.churn_exposure for g in self.segments)
+
+    @property
+    def value_at_risk(self) -> float:
+        """sum_g CLV_g x churn_exposure_g: micro-GBP lost per unit of (response x log price)."""
+        return sum(g.clv_micros * g.churn_exposure for g in self.segments)
 
 
 @dataclass(frozen=True)
@@ -70,6 +109,12 @@ class PricingProblem:
     churn: ChurnResponse
     forecast_relative_width: float  # (q90 - q10) / point of the product's total demand
     lineage: Mapping[str, str] = field(default_factory=dict)  # input versions / snapshot refs
+    # exposed customers by the number of distinct dates with a price change they saw in the
+    # policy's look-back window (customer-level price-change frequency, Phase 9)
+    price_change_counts: Mapping[int, int] = field(default_factory=dict)
+    # relative SD of the contribution CHANGE that the elasticity posterior does not carry: how
+    # far this book's demand response can sit from the experiment population's (ADR 0016)
+    contribution_rel_sd: float = 0.0
 
     @property
     def total_demand(self) -> float:
@@ -97,6 +142,9 @@ class PricingProblem:
             errors.append("forecast relative width must be finite and >= 0")
         errors += _segment_errors(self)
         errors += _churn_errors(self.churn)
+        errors += _change_count_errors(self.price_change_counts)
+        if not (_finite(self.contribution_rel_sd) and 0.0 <= self.contribution_rel_sd < 1.0):
+            errors.append("contribution relative SD must lie in [0, 1)")
         for tier, e in self.elasticity.items():
             if not (_finite(e.mean) and _finite(e.sd) and e.sd >= 0):
                 errors.append(f"elasticity of {tier} must be finite with sd >= 0")
@@ -131,24 +179,43 @@ def _segment_errors(p: PricingProblem) -> list[str]:
 
 def _churn_errors(c: ChurnResponse) -> list[str]:
     values = (
-        c.slope,
-        c.slope_upper,
-        c.exposed_customers,
-        c.clv_micros,
-        c.slope_sd,
-        c.relative_slope,
-        c.base_window_churn,
+        c.response,
+        c.response_sd,
+        c.response_upper,
+        c.bill_response,
+        c.bill_response_sd,
+        c.calibration_factor,
+        c.calibration_sd_log,
+        c.bill_share,
     )
     if not all(_finite(v) for v in values):
         return ["churn response must be finite"]
     errors: list[str] = []
-    if c.slope_upper < c.slope:
-        errors.append("churn slope upper bound below its point estimate")
-    if not 0.0 <= c.base_window_churn <= 1.0:
-        errors.append("base window churn must be a probability")
-    if c.window_days <= 0 or c.exposed_customers < 0 or c.clv_micros < 0 or c.slope_sd < 0:
-        errors.append("churn window, exposed customers and CLV must be non-negative")
+    if c.response_upper < c.response:
+        errors.append("churn response upper bound below its point estimate")
+    for mean, sd in c.alternatives:
+        if not (_finite(mean) and _finite(sd)) or sd < 0:
+            errors.append("alternative churn responses must be finite with sd >= 0")
+    if c.window_days <= 0 or c.response_sd < 0 or c.calibration_factor < 0:
+        errors.append("churn window, response SD and calibration must be non-negative")
+    for g in c.segments:
+        seg = (g.exposed_customers, g.clv_micros, g.window_churn, g.churn_exposure)
+        if not all(_finite(v) for v in seg):
+            errors.append(f"churn segment {g.segment} must be finite")
+        elif min(seg) < 0 or g.window_churn > g.exposed_customers:
+            errors.append(
+                f"churn segment {g.segment}: counts, CLV and churn must be non-negative, "
+                "churners at most the customers"
+            )
+    if len({g.segment for g in c.segments}) != len(c.segments):
+        errors.append("churn segments must be unique")
     return errors
+
+
+def _change_count_errors(counts: Mapping[int, int]) -> list[str]:
+    if any(k < 0 or n < 0 for k, n in counts.items()):
+        return ["price-change counts must be non-negative"]
+    return []
 
 
 @dataclass(frozen=True)

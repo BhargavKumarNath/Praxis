@@ -17,5 +17,6 @@
 | [0013](0013-constrained-pricing-optimiser.md) | Constrained pricing optimiser: causal response, hard constraints, audited shadow decisions |
 | [0014](0014-stripe-webhooks-inbox-and-state-refetch.md) | Stripe integration: signed webhook inbox, state re-fetch, shared event contracts |
 | [0015](0015-dunning-states-recovery-models-and-retry-scheduling.md) | Dunning states, recovery models and scheduled retries |
+| [0016](0016-customer-value-and-long-horizon-guardrails.md) | Customer value, churn hazard and long-horizon pricing guardrails |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

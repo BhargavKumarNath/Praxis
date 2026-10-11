@@ -1,0 +1,660 @@
+{
+ "archive_format": 1,
+ "checksum": "d536efbb285ec3fd4c421db3ccee88312309f6bf9e1e5ef0d6e62b7a1ac92507",
+ "experiments": [
+  {
+   "churn_response_checksum": "77082d00e74cfdc2c00668774f2f0c75311f522998f7a1e4b216c72b35970280",
+   "products": {
+    "api_requests": {
+     "gamma": 3.4359932126072095,
+     "se": 1.2929704194452882
+    },
+    "cpu_minutes": {
+     "gamma": 4.7440839321769905,
+     "se": 3.249730106314421
+    },
+    "data_transfer_gb": {
+     "gamma": 2.468625290495072,
+     "se": 2.2033436666813278
+    },
+    "gpu_minutes": {
+     "gamma": -1.7721138731563868,
+     "se": 9.142572506907264
+    },
+    "premium_latency": {
+     "gamma": 1.1477442089305154,
+     "se": 1.8220001668677885
+    }
+   },
+   "source": "eval-seed1-c8000"
+  },
+  {
+   "churn_response_checksum": "e1665810e14ce7e993e8d1e7bcbde1e3b798fc2854d61865b54bc3f2624f3bb5",
+   "products": {
+    "api_requests": {
+     "gamma": 2.385869805237356,
+     "se": 1.4546225058172397
+    },
+    "cpu_minutes": {
+     "gamma": -0.8529595155255018,
+     "se": 2.8096403835853065
+    },
+    "data_transfer_gb": {
+     "gamma": -2.479895321561122,
+     "se": 1.983683866971781
+    },
+    "gpu_minutes": {
+     "gamma": -4.033934506540911,
+     "se": 10.352605870084568
+    },
+    "premium_latency": {
+     "gamma": 5.026746945442824,
+     "se": 1.8097951263667302
+    }
+   },
+   "source": "eval-seed101-c8000"
+  },
+  {
+   "churn_response_checksum": "f276e935c951652733d0d9e8be278392669a3444b4f853d3e2cbb30726781218",
+   "products": {
+    "api_requests": {
+     "gamma": 1.3211430334892458,
+     "se": 1.2987758356666101
+    },
+    "cpu_minutes": {
+     "gamma": 5.0995620703931985,
+     "se": 3.3443687333802963
+    },
+    "data_transfer_gb": {
+     "gamma": -1.8585199784134459,
+     "se": 1.8115655811478992
+    },
+    "gpu_minutes": {
+     "gamma": 5.230428057339606,
+     "se": 7.734831933285992
+    },
+    "premium_latency": {
+     "gamma": 3.956345472805511,
+     "se": 1.675446026119425
+    }
+   },
+   "source": "eval-seed102-c8000"
+  },
+  {
+   "churn_response_checksum": "8f80594212c32e52f140c3ed31866be63a5499fca04faf43b2e4096dc859aab3",
+   "products": {
+    "api_requests": {
+     "gamma": 2.293784647544519,
+     "se": 1.3854796924619643
+    },
+    "cpu_minutes": {
+     "gamma": 5.152258979102418,
+     "se": 3.2968810783125178
+    },
+    "data_transfer_gb": {
+     "gamma": 3.1922863201020935,
+     "se": 2.2814572328180747
+    },
+    "gpu_minutes": {
+     "gamma": 9.312761148719717,
+     "se": 6.821948644069501
+    },
+    "premium_latency": {
+     "gamma": 1.200391656440542,
+     "se": 1.8540081178085512
+    }
+   },
+   "source": "eval-seed103-c8000"
+  },
+  {
+   "churn_response_checksum": "4372694c4ee9889301414e02919cb7ab3238a5d3c19f07a62ef9ee314af408da",
+   "products": {
+    "api_requests": {
+     "gamma": 2.620229506288286,
+     "se": 1.4013982394012694
+    },
+    "cpu_minutes": {
+     "gamma": -1.1817912237782007,
+     "se": 2.945046940433111
+    },
+    "data_transfer_gb": {
+     "gamma": 2.4616958874019814,
+     "se": 2.4076844488435194
+    },
+    "gpu_minutes": {
+     "gamma": 5.431748124451014,
+     "se": 8.133792312917741
+    },
+    "premium_latency": {
+     "gamma": 2.191346634303766,
+     "se": 1.8411047390740238
+    }
+   },
+   "source": "eval-seed104-c8000"
+  },
+  {
+   "churn_response_checksum": "f235961b98ac35efa1ce14eac55a8d904f514141a04aab93f8f21e07dcecceac",
+   "products": {
+    "api_requests": {
+     "gamma": 2.2852845699328825,
+     "se": 1.3640792617755415
+    },
+    "cpu_minutes": {
+     "gamma": 2.462121040015339,
+     "se": 2.988542559858236
+    },
+    "data_transfer_gb": {
+     "gamma": -0.7132610213048103,
+     "se": 1.9725085338079518
+    },
+    "gpu_minutes": {
+     "gamma": 8.902234732487832,
+     "se": 6.768787004342689
+    },
+    "premium_latency": {
+     "gamma": 5.459787024506881,
+     "se": 1.5249269887524657
+    }
+   },
+   "source": "eval-seed105-c8000"
+  },
+  {
+   "churn_response_checksum": "7eda45eacea46b7fbc97ec6f94d0f84433fb1976c8b1a9350e6971d047456de9",
+   "products": {
+    "api_requests": {
+     "gamma": 2.2368166463447725,
+     "se": 1.3410474060049118
+    },
+    "cpu_minutes": {
+     "gamma": 3.3073411897892084,
+     "se": 3.038083520490199
+    },
+    "data_transfer_gb": {
+     "gamma": 0.3886579870277199,
+     "se": 1.9848462444780692
+    },
+    "gpu_minutes": {
+     "gamma": 7.842136836394733,
+     "se": 8.706279208115772
+    },
+    "premium_latency": {
+     "gamma": 1.9095953444875566,
+     "se": 1.8056055640685424
+    }
+   },
+   "source": "eval-seed106-c8000"
+  },
+  {
+   "churn_response_checksum": "593db59ac4f944324cf7a5854eda33b51e0df3a356bad7d693283a8500284916",
+   "products": {
+    "api_requests": {
+     "gamma": 2.477358204077602,
+     "se": 1.3022602990931145
+    },
+    "cpu_minutes": {
+     "gamma": 6.537496056393514,
+     "se": 3.79673226221586
+    },
+    "data_transfer_gb": {
+     "gamma": 0.6891921751673978,
+     "se": 2.0541628842695214
+    },
+    "gpu_minutes": {
+     "gamma": -4.980628511282996,
+     "se": 11.5908051571767
+    },
+    "premium_latency": {
+     "gamma": -2.3135546159879077,
+     "se": 1.947189437535278
+    }
+   },
+   "source": "eval-seed107-c8000"
+  },
+  {
+   "churn_response_checksum": "5a0c8c31e98d6dae741d5e3e4159bb1b92aa97fb1af6a8dbdd5548d97decc816",
+   "products": {
+    "api_requests": {
+     "gamma": -0.6389384404712756,
+     "se": 1.4691175990385459
+    },
+    "cpu_minutes": {
+     "gamma": 2.578243631120621,
+     "se": 3.174523784203274
+    },
+    "data_transfer_gb": {
+     "gamma": 3.4131157916633916,
+     "se": 2.291686587513917
+    },
+    "gpu_minutes": {
+     "gamma": 8.066578037489723,
+     "se": 8.46147459183979
+    },
+    "premium_latency": {
+     "gamma": 2.8389754852381457,
+     "se": 1.719490161950706
+    }
+   },
+   "source": "eval-seed108-c8000"
+  },
+  {
+   "churn_response_checksum": "e862d4759243a55af13d4e788c1d47d0d860ab01cc746994a50d6342361d2a2a",
+   "products": {
+    "api_requests": {
+     "gamma": 3.341980420469932,
+     "se": 1.367036975921646
+    },
+    "cpu_minutes": {
+     "gamma": -1.1866868317843051,
+     "se": 2.829682080503121
+    },
+    "data_transfer_gb": {
+     "gamma": 6.944663503099329,
+     "se": 2.7173083845531893
+    },
+    "gpu_minutes": {
+     "gamma": -10.849311992354158,
+     "se": 11.592401156053233
+    },
+    "premium_latency": {
+     "gamma": 1.327659377611783,
+     "se": 1.9362153727791225
+    }
+   },
+   "source": "eval-seed109-c8000"
+  },
+  {
+   "churn_response_checksum": "8158fdbac8087604ca7e965c6a46863d96a824518b2596a0ee136f51fd8ae9f0",
+   "products": {
+    "api_requests": {
+     "gamma": 1.3269041409034976,
+     "se": 1.2972972565446172
+    },
+    "cpu_minutes": {
+     "gamma": 0.7298226179280715,
+     "se": 2.8710149190721963
+    },
+    "data_transfer_gb": {
+     "gamma": 1.0637475665236944,
+     "se": 1.903596631867615
+    },
+    "gpu_minutes": {
+     "gamma": 13.140992800763037,
+     "se": 6.659134952734789
+    },
+    "premium_latency": {
+     "gamma": 0.274167990169212,
+     "se": 1.7759401525336451
+    }
+   },
+   "source": "eval-seed110-c8000"
+  },
+  {
+   "churn_response_checksum": "daba206fde3198d3171efd2818a6299f8519162b968a20f4c05a7f813d112eee",
+   "products": {
+    "api_requests": {
+     "gamma": 2.1705090761199815,
+     "se": 1.3498533239013
+    },
+    "cpu_minutes": {
+     "gamma": 0.5311126375312315,
+     "se": 2.7023610229169384
+    },
+    "data_transfer_gb": {
+     "gamma": 1.1820451259008895,
+     "se": 2.1279388792638687
+    },
+    "gpu_minutes": {
+     "gamma": -10.286352583307893,
+     "se": 10.61015568752347
+    },
+    "premium_latency": {
+     "gamma": 0.9224829504893134,
+     "se": 1.7807448440651412
+    }
+   },
+   "source": "eval-seed111-c8000"
+  },
+  {
+   "churn_response_checksum": "8b25fa7182c0bce62f9b71d8b2ae93c423129793e19a167f02268504595ed12f",
+   "products": {
+    "api_requests": {
+     "gamma": 2.5178291654723606,
+     "se": 1.332490415419764
+    },
+    "cpu_minutes": {
+     "gamma": 7.380359458013586,
+     "se": 3.5016458860062727
+    },
+    "data_transfer_gb": {
+     "gamma": -1.592344664467993,
+     "se": 1.8699031788314555
+    },
+    "gpu_minutes": {
+     "gamma": -1.8399506794783655,
+     "se": 9.43198531922718
+    },
+    "premium_latency": {
+     "gamma": 2.36118329934433,
+     "se": 1.7263574802327524
+    }
+   },
+   "source": "eval-seed112-c8000"
+  },
+  {
+   "churn_response_checksum": "374da29d3d389a6beb82ad959cac9f93c0c3ad65434e35c41cc2adffc1695f93",
+   "products": {
+    "api_requests": {
+     "gamma": 2.6080750345361206,
+     "se": 1.3224393083199577
+    },
+    "cpu_minutes": {
+     "gamma": -1.5964464408863035,
+     "se": 3.0282908230444265
+    },
+    "data_transfer_gb": {
+     "gamma": 2.283932958923754,
+     "se": 2.185016075094081
+    },
+    "gpu_minutes": {
+     "gamma": 6.975821851299016,
+     "se": 7.80180178253314
+    },
+    "premium_latency": {
+     "gamma": 1.6963051754226304,
+     "se": 1.9056047464210497
+    }
+   },
+   "source": "eval-seed113-c8000"
+  },
+  {
+   "churn_response_checksum": "a70a2829944375ca921dfccc18e448fd3da80428008ae47c517b939f9be5db30",
+   "products": {
+    "api_requests": {
+     "gamma": 0.4316378721333469,
+     "se": 1.3701998404836542
+    },
+    "cpu_minutes": {
+     "gamma": 1.8834166555822742,
+     "se": 2.972780812827651
+    },
+    "data_transfer_gb": {
+     "gamma": -0.9890384695815145,
+     "se": 1.9769497114657337
+    },
+    "gpu_minutes": {
+     "gamma": 2.958655057849295,
+     "se": 7.413637981274223
+    },
+    "premium_latency": {
+     "gamma": 2.136789533872797,
+     "se": 1.7548471816719216
+    }
+   },
+   "source": "eval-seed114-c8000"
+  },
+  {
+   "churn_response_checksum": "35396d132feeb2ba3e1af988e5cb56deb7f039cd5f12a41fd360975f53795c86",
+   "products": {
+    "api_requests": {
+     "gamma": 0.22387896199951782,
+     "se": 1.4761083614682124
+    },
+    "cpu_minutes": {
+     "gamma": 0.32538140090822665,
+     "se": 2.986698328496462
+    },
+    "data_transfer_gb": {
+     "gamma": 5.28175967721488,
+     "se": 2.5859031377100794
+    },
+    "gpu_minutes": {
+     "gamma": 4.7119405809110075,
+     "se": 9.17460360248997
+    },
+    "premium_latency": {
+     "gamma": 1.8191587243698994,
+     "se": 1.8659552107326722
+    }
+   },
+   "source": "eval-seed115-c8000"
+  },
+  {
+   "churn_response_checksum": "2efc074479005bd893e8f1d1778102b00f8454d2ccb79f0e9ffabf334fcf975f",
+   "products": {
+    "api_requests": {
+     "gamma": 0.5044520006801327,
+     "se": 1.4035457118783294
+    },
+    "cpu_minutes": {
+     "gamma": 0.11550220850875347,
+     "se": 2.8427430922040076
+    },
+    "data_transfer_gb": {
+     "gamma": -2.3574137685283323,
+     "se": 1.8912147378415862
+    },
+    "gpu_minutes": {
+     "gamma": -1.8030021611468332,
+     "se": 9.254628700936951
+    },
+    "premium_latency": {
+     "gamma": -1.1991945412185414,
+     "se": 1.9856028938903876
+    }
+   },
+   "source": "eval-seed116-c8000"
+  },
+  {
+   "churn_response_checksum": "5b534a0bc22b75b3cecf38bc9e6a9a323db064684c1dee4123f901d9e7343523",
+   "products": {
+    "api_requests": {
+     "gamma": -1.923368623684247,
+     "se": 1.4639175886322098
+    },
+    "cpu_minutes": {
+     "gamma": 5.845114251727344,
+     "se": 3.1655491411815238
+    },
+    "data_transfer_gb": {
+     "gamma": 4.854846453738605,
+     "se": 2.2437562899227506
+    },
+    "gpu_minutes": {
+     "gamma": 16.63346014966576,
+     "se": 5.198540475910559
+    },
+    "premium_latency": {
+     "gamma": 1.2068530290550237,
+     "se": 1.7505722094167826
+    }
+   },
+   "source": "eval-seed117-c8000"
+  },
+  {
+   "churn_response_checksum": "652afaf38d2cf28e8d9d0c4d31a16070fd3b6b2d1eeabd23b9bf58349d57ae5e",
+   "products": {
+    "api_requests": {
+     "gamma": 1.9317418666592183,
+     "se": 1.4017856514495572
+    },
+    "cpu_minutes": {
+     "gamma": 1.881221450819846,
+     "se": 3.1409517795898583
+    },
+    "data_transfer_gb": {
+     "gamma": 1.0041071012706984,
+     "se": 2.076071246811507
+    },
+    "gpu_minutes": {
+     "gamma": 1.695491253033538,
+     "se": 9.655227559084643
+    },
+    "premium_latency": {
+     "gamma": 0.8451227625534445,
+     "se": 1.936759572551759
+    }
+   },
+   "source": "eval-seed118-c8000"
+  },
+  {
+   "churn_response_checksum": "d325ad79f5b1ea84824c6707439a1fdaf925f0f1293d43320322ed253575df2f",
+   "products": {
+    "api_requests": {
+     "gamma": 2.400495953797562,
+     "se": 1.361723359401027
+    },
+    "cpu_minutes": {
+     "gamma": -0.6844694844070438,
+     "se": 2.660371613808758
+    },
+    "data_transfer_gb": {
+     "gamma": 1.4459310553799798,
+     "se": 2.021290994129709
+    },
+    "gpu_minutes": {
+     "gamma": 4.4714211005543305,
+     "se": 7.704978452325138
+    },
+    "premium_latency": {
+     "gamma": -1.2978740508643298,
+     "se": 1.8838347449025434
+    }
+   },
+   "source": "eval-seed119-c8000"
+  },
+  {
+   "churn_response_checksum": "316d841c471c5cf5df720ae9d4aaf9b118583d2a4f76e44a52385bf8ff632126",
+   "products": {
+    "api_requests": {
+     "gamma": -0.06137848256420613,
+     "se": 1.37758297404482
+    },
+    "cpu_minutes": {
+     "gamma": 6.121794575231572,
+     "se": 3.3101784758105017
+    },
+    "data_transfer_gb": {
+     "gamma": 2.614404778536593,
+     "se": 2.075683573728105
+    },
+    "gpu_minutes": {
+     "gamma": -7.870873721336411,
+     "se": 10.84548891374456
+    },
+    "premium_latency": {
+     "gamma": 1.965956644618268,
+     "se": 1.656700907772979
+    }
+   },
+   "source": "eval-seed120-c8000"
+  },
+  {
+   "churn_response_checksum": "d76ae411b5cde81c3eea65cb736f277b9b9f2a65e5c3e63b4d72c6fecb6107ab",
+   "products": {
+    "api_requests": {
+     "gamma": 0.2898758396075104,
+     "se": 1.4254312185395024
+    },
+    "cpu_minutes": {
+     "gamma": 0.22414646812483205,
+     "se": 3.0136471144212544
+    },
+    "data_transfer_gb": {
+     "gamma": 4.13515237646477,
+     "se": 2.360126691982719
+    },
+    "gpu_minutes": {
+     "gamma": 6.140711913472784,
+     "se": 7.193629626584943
+    },
+    "premium_latency": {
+     "gamma": 2.6347135428532114,
+     "se": 1.7271032940418167
+    }
+   },
+   "source": "eval-seed121-c8000"
+  },
+  {
+   "churn_response_checksum": "4e5f60712687848cb263ff6b6ae382bb97eea40f902fde1bbc7b405c5c52a421",
+   "products": {
+    "api_requests": {
+     "gamma": 2.9981713434118595,
+     "se": 1.4249128327615521
+    },
+    "cpu_minutes": {
+     "gamma": 1.632971170340219,
+     "se": 3.0999683797319246
+    },
+    "data_transfer_gb": {
+     "gamma": 1.747275638153683,
+     "se": 2.219599136831054
+    },
+    "gpu_minutes": {
+     "gamma": -10.82664226892445,
+     "se": 11.90354528371315
+    },
+    "premium_latency": {
+     "gamma": 3.049269708201881,
+     "se": 1.7845165301860022
+    }
+   },
+   "source": "eval-seed122-c8000"
+  },
+  {
+   "churn_response_checksum": "41e9000f6255c82f0b7d3765100d34b08c8f73f65b819ff612a8c526706bf814",
+   "products": {
+    "api_requests": {
+     "gamma": 2.118803410337187,
+     "se": 1.330581952443746
+    },
+    "cpu_minutes": {
+     "gamma": 3.218532212214779,
+     "se": 3.1158583596690144
+    },
+    "data_transfer_gb": {
+     "gamma": 5.676649107823791,
+     "se": 2.4368177798456343
+    },
+    "gpu_minutes": {
+     "gamma": 5.338823559105214,
+     "se": 8.060384325947057
+    },
+    "premium_latency": {
+     "gamma": -2.2683866593397144,
+     "se": 2.0571355829529554
+    }
+   },
+   "source": "eval-seed123-c8000"
+  },
+  {
+   "churn_response_checksum": "9b210ef420de753ccf01a248e3367c0cddc9e29cc7a51d96de543f1559992c15",
+   "products": {
+    "api_requests": {
+     "gamma": 0.7454423668512132,
+     "se": 1.470215794302652
+    },
+    "cpu_minutes": {
+     "gamma": 1.1118547274680726,
+     "se": 3.015638863506547
+    },
+    "data_transfer_gb": {
+     "gamma": 2.644574621062872,
+     "se": 2.2287086880782687
+    },
+    "gpu_minutes": {
+     "gamma": -7.6952528748613025,
+     "se": 13.575530892575937
+    },
+    "premium_latency": {
+     "gamma": 1.081440974949656,
+     "se": 1.8862772103358025
+    }
+   },
+   "source": "eval-seed124-c8000"
+  }
+ ],
+ "is_synthetic": true,
+ "method": "bill_shock_poisson.v1",
+ "registry_hash": "6b4f4d882bdd2c73e29a2413330bfbc8e61352bc71170ecaca8e8ab825afbd4a",
+ "response_format": 3
+}

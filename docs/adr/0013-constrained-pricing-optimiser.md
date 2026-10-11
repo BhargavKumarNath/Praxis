@@ -183,3 +183,11 @@ results stay in the evidence as the first, failed held-out evaluation.
 * Cross-price effects are assumed absent (true in this simulator: demand for a product depends
   only on its own price). Customer-level price discrimination is out of scope.
 * No price executes in Phase 6 outside tests: the shadow world keeps its prices.
+
+## Third amendment (2026-10-10, Phase 9, development world only): see ADR 0016
+The churn input is replaced: the bill elasticity of voluntary churn from all concurrent tests
+(pooled), applied to each customer's calibrated hazard (Phase 9 churn model) and bill share,
+and valued at segment CLV (Phase 9 CLV model) instead of one average-CLV proxy. Long-horizon
+hard constraints are added (segment churn limits, churn-risk ceiling, customer-level
+price-change frequency). No existing threshold changed. Held-out re-evaluation: seed 44,
+pre-registered in ADR 0016 before it was built.

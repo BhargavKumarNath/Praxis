@@ -1,0 +1,443 @@
+{
+  "after_policy": "policy-3b6775c87cd1",
+  "after_status_counts": {
+    "frozen": 8,
+    "hold": 32
+  },
+  "after_true_delta_per_day": 0.0,
+  "altered": 17,
+  "before_changes": 17,
+  "before_losing_changes": 13,
+  "before_policy": "policy-ac62f347cbda",
+  "before_true_delta_per_day": -3525719277.433709,
+  "is_synthetic": true,
+  "losing_altered": 13,
+  "rows": [
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-07-20",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 356593357.61273766,
+        "true_delta_objective_per_day": -203125938.55626476,
+        "true_extra_churn_per_exposed_window": 0.0016575267630041307
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-07-20",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 287745866.310277,
+        "true_delta_objective_per_day": 27912479.029411763,
+        "true_extra_churn_per_exposed_window": 0.0011645927597094543
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-07-27",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 366172190.912302,
+        "true_delta_objective_per_day": -206319501.74065423,
+        "true_extra_churn_per_exposed_window": 0.001687139999876077
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-07-27",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 291241150.09066105,
+        "true_delta_objective_per_day": 26986299.925062567,
+        "true_extra_churn_per_exposed_window": 0.0011845702103170492
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-03",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 367827267.1783428,
+        "true_delta_objective_per_day": -288583051.356861,
+        "true_extra_churn_per_exposed_window": 0.0019253407096355766
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-03",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 293678862.467783,
+        "true_delta_objective_per_day": -2722588.235624671,
+        "true_extra_churn_per_exposed_window": 0.0013245084499580752
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-10",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 381123448.62417793,
+        "true_delta_objective_per_day": -275570695.8019649,
+        "true_extra_churn_per_exposed_window": 0.0019309349370976046
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-10",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 304839504.46841717,
+        "true_delta_objective_per_day": 8662663.415424287,
+        "true_extra_churn_per_exposed_window": 0.0013275563778907176
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-17",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 383014147.69571877,
+        "true_delta_objective_per_day": -297195906.17438793,
+        "true_extra_churn_per_exposed_window": 0.0021084640660423556
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-17",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 308036399.6462679,
+        "true_delta_objective_per_day": 7976857.8702658415,
+        "true_extra_churn_per_exposed_window": 0.001422410641304927
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-24",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 388352134.93377686,
+        "true_delta_objective_per_day": -533473447.1802921,
+        "true_extra_churn_per_exposed_window": 0.0026649372884472154
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-24",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 311979384.1350584,
+        "true_delta_objective_per_day": -90772689.59005737,
+        "true_extra_churn_per_exposed_window": 0.0017770679504723076
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-31",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 378413575.6286583,
+        "true_delta_objective_per_day": -565980837.8060588,
+        "true_extra_churn_per_exposed_window": 0.002932430624364628
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-08-31",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 318641748.0326128,
+        "true_delta_objective_per_day": -126283120.55149418,
+        "true_extra_churn_per_exposed_window": 0.0021036967889478727
+      },
+      "product": "premium_latency"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-09-07",
+      "before": {
+        "chosen_price_micros": 386400,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 375358902.46528816,
+        "true_delta_objective_per_day": -569890487.8614827,
+        "true_extra_churn_per_exposed_window": 0.0031622800508866295
+      },
+      "product": "api_requests"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-09-07",
+      "before": {
+        "chosen_price_micros": 83900,
+        "reason_codes": [
+          "extrapolation_limit"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 212000958.9018507,
+        "true_delta_objective_per_day": -338195837.0539814,
+        "true_extra_churn_per_exposed_window": 0.002332466449854166
+      },
+      "product": "data_transfer_gb"
+    },
+    {
+      "after": {
+        "chosen_price_micros": null,
+        "reason_codes": [
+          "no_improvement"
+        ],
+        "status": "hold",
+        "true_delta_contribution_per_day": 0.0,
+        "true_delta_objective_per_day": 0.0,
+        "true_extra_churn_per_exposed_window": 0.0
+      },
+      "altered": true,
+      "as_of": "2026-09-07",
+      "before": {
+        "chosen_price_micros": 1020600,
+        "reason_codes": [
+          "max_step"
+        ],
+        "status": "change",
+        "true_delta_contribution_per_day": 320140068.62930393,
+        "true_delta_objective_per_day": -99143475.76474929,
+        "true_extra_churn_per_exposed_window": 0.0021486418125932424
+      },
+      "product": "premium_latency"
+    }
+  ],
+  "seed": 42
+}

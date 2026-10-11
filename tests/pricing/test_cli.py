@@ -38,6 +38,8 @@ def test_unusable_evidence_still_records_a_decision_per_product(tmp_path: Path) 
             "--forecast-model", str(tmp_path / "no-forecast"),
             "--elasticity-model", str(tmp_path / "no-models"),
             "--elasticity-report", str(tmp_path / "missing.json"),
+            "--churn-response", str(tmp_path / "missing-churn.json"),
+            "--customer-model", str(tmp_path / "no-customer-model"),
             "--as-of", "2026-07-20",
             "--out", str(out),
         ]

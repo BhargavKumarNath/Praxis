@@ -23,7 +23,7 @@ def zs(m: int) -> list[float]:
     return [nd.inv_cdf((j + 0.5) / m) for j in range(m)]
 
 
-CHURN_POINTS = 21  # the churn-slope grid of the specification
+CHURN_POINTS = 21  # the churn-response grid of the specification
 
 
 def contribution_draws(problem: PricingProblem, price: int, z: list[float]) -> list[float]:
@@ -50,24 +50,39 @@ class Scored:
 
 
 def score(problem: PricingProblem, policy: PricingPolicy, price: int, z: list[float]) -> Scored:
-    """Objective change vs the current price over every (elasticity, churn-slope) shock."""
+    """Objective change vs the current price over every (elasticity, churn-response) shock.
+
+    Robust over the credible churn posteriors: the worst risk-adjusted score of any of them,
+    and the smallest probability of improvement.
+    """
     churn = problem.churn
     x = math.log(price / problem.current_price_micros)
-    per_slope = churn.exposed_customers * churn.clv_micros * x / churn.window_days
+    value = 0.0
+    for g in churn.segments:  # each extra churner valued at its own segment's CLV
+        value += g.clv_micros * g.churn_exposure
+    per_unit = value * x / churn.window_days
     base = contribution_draws(problem, problem.current_price_micros, z)
     cand = contribution_draws(problem, price, z)
-    delta = [
-        (c - b) - per_slope * (churn.slope + churn.slope_sd * u)
-        for c, b in zip(cand, base, strict=True)
-        for u in zs(CHURN_POINTS)
-    ]
-    mean = sum(delta) / len(delta)
-    sd = math.sqrt(sum((d - mean) ** 2 for d in delta) / len(delta))
+    scores = []
+    for response, sd_r in ((churn.response, churn.response_sd), *churn.alternatives):
+        delta = [
+            (c - b) - per_unit * (response + sd_r * u)
+            for c, b in zip(cand, base, strict=True)
+            for u in zs(CHURN_POINTS)
+        ]
+        mean = sum(delta) / len(delta)
+        sd = math.sqrt(sum((d - mean) ** 2 for d in delta) / len(delta))
+        scores.append(
+            Scored(
+                price,
+                mean - policy.uncertainty.risk_aversion * sd,
+                sum(d > 0 for d in delta) / len(delta),
+                mean,
+            )
+        )
+    worst = min(scores, key=lambda s: s.risk_adjusted)
     return Scored(
-        price,
-        mean - policy.uncertainty.risk_aversion * sd,
-        sum(d > 0 for d in delta) / len(delta),
-        mean,
+        price, worst.risk_adjusted, min(s.prob_improvement for s in scores), worst.delta_mean
     )
 
 
@@ -95,8 +110,41 @@ def violated(
     if _capacity_broken(problem, policy, price, z):
         out.add("capacity")
     x = math.log(price / p0)
-    if max(problem.churn.slope_upper, 0.0) * max(x, 0.0) > c.max_incremental_churn + TOL:
+    out |= _churn_broken(problem, policy, x)
+    if price != p0:
+        limit = policy.long_term.max_price_changes_per_customer
+        if any(k + 1 > limit and n > 0 for k, n in problem.price_change_counts.items()):
+            out.add("price_change_frequency")
+    return out
+
+
+def _churn_broken(problem: PricingProblem, policy: PricingPolicy, x: float) -> set[str]:
+    """Churn guardrails at the response's upper bound; only raises can break them."""
+    out: set[str] = set()
+    lt = policy.long_term
+    upper = max(problem.churn.response_upper, 0.0)
+    rise = max(x, 0.0)
+    exposed = sum(g.exposed_customers for g in problem.churn.segments)
+    total = sum(g.churn_exposure for g in problem.churn.segments)
+    if (
+        exposed > 0
+        and upper * total * rise / exposed > policy.constraints.max_incremental_churn + TOL
+    ):
         out.add("churn_guardrail")
+    for g in problem.churn.segments:
+        if g.exposed_customers < lt.min_segment_customers:
+            continue
+        extra = upper * g.churn_exposure * rise / g.exposed_customers
+        limit = lt.max_segment_incremental_churn.get(
+            g.segment, policy.constraints.max_incremental_churn
+        )
+        if extra > limit + TOL:
+            out.add("segment_churn_guardrail")
+        if (
+            rise > 0
+            and g.window_churn / g.exposed_customers + extra > lt.max_segment_window_churn + TOL
+        ):
+            out.add("churn_risk_ceiling")
     return out
 
 

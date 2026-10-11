@@ -12,6 +12,11 @@ Also: an independent re-check of every change against its own record (constraint
 compliance), audit completeness, forecast lineage, failure-injection ("stress") cycles that
 must fail safe, and a naive baseline (point-estimate optimum, no constraints) for reference.
 Acceptance: ``configs/pricing/shadow_acceptance.toml`` (pre-registered).
+
+Phase 9 (ADR 0016): the decision values each extra churner at its segment's CLV (tier in force
+at the decision), so truth does the same: true extra churners are counted per tier (the
+simulator's current tier on each day) and valued at the CLV the decision recorded for that
+tier. The valuation is the decision's; the churn and demand RESPONSES are the simulator's.
 """
 
 from __future__ import annotations
@@ -30,6 +35,11 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field
 
+from praxis.customer.artifact import find_artifact as find_customer_artifact
+from praxis.customer.artifact import load_artifact as load_customer_artifact
+from praxis.customer.config import CustomerValueConfig
+from praxis.customer.dataset import build_panel, snapshot_dates
+from praxis.customer.warehouse import connect as connect_customers
 from praxis.elasticity.config import ExperimentRegistry
 from praxis.forecasting.artifact import ArtifactError, load_artifact
 from praxis.forecasting.service import ForecastService, WarehouseFeatureSource
@@ -37,17 +47,20 @@ from praxis.forecasting.warehouse import connect, load_panel
 from praxis.pricing import constraints as cons
 from praxis.pricing.config import Mode, PricingPolicy
 from praxis.pricing.decision import Decision, Reason, Status
-from praxis.pricing.evidence import PricingEvidence, load_evidence
+from praxis.pricing.evidence import PricingEvidence, load_evidence, prior_settings
 from praxis.pricing.inputs import (
+    CustomerSource,
     CutoffFeatureSource,
     Forecaster,
     WarehouseProblemSource,
+    customer_factory,
     decision_clock,
     forecast_factory,
 )
 from praxis.pricing.objective import evaluate as evaluate_objective
 from praxis.pricing.problem import (
     ChurnResponse,
+    ChurnSegment,
     PricingProblem,
     RegionContext,
     SegmentBaseline,
@@ -57,7 +70,7 @@ from praxis.pricing.service import PricingService
 from praxis.pricing.store import MemoryDecisionStore
 from praxis.simulator.config import SimulationConfig
 from praxis.simulator.engine import DayView, Engine
-from praxis.simulator.population import generate_population
+from praxis.simulator.population import customer_id, generate_population
 
 F64 = NDArray[np.float64]
 DEFAULT_SHADOW = Path(__file__).resolve().parents[3] / "configs/pricing/shadow_acceptance.toml"
@@ -111,6 +124,10 @@ class ShadowInputs:
     elasticity_report: Path
     registry: ExperimentRegistry
     policy: PricingPolicy
+    churn_response: Path
+    customer_models: Path
+    customer_config: CustomerValueConfig
+    churn_archive: Path | None = None  # development leave-one-out override (nightly seed 1)
 
     def cycle_dates(self, cfg: Shadow) -> list[date]:
         start = self.world.run.start_date
@@ -136,18 +153,42 @@ def select_forecast_artifact(inputs: ShadowInputs, cfg: Shadow) -> tuple[Path | 
     return None, version
 
 
+def select_customer_artifact(inputs: ShadowInputs, cfg: Shadow) -> tuple[Path | None, str]:
+    """The customer artifact trained on exactly the world's first ``first_cycle_day`` days."""
+    start = inputs.world.run.start_date
+    cutoff = start + timedelta(days=cfg.first_cycle_day)
+    con = connect_customers(inputs.warehouse)
+    try:
+        dates = snapshot_dates(start, cutoff, inputs.customer_config.label)
+        version = build_panel(con, dates, inputs.customer_config).data_version()
+    finally:
+        con.close()
+    return find_customer_artifact(inputs.customer_models, version), version
+
+
 # ---------------------------------------------------------------------- cycles
+def _customers(inputs: ShadowInputs, artifact: Path) -> CustomerSource:
+    return customer_factory(
+        inputs.warehouse,
+        lambda: load_customer_artifact(artifact),
+        inputs.customer_config,
+        inputs.policy,
+    )
+
+
 def _service(
     inputs: ShadowInputs,
     forecaster: Callable[[date], Forecaster],
     evidence: PricingEvidence | None,
     store: MemoryDecisionStore,
+    customers: CustomerSource | None,
 ) -> PricingService:
     source = WarehouseProblemSource(
         policy=inputs.policy,
         warehouse=inputs.warehouse,
         forecaster=forecaster,
         evidence=evidence,
+        customers=customers,
         store=store,
         evidence_error="evidence withheld (stress case)",
     )
@@ -155,14 +196,18 @@ def _service(
 
 
 def run_cycles(
-    inputs: ShadowInputs, cfg: Shadow, artifact: Path, evidence: PricingEvidence
+    inputs: ShadowInputs,
+    cfg: Shadow,
+    artifact: Path,
+    evidence: PricingEvidence,
+    customer_artifact: Path,
 ) -> tuple[list[Decision], int]:
     """Shadow decisions for every cycle, and the number of executions (must be 0)."""
     store = MemoryDecisionStore()
     forecaster = forecast_factory(
         lambda: load_artifact(artifact), WarehouseFeatureSource(inputs.warehouse)
     )
-    service = _service(inputs, forecaster, evidence, store)
+    service = _service(inputs, forecaster, evidence, store, _customers(inputs, customer_artifact))
     decisions = []
     for as_of in inputs.cycle_dates(cfg):
         result = service.run_cycle(as_of, Mode.SHADOW)
@@ -189,35 +234,48 @@ def _broken(_as_of: date) -> ForecastService:
 
 
 def run_stress(
-    inputs: ShadowInputs, cfg: Shadow, artifact: Path, evidence: PricingEvidence
+    inputs: ShadowInputs,
+    cfg: Shadow,
+    artifact: Path,
+    evidence: PricingEvidence,
+    customer_artifact: Path,
 ) -> list[dict[str, Any]]:
     """Failure injection on the first cycle date: every case must end without a change."""
     as_of = inputs.cycle_dates(cfg)[0]
-    loose = PricingEvidence(
-        evidence.model_version,
-        evidence.data_version,
-        {t: TierElasticity(e.mean, e.sd * 20.0) for t, e in evidence.tiers.items()},
-        evidence.products,
+    loose = replace(
+        evidence,
+        tiers={t: TierElasticity(e.mean, e.sd * 20.0) for t, e in evidence.tiers.items()},
     )
     fresh = forecast_factory(
         lambda: load_artifact(artifact), WarehouseFeatureSource(inputs.warehouse)
     )
-    cases: list[tuple[str, Callable[[date], Forecaster], PricingEvidence | None, str]] = [
-        ("stale_features", _lagged(artifact, inputs.warehouse, 4), evidence, Reason.FORECAST_STALE),
+    customers = _customers(inputs, customer_artifact)
+    cases: list[
+        tuple[str, Callable[[date], Forecaster], PricingEvidence | None, CustomerSource | None, str]
+    ] = [
+        (
+            "stale_features",
+            _lagged(artifact, inputs.warehouse, 4),
+            evidence,
+            customers,
+            Reason.FORECAST_STALE,
+        ),
         (
             "features_too_old",
             _lagged(artifact, inputs.warehouse, 10),
             evidence,
+            customers,
             Reason.FORECAST_UNAVAILABLE,
         ),
-        ("forecast_model_unavailable", _broken, evidence, Reason.MODEL_UNAVAILABLE),
-        ("evidence_unavailable", fresh, None, Reason.MODEL_UNAVAILABLE),
-        ("inflated_uncertainty", fresh, loose, Reason.UNCERTAINTY_ELASTICITY_SD),
+        ("forecast_model_unavailable", _broken, evidence, customers, Reason.MODEL_UNAVAILABLE),
+        ("evidence_unavailable", fresh, None, customers, Reason.MODEL_UNAVAILABLE),
+        ("inflated_uncertainty", fresh, loose, customers, Reason.UNCERTAINTY_ELASTICITY_SD),
+        ("customer_model_unavailable", fresh, evidence, None, Reason.MODEL_UNAVAILABLE),
     ]
     out = []
-    for name, forecaster, ev, expected in cases:
+    for name, forecaster, ev, cust, expected in cases:
         store = MemoryDecisionStore()
-        result = _service(inputs, forecaster, ev, store).run_cycle(as_of, Mode.SHADOW)
+        result = _service(inputs, forecaster, ev, store, cust).run_cycle(as_of, Mode.SHADOW)
         statuses = [i.decision.status.value for i in result.items]
         reasons = [list(i.decision.reason_codes) for i in result.items]
         passed = (
@@ -245,7 +303,8 @@ class _Acc:
     product: int
     loss: float
     contribution: F64
-    extra_churn: F64
+    extra_churn: F64  # (k,) all customers
+    extra_by_tier: F64  # (k, T) per tier in force on the day
     exposed: float = 0.0
     days: int = 0
 
@@ -256,18 +315,27 @@ class TruthCollector:
 
     engine_ref: list[Engine] = field(default_factory=list)
     by_day: dict[int, list[_Acc]] = field(default_factory=lambda: defaultdict(list))
+    tier_hazards: tuple[float, ...] = ()  # base hazard of each tier (identifies the tier)
+    hazard_days: frozenset[int] = frozenset()  # days whose TRUE hazards are kept (Phase 9)
+    hazards: dict[int, tuple[F64, NDArray[np.bool_]]] = field(default_factory=dict)
 
     def add(self, days: range, acc: _Acc) -> None:
         for d in days:
             self.by_day[d].append(acc)
 
     def __call__(self, view: DayView) -> None:
+        engine = self.engine_ref[0]
+        if view.day in self.hazard_days:
+            self.hazards[view.day] = (
+                engine.churn_hazard(view, view.prices).copy(),
+                view.active.copy(),
+            )
         items = self.by_day.get(view.day)
         if not items:
             return
-        engine = self.engine_ref[0]
         base_q = 1.0 - np.exp(-engine.churn_hazard(view, view.prices))
         active = view.active
+        tiers = [active & (view.tier_hazard == h) for h in self.tier_hazards]
         for acc in items:
             p = acc.product
             cost = view.unit_cost[view.region, p]
@@ -281,16 +349,29 @@ class TruthCollector:
                 )
                 q = 1.0 - np.exp(-engine.churn_hazard(view, alt))
                 acc.extra_churn[j] += float((q - base_q)[active].sum())
+                for t, m in enumerate(tiers):
+                    acc.extra_by_tier[j, t] += float((q - base_q)[m].sum())
             acc.exposed += float((active & (engine.pop.mix[:, p] > 0)).sum())
             acc.days += 1
 
 
 def collect_truth(
-    world: SimulationConfig, seed: int, plan: list[tuple[int, str, list[int], float]], cfg: Shadow
+    world: SimulationConfig,
+    seed: int,
+    plan: list[tuple[int, str, list[int], float]],
+    cfg: Shadow,
+    hazards_out: dict[int, tuple[F64, NDArray[np.bool_]]] | None = None,
 ) -> list[_Acc]:
-    """``plan``: (cycle day, product, candidate prices, payment loss) -> one accumulator each."""
+    """``plan``: (cycle day, product, candidate prices, payment loss) -> one accumulator each.
+
+    ``hazards_out`` (optional) receives the true voluntary hazard of every customer on each
+    cycle day (the customer-model truth check).
+    """
     products = [p.id for p in world.products]
-    collector = TruthCollector()
+    collector = TruthCollector(
+        tier_hazards=tuple(t.churn_hazard_daily for t in world.tiers),
+        hazard_days=frozenset(day for day, *_ in plan) if hazards_out is not None else frozenset(),
+    )
     accs = []
     for day, product, prices, loss in plan:
         k = len(prices)
@@ -300,6 +381,7 @@ def collect_truth(
             loss,
             np.zeros(k),
             np.zeros(k),
+            np.zeros((k, len(world.tiers))),
         )
         collector.add(range(day, day + cfg.cycle_days), acc)
         accs.append(acc)
@@ -307,6 +389,8 @@ def collect_truth(
     collector.engine_ref.append(engine)
     for _ in engine.run():
         pass
+    if hazards_out is not None:
+        hazards_out.update(collector.hazards)
     return accs
 
 
@@ -337,17 +421,30 @@ def problem_from_record(record: dict[str, Any]) -> PricingProblem:
         },
         payment_loss_rate=inp["payment_loss_rate"],
         churn=ChurnResponse(
-            churn["slope"],
-            churn["slope_upper"],
+            churn["response"],
+            churn["response_sd"],
+            churn["response_upper"],
             churn["window_days"],
-            churn["exposed_customers"],
-            churn["clv_micros"],
-            churn.get("slope_sd", 0.0),
-            churn.get("relative_slope", 0.0),
-            churn.get("base_window_churn", 0.0),
+            tuple(
+                ChurnSegment(
+                    g["segment"],
+                    g["exposed_customers"],
+                    g["clv_micros"],
+                    g["window_churn"],
+                    g["churn_exposure"],
+                )
+                for g in churn["segments"]
+            ),
+            churn["bill_response"],
+            churn["bill_response_sd"],
+            churn["calibration_factor"],
+            churn["calibration_sd_log"],
+            churn.get("bill_share", 1.0),
+            tuple((float(m), float(s)) for m, s in churn.get("alternatives", [])),
         ),
         forecast_relative_width=inp["forecast_relative_width"],
         lineage=record["lineage"],
+        price_change_counts={int(k): int(n) for k, n in inp["price_change_counts"].items()},
     )
 
 
@@ -359,7 +456,7 @@ def naive_price(problem: PricingProblem, tick: int) -> int:
             np.rint(p0 * np.exp(np.linspace(math.log(0.5), math.log(3.0), 601)) / tick) * tick, p0
         )
     ).astype(np.int64)
-    point = replace(problem, churn=replace(problem.churn, slope=0.0))
+    point = replace(problem, churn=replace(problem.churn, response=0.0))
     ev = evaluate_objective(point, grid, z=np.zeros(1), risk_aversion=0.0)
     return int(grid[int(np.argmax(ev.delta_contribution_mean))])
 
@@ -378,7 +475,14 @@ _REQUIRED = (
     "guardrails",
     "prediction",
 )
-_LINEAGE = ("forecast_model_version", "elasticity_model_version", "market_snapshot")
+_LINEAGE = (
+    "forecast_model_version",
+    "elasticity_model_version",
+    "market_snapshot",
+    "customer_model_version",
+    "customer_snapshot",
+    "churn_response_version",
+)
 
 
 def record_complete(rec: dict[str, Any]) -> list[str]:
@@ -420,6 +524,7 @@ def compliance(rec: dict[str, Any], policy: PricingPolicy) -> list[str]:
         out.append("extrapolation")
     if g["projected_incremental_churn"] > pc.max_incremental_churn + 1e-12:
         out.append("churn guardrail")
+    out += _long_term_compliance(rec, policy)
     if g["min_net_margin"] < pc.min_contribution_margin - 1e-12:
         out.append("margin floor")
     chosen = [x for x in rec["candidates"] if x["price_micros"] == p]
@@ -427,6 +532,31 @@ def compliance(rec: dict[str, Any], policy: PricingPolicy) -> list[str]:
         out.append("chosen candidate infeasible")
     if not g["passed"] or not all(g["checks"].values()):
         out.append("guardrail outcome")
+    return out
+
+
+def _long_term_compliance(rec: dict[str, Any], policy: PricingPolicy) -> list[str]:
+    """Phase 9 guardrails, re-derived from the record's own inputs (not its guardrail block)."""
+    lt, out = policy.long_term, []
+    p, p0 = rec["chosen_price_micros"], rec["current_price_micros"]
+    churn = rec["inputs"]["churn"]
+    rise = max(math.log(p / p0), 0.0)
+    upper = max(churn["response_upper"], 0.0)
+    for g in churn["segments"]:
+        n = g["exposed_customers"]
+        if n < lt.min_segment_customers:
+            continue
+        extra = upper * g["churn_exposure"] * rise / n
+        limit = lt.max_segment_incremental_churn.get(
+            g["segment"], policy.constraints.max_incremental_churn
+        )
+        if extra > limit + 1e-12:
+            out.append(f"segment churn guardrail ({g['segment']})")
+        if rise > 0 and g["window_churn"] / n + extra > lt.max_segment_window_churn + 1e-12:
+            out.append(f"churn-risk ceiling ({g['segment']})")
+    counts = rec["inputs"]["price_change_counts"]
+    if any(int(k) + 1 > lt.max_price_changes_per_customer and n for k, n in counts.items()):
+        out.append("price-change frequency")
     return out
 
 
@@ -439,6 +569,8 @@ class Scored:
     true_delta_contribution: dict[int, float]
     true_churn_per_exposed: dict[int, float]  # extra churn probability over the window
     naive_price: int | None
+    true_extra_churners: dict[int, float] = field(default_factory=dict)  # per day
+    true_extra_by_segment: dict[int, dict[str, float]] = field(default_factory=dict)  # per day
 
     @property
     def chosen(self) -> int:
@@ -451,7 +583,12 @@ class Scored:
         return max((self.true_delta[p] for p in feasible), default=0.0)
 
 
-def score(decisions: list[Decision], inputs: ShadowInputs, cfg: Shadow) -> list[Scored]:
+def score(
+    decisions: list[Decision],
+    inputs: ShadowInputs,
+    cfg: Shadow,
+    hazards_out: dict[int, tuple[F64, NDArray[np.bool_]]] | None = None,
+) -> list[Scored]:
     tick = inputs.policy.policy.price_tick_micros
     start = inputs.world.run.start_date
     plan, meta = [], []
@@ -464,31 +601,135 @@ def score(decisions: list[Decision], inputs: ShadowInputs, cfg: Shadow) -> list[
         prices = sorted({x["price_micros"] for x in rec["candidates"]} | {naive})
         plan.append(((d.as_of - start).days, d.product, prices, prob.payment_loss_rate))
         meta.append((rec, prob, naive, prices))
-    accs = collect_truth(inputs.world, inputs.seed, plan, cfg)
+    accs = collect_truth(inputs.world, inputs.seed, plan, cfg, hazards_out)
+    tiers = [t.id for t in inputs.world.tiers]
     out = []
     for (rec, prob, naive, prices), acc in zip(meta, accs, strict=True):
         days = max(acc.days, 1)
         contrib = acc.contribution / days
         churn = acc.extra_churn / days
+        by_tier = acc.extra_by_tier / days
         base = contrib[prices.index(prob.current_price_micros)]
         exposed = acc.exposed / days
         window = prob.churn.window_days
+        clv = np.array([_segment_clv(prob, t) for t in tiers])
+        value = by_tier @ clv  # micro-GBP of lost lifetime value per day, per candidate
         out.append(
             Scored(
                 rec,
-                {
-                    p: float(contrib[j] - base - prob.churn.clv_micros * churn[j])
-                    for j, p in enumerate(prices)
-                },
+                {p: float(contrib[j] - base - value[j]) for j, p in enumerate(prices)},
                 {p: float(contrib[j] - base) for j, p in enumerate(prices)},
                 {
                     p: float(churn[j] / exposed * window) if exposed > 0 else 0.0
                     for j, p in enumerate(prices)
                 },
                 naive,
+                {p: float(churn[j]) for j, p in enumerate(prices)},
+                {
+                    p: {t: float(by_tier[j, k]) for k, t in enumerate(tiers)}
+                    for j, p in enumerate(prices)
+                },
             )
         )
     return out
+
+
+def _segment_clv(problem: PricingProblem, tier: str) -> float:
+    """The CLV the decision recorded for ``tier`` (0 when the product had no such customers)."""
+    return next((g.clv_micros for g in problem.churn.segments if g.segment == tier), 0.0)
+
+
+def customer_model_truth(
+    inputs: ShadowInputs,
+    cfg: Shadow,
+    customer_artifact: Path,
+    hazards: dict[int, tuple[F64, NDArray[np.bool_]]],
+) -> dict[str, Any]:
+    """Reported, not gated: the calibrated voluntary hazards the decisions used vs the truth.
+
+    Per cycle date and tier (in force at the decision): mean predicted vs mean TRUE daily
+    voluntary hazard of the same customers, and the correlation of log hazards across
+    customers (does the model rank who churns?).
+    """
+    values_at = _customers(inputs, customer_artifact)
+    start = inputs.world.run.start_date
+    cycles = []
+    for as_of in inputs.cycle_dates(cfg):
+        day = (as_of - start).days
+        if day not in hazards:
+            continue
+        true_h, active = hazards[day]
+        v = values_at(as_of)
+        index = {customer_id(i): i for i in range(len(true_h))}
+        idx = np.array([index[c] for c in v.snapshot.ids], dtype=np.int64)
+        truth = true_h[idx]
+        ok = active[idx]
+        tiers = np.array(v.snapshot.tier)
+        row: dict[str, Any] = {"as_of": as_of.isoformat(), "customers": int(ok.sum())}
+        for t in sorted(set(v.snapshot.tier)):
+            m = ok & (tiers == t)
+            pred, true = float(v.voluntary_hazard[m].mean()), float(truth[m].mean())
+            row[t] = {"predicted": pred, "true": true, "ratio": pred / true if true else None}
+        logs = np.log(v.voluntary_hazard[ok]), np.log(truth[ok])
+        row["log_correlation"] = (
+            float(np.corrcoef(*logs)[0, 1]) if ok.sum() > 2 and logs[0].std() > 0 else None
+        )
+        row["calibration_factor"] = None if v.calibration is None else v.calibration.factor
+        cycles.append(row)
+    return {"champion": values_at(inputs.cycle_dates(cfg)[0]).champion, "cycles": cycles}
+
+
+def compare_reports(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
+    """The same world decided by two methods (e.g. Phase 6 vs Phase 9 on seed 42).
+
+    For every decision the earlier method CHANGED: what the later method did instead, and the
+    true contribution and churn of each choice (valuation-free) and its own true objective.
+    """
+    after_rows = {(r["as_of"], r["product"]): r for r in after["rows"]}
+    rows, altered = [], 0
+    for b in before["rows"]:
+        if b["status"] != Status.CHANGE.value:
+            continue
+        a = after_rows.get((b["as_of"], b["product"]))
+        if a is None:
+            continue
+        same = a["chosen_price_micros"] == b["chosen_price_micros"]
+        altered += 0 if same else 1
+        rows.append(
+            {
+                "as_of": b["as_of"],
+                "product": b["product"],
+                "before": _brief(b),
+                "after": _brief(a),
+                "altered": not same,
+            }
+        )
+    losing = [r for r in rows if r["before"]["true_delta_objective_per_day"] < 0]
+    return {
+        "is_synthetic": True,
+        "before_policy": before.get("policy_version"),
+        "after_policy": after.get("policy_version"),
+        "seed": after.get("seed"),
+        "before_changes": len(rows),
+        "before_losing_changes": len(losing),
+        "altered": altered,
+        "losing_altered": sum(r["altered"] for r in losing),
+        "before_true_delta_per_day": sum(r["before"]["true_delta_objective_per_day"] for r in rows),
+        "after_true_delta_per_day": sum(r["after"]["true_delta_objective_per_day"] for r in rows),
+        "after_status_counts": after.get("status_counts", {}),
+        "rows": rows,
+    }
+
+
+def _brief(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": row["status"],
+        "reason_codes": row["reason_codes"],
+        "chosen_price_micros": row["chosen_price_micros"],
+        "true_delta_objective_per_day": row["true_delta_objective_per_day"],
+        "true_delta_contribution_per_day": row["true_delta_contribution_per_day"],
+        "true_extra_churn_per_exposed_window": row["true_extra_churn_per_exposed_window"],
+    }
 
 
 def captured_share(chosen: float, oracle: float) -> float:
@@ -604,7 +845,83 @@ def reported_metrics(res: Results) -> dict[str, Any]:
         "naive_baseline_true_delta_per_day": sum(
             s.true_delta[s.naive_price] for s in naive if s.naive_price is not None
         ),
+        "churn_prediction": churn_prediction(res.scored),
+        "binding_constraints": binding_constraints(records),
     }
+
+
+def predicted_extra_churners(rec: dict[str, Any], price: int) -> float:
+    """Extra voluntary churners per day the decision predicted at ``price`` (point estimate)."""
+    churn = rec["inputs"]["churn"]
+    x = math.log(price / rec["current_price_micros"])
+    exposure = sum(g["churn_exposure"] for g in churn["segments"])
+    return float(churn["response"] * exposure * x / churn["window_days"])
+
+
+def churn_prediction(scored: list[Scored]) -> dict[str, Any]:
+    """Predicted vs true extra churners of the +max-step candidate of every scored decision.
+
+    Reported, not gated: is the Phase 9 churn input (bill response x calibrated hazard x bill
+    share) honest about the churn a raise would cause, whether or not the raise was chosen?
+    """
+    pred = true = 0.0
+    n = 0
+    per: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0, 0.0, 0.0, 0.0])
+    for s in scored:
+        rec = s.record
+        hi = max(x["price_micros"] for x in rec["candidates"])
+        if hi <= rec["current_price_micros"] or hi not in s.true_extra_churners:
+            continue
+        p, t = predicted_extra_churners(rec, hi), s.true_extra_churners[hi]
+        pred += p
+        true += t
+        n += 1
+        acc = per[rec["product"]]
+        churn = rec["inputs"]["churn"]
+        acc[0] += p
+        acc[1] += t
+        acc[2] += churn["response"]
+        acc[3] += churn["response_sd"]
+        acc[4] += 1
+    return {
+        "decisions": n,
+        "predicted_extra_churners_per_day": pred,
+        "true_extra_churners_per_day": true,
+        "ratio": pred / true if true > 0 else None,
+        "by_product": {k: _response_check(*v) for k, v in sorted(per.items())},
+    }
+
+
+def _response_check(
+    pred: float, true: float, response: float, sd: float, n: float
+) -> dict[str, float | None]:
+    """The response truth implies (extra churners scale linearly with it) vs the posterior.
+
+    ``z`` = (implied true response - posterior mean) / posterior SD: across worlds and products
+    it should look standard normal if the churn evidence's uncertainty is honest.
+    """
+    mean, sd_mean = response / n, sd / n
+    implied = mean * true / pred if pred > 0 else None
+    return {
+        "predicted_extra_churners_per_day": pred,
+        "true_extra_churners_per_day": true,
+        "posterior_mean": mean,
+        "posterior_sd": sd_mean,
+        "implied_true_response": implied,
+        "z": None if implied is None or sd_mean <= 0 else (implied - mean) / sd_mean,
+    }
+
+
+def binding_constraints(records: list[dict[str, Any]]) -> dict[str, int]:
+    """How often each constraint made the +max-step candidate infeasible (reported)."""
+    out: dict[str, int] = defaultdict(int)
+    for rec in records:
+        if not rec["candidates"]:
+            continue
+        hi = max(rec["candidates"], key=lambda x: x["price_micros"])
+        for v in hi["violations"]:
+            out[v] += 1
+    return dict(sorted(out.items()))
 
 
 def _decision_row(s: Scored, policy: PricingPolicy) -> dict[str, Any]:
@@ -633,6 +950,7 @@ def _decision_row(s: Scored, policy: PricingPolicy) -> dict[str, Any]:
         "true_delta_contribution_per_day": s.true_delta_contribution[s.chosen],
         "true_extra_churn_per_exposed_window": s.true_churn_per_exposed[s.chosen],
         "projected_extra_churn_upper": rec["guardrails"]["projected_incremental_churn"],
+        "true_extra_churners_by_segment_per_day": s.true_extra_by_segment.get(s.chosen, {}),
         "oracle_true_delta_per_day": s.oracle,
         "naive_baseline": None
         if naive is None
@@ -654,10 +972,25 @@ def evaluate(inputs: ShadowInputs, cfg: ShadowConfig) -> tuple[dict[str, Any], l
             f"no forecast artifact in {inputs.forecast_models} was trained on this world's "
             f"first {cfg.shadow.first_cycle_day} days (panel {prefix_version})"
         )
-    evidence = load_evidence(inputs.elasticity_model, inputs.elasticity_report, inputs.registry)
-    decisions, executions = run_cycles(inputs, cfg.shadow, artifact, evidence)
-    stress = run_stress(inputs, cfg.shadow, artifact, evidence)
-    scored = score(decisions, inputs, cfg.shadow)
+    customer_artifact, customer_version = select_customer_artifact(inputs, cfg.shadow)
+    if customer_artifact is None:
+        raise ShadowError(
+            f"no customer artifact in {inputs.customer_models} was trained on this world's "
+            f"first {cfg.shadow.first_cycle_day} days (panel {customer_version})"
+        )
+    evidence = load_evidence(
+        inputs.elasticity_model,
+        inputs.elasticity_report,
+        inputs.registry,
+        inputs.churn_response,
+        tau_scale=inputs.policy.evidence.churn_tau_scale,
+        models=inputs.policy.evidence.churn_models,
+        prior=prior_settings(inputs.policy.evidence, archive_override=inputs.churn_archive),
+    )
+    decisions, executions = run_cycles(inputs, cfg.shadow, artifact, evidence, customer_artifact)
+    stress = run_stress(inputs, cfg.shadow, artifact, evidence, customer_artifact)
+    hazards: dict[int, tuple[F64, NDArray[np.bool_]]] = {}
+    scored = score(decisions, inputs, cfg.shadow, hazards)
     results = Results(decisions, scored, executions, stress, prefix_version)
     checks = acceptance_checks(results, inputs.policy, cfg.acceptance)
     by_status: dict[str, int] = defaultdict(int)
@@ -674,6 +1007,10 @@ def evaluate(inputs: ShadowInputs, cfg: ShadowConfig) -> tuple[dict[str, Any], l
         "policy_version": inputs.policy.version,
         "forecast_artifact": artifact.name,
         "forecast_prefix_data_version": prefix_version,
+        "customer_artifact": customer_artifact.name,
+        "customer_prefix_data_version": customer_version,
+        "churn_response_version": evidence.churn_response_version,
+        "churn_archive_version": evidence.churn_archive_version,
         "elasticity_model_version": evidence.model_version,
         "cycles": [d.isoformat() for d in inputs.cycle_dates(cfg.shadow)],
         "decisions": len(decisions),
@@ -683,6 +1020,7 @@ def evaluate(inputs: ShadowInputs, cfg: ShadowConfig) -> tuple[dict[str, Any], l
         "stress": stress,
         "checks": checks,
         "reported": reported_metrics(results),
+        "customer_model": customer_model_truth(inputs, cfg.shadow, customer_artifact, hazards),
         "passed": all(c["passed"] for c in checks),
     }
     return report, decisions

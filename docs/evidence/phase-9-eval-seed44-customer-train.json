@@ -1,0 +1,248 @@
+{
+  "artifact": "data/models/customer/churn-table-dffb7210a62d",
+  "backtest": [
+    {
+      "events": 31.0,
+      "glm_calibration": {
+        "expected": 25.094941881146706,
+        "observed": 31.0,
+        "ratio": 1.2353086987338129,
+        "segments": {
+          "enterprise": {
+            "expected": 1.6519863251136515,
+            "observed": 4.0,
+            "ratio": 2.4213275492609254,
+            "rows": 154
+          },
+          "growth": {
+            "expected": 9.248661342246685,
+            "observed": 12.0,
+            "ratio": 1.2974850690213466,
+            "rows": 344
+          },
+          "starter": {
+            "expected": 14.194294213786367,
+            "observed": 15.0,
+            "ratio": 1.0567626522374802,
+            "rows": 281
+          }
+        }
+      },
+      "glm_deviance": 257.1178769832487,
+      "rows": 779,
+      "snapshot": "2026-04-27",
+      "table_calibration": {
+        "expected": 23.99365790554327,
+        "observed": 31.0,
+        "ratio": 1.2920080848880509,
+        "segments": {
+          "enterprise": {
+            "expected": 1.5557743660063097,
+            "observed": 4.0,
+            "ratio": 2.571066915228874,
+            "rows": 154
+          },
+          "growth": {
+            "expected": 8.630335675994388,
+            "observed": 12.0,
+            "ratio": 1.3904441785941726,
+            "rows": 344
+          },
+          "starter": {
+            "expected": 13.80754786354257,
+            "observed": 15.0,
+            "ratio": 1.0863623395147504,
+            "rows": 281
+          }
+        }
+      },
+      "table_deviance": 249.48255103816672,
+      "train_windows": 2
+    },
+    {
+      "events": 33.0,
+      "glm_calibration": {
+        "expected": 42.865668250295705,
+        "observed": 33.0,
+        "ratio": 0.7698468575670077,
+        "segments": {
+          "enterprise": {
+            "expected": 4.240543589088761,
+            "observed": 4.0,
+            "ratio": 0.9432752938307962,
+            "rows": 158
+          },
+          "growth": {
+            "expected": 17.1456215548683,
+            "observed": 12.0,
+            "ratio": 0.6998871380426999,
+            "rows": 350
+          },
+          "starter": {
+            "expected": 21.47950310633864,
+            "observed": 17.0,
+            "ratio": 0.7914522005391861,
+            "rows": 247
+          }
+        }
+      },
+      "glm_deviance": 266.55039153445034,
+      "rows": 755,
+      "snapshot": "2026-05-25",
+      "table_calibration": {
+        "expected": 24.60423537129855,
+        "observed": 33.0,
+        "ratio": 1.3412324952189052,
+        "segments": {
+          "enterprise": {
+            "expected": 2.4493045918765226,
+            "observed": 4.0,
+            "ratio": 1.6331166051239956,
+            "rows": 158
+          },
+          "growth": {
+            "expected": 9.912648320964943,
+            "observed": 12.0,
+            "ratio": 1.2105745721474224,
+            "rows": 350
+          },
+          "starter": {
+            "expected": 12.242282458457087,
+            "observed": 17.0,
+            "ratio": 1.3886299436144962,
+            "rows": 247
+          }
+        }
+      },
+      "table_deviance": 263.00931384159827,
+      "train_windows": 3
+    },
+    {
+      "events": 25.0,
+      "glm_calibration": {
+        "expected": 26.507332648966702,
+        "observed": 25.0,
+        "ratio": 0.943135257367155,
+        "segments": {
+          "enterprise": {
+            "expected": 2.8558608518827864,
+            "observed": 6.0,
+            "ratio": 2.100942696855967,
+            "rows": 153
+          },
+          "growth": {
+            "expected": 10.798805131544274,
+            "observed": 11.0,
+            "ratio": 1.0186312157692352,
+            "rows": 350
+          },
+          "starter": {
+            "expected": 12.85266666553964,
+            "observed": 8.0,
+            "ratio": 0.6224389232352434,
+            "rows": 227
+          }
+        }
+      },
+      "glm_deviance": 218.15594392086487,
+      "rows": 730,
+      "snapshot": "2026-06-22",
+      "table_calibration": {
+        "expected": 25.69181963738476,
+        "observed": 25.0,
+        "ratio": 0.9730723768441034,
+        "segments": {
+          "enterprise": {
+            "expected": 2.7596764675333185,
+            "observed": 6.0,
+            "ratio": 2.174167903588706,
+            "rows": 153
+          },
+          "growth": {
+            "expected": 10.474863288955323,
+            "observed": 11.0,
+            "ratio": 1.0501330372109372,
+            "rows": 350
+          },
+          "starter": {
+            "expected": 12.457279880896124,
+            "observed": 8.0,
+            "ratio": 0.6421947709682921,
+            "rows": 227
+          }
+        }
+      },
+      "table_deviance": 218.4704958837317,
+      "train_windows": 4
+    }
+  ],
+  "champion": "tier_rate_table",
+  "coefficients": [
+    {
+      "coef": -6.710869437594052,
+      "name": "intercept",
+      "se": 0.09090766495987473
+    },
+    {
+      "coef": -0.2609262016105452,
+      "name": "tier_growth",
+      "se": 0.09953180914960552
+    },
+    {
+      "coef": -0.3205597472833721,
+      "name": "tier_enterprise",
+      "se": 0.12969393102842802
+    },
+    {
+      "coef": -0.19528223481693968,
+      "name": "log_tenure_days",
+      "se": 0.08435446325591667
+    },
+    {
+      "coef": 0.01575490269142404,
+      "name": "log_daily_spend_gbp",
+      "se": 0.11002225752579338
+    },
+    {
+      "coef": -0.06464844985711701,
+      "name": "usage_trend",
+      "se": 0.09350518226599284
+    },
+    {
+      "coef": 0.12354429114793607,
+      "name": "log_failed_attempts",
+      "se": 0.07413170265431343
+    },
+    {
+      "coef": -0.12906132570494963,
+      "name": "log_region_error_rate",
+      "se": 0.16784086526370742
+    },
+    {
+      "coef": 0.23075356126732235,
+      "name": "log_region_latency_p95",
+      "se": 0.16279258625531054
+    }
+  ],
+  "data_version": "customers-248db8802849f13e",
+  "involuntary_rates": {
+    "enterprise": 0.00019076574222493575,
+    "growth": 8.430155197406749e-05,
+    "starter": 0.0002646898043951552
+  },
+  "is_synthetic": true,
+  "metrics": {
+    "backtest_glm_deviance": 741.8242124385639,
+    "backtest_table_deviance": 730.9623607634967,
+    "train_exposure_days": 106212.0,
+    "train_involuntary_events": 18.0,
+    "train_rows": 3870,
+    "train_voluntary_events": 140.0
+  },
+  "model_version": "churn-table-dffb7210a62d",
+  "tier_rates": {
+    "enterprise": 0.0008115518181032054,
+    "growth": 0.0010953985331531543,
+    "starter": 0.0018793827006042805
+  }
+}

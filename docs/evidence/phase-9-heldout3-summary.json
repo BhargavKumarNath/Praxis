@@ -1,0 +1,63 @@
+{
+ "is_synthetic": true,
+ "protocol": "ADR 0016 third amendment; seeds pre-registered 2026-10-11 before build; each evaluated once",
+ "policy_version": "policy-3b6775c87cd1",
+ "churn_archive": "archive-d536efbb285ec3fd",
+ "worlds": [
+  {
+   "seed": 301,
+   "passed": true,
+   "failed_checks": [],
+   "status_counts": {
+    "frozen": 8,
+    "hold": 32
+   },
+   "reason_counts": {
+    "churn_response_unidentified": 8,
+    "no_improvement": 32,
+    "uncertainty_elasticity_sd": 8
+   },
+   "changes": 0,
+   "oracle_true_delta_per_day_gbp": 162.08262973843694,
+   "captured_share": 0.0,
+   "churn_prediction_ratio": 0.9727110432914439
+  },
+  {
+   "seed": 302,
+   "passed": true,
+   "failed_checks": [],
+   "status_counts": {
+    "frozen": 17,
+    "hold": 23
+   },
+   "reason_counts": {
+    "churn_response_unidentified": 8,
+    "no_improvement": 23,
+    "uncertainty_low_confidence": 9
+   },
+   "changes": 0,
+   "oracle_true_delta_per_day_gbp": 290.6620745958983,
+   "captured_share": 0.0,
+   "churn_prediction_ratio": 0.6856569256637128
+  },
+  {
+   "seed": 303,
+   "passed": true,
+   "failed_checks": [],
+   "status_counts": {
+    "frozen": 19,
+    "hold": 21
+   },
+   "reason_counts": {
+    "churn_response_unidentified": 8,
+    "no_improvement": 21,
+    "uncertainty_low_confidence": 11
+   },
+   "changes": 0,
+   "oracle_true_delta_per_day_gbp": 1037.6713455144886,
+   "captured_share": 0.0,
+   "churn_prediction_ratio": 0.6957206548916478
+  }
+ ],
+ "all_passed": true
+}

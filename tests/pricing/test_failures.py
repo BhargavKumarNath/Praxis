@@ -13,8 +13,8 @@ import pytest
 
 from praxis.pricing.decision import Status
 from praxis.pricing.optimiser import optimise
-from praxis.pricing.problem import ChurnResponse, RegionContext, SegmentBaseline, TierElasticity
-from tests.pricing.helpers import open_policy, policy, problem, single_segment
+from praxis.pricing.problem import RegionContext, SegmentBaseline, TierElasticity
+from tests.pricing.helpers import churn, open_policy, policy, problem, single_segment
 
 NAN, INF = math.nan, math.inf
 
@@ -46,9 +46,9 @@ NAN, INF = math.nan, math.inf
                          "enterprise": TierElasticity(-1, 0.1)}}, "elasticity of starter"),
         ({"elasticity": {"starter": TierElasticity(-1, -0.1), "growth": TierElasticity(-1, 0.1),
                          "enterprise": TierElasticity(-1, 0.1)}}, "elasticity of starter"),
-        ({"churn": ChurnResponse(0.1, 0.05, 28, 10.0, 1.0)}, "upper bound"),
-        ({"churn": ChurnResponse(0.1, 0.2, 0, 10.0, 1.0)}, "non-negative"),
-        ({"churn": ChurnResponse(INF, INF, 28, 10.0, 1.0)}, "finite"),
+        ({"churn": churn(0.1, 0.05, 28, 10.0, 1.0)}, "upper bound"),
+        ({"churn": churn(0.1, 0.2, 0, 10.0, 1.0)}, "non-negative"),
+        ({"churn": churn(INF, INF, 28, 10.0, 1.0)}, "finite"),
         ({"product": "unknown_product"}, "no price bounds"),
     ],
 )  # fmt: skip

@@ -15,6 +15,25 @@
 # for 8 weeks). Seed 1 = development. Seed 42 = first held-out evaluation (run once: FAIL).
 # Seed 43 = held-out re-evaluation after the second method amendment (ADR 0013), registered
 # 2026-10-07 before any seed-43 world was built; run once. No threshold below changed.
+# Seed 44 = held-out re-evaluation of the PHASE 9 method (ADR 0016: churn hazard + CLV model,
+# segment valuation, bill response, long-horizon guardrails), registered 2026-10-10 before any
+# seed-44 world (experiment, forecast or pricing) was built; run once. No threshold changed.
+# Seeds 42 and 43 are spent for pricing; seed 42 is used only as the controlled example of an
+# unsafe short-term decision (ADR 0016), never to tune.
+# Seed 44 FAILED (no_harm, direction: gpu churn under-stated; ADR 0016). Seed 45 = held-out
+# re-evaluation after the ADR 0016 amendment (min_bill_share), registered 2026-10-10 before any
+# seed-45 world was built; run once. No threshold changed.
+# Seed 45 FAILED (direction 4/7). Seeds 201, 202, 203 = held-out evaluation of the ADR 0016
+# SECOND amendment (robust churn class, Laspeyres exposure, exact bill regressor, book-level
+# elasticity uncertainty, trend calibration), registered 2026-10-11 before any of them was
+# built; each run once; Phase 9 passes only if all three pass. A world whose Phase 4 forecast
+# gate fails has no forecast artifact (pricing unavailable by design) and is replaced by the
+# next seed of 204, 205, ... No threshold changed. Development used seeds 1 and 101-124 only.
+# Seed 202 FAILED (no_harm, direction: a low churn-response draw; ADR 0016). Seeds 301, 302, 303
+# = held-out evaluation of the ADR 0016 THIRD amendment (meta-analytic-predictive churn prior
+# from the development experiments' estimates, added to the robust class), registered
+# 2026-10-11 before any of them was built; each run once; Phase 9 passes only if all three pass.
+# Replacement rule as above (304, 305, ...). No threshold changed.
 #
 # Truth for a decision (cycle starting day T, product p, candidate price c), per day over
 # T..T+6, from the simulator's own equations (Engine.expected_demand / churn_hazard) with the
@@ -24,6 +43,10 @@
 #   true objective delta(c) = contribution(c) - contribution(p0) - CLV * extra churners(c)
 # L (payment loss) and CLV are the business valuation inputs recorded on the decision, so the
 # optimiser is scored on exactly its own objective, with TRUE demand and churn responses.
+# Phase 9: CLV is per segment (tier in force), so the true extra churners are counted per tier
+# (the simulator's current tier) and each tier's are valued at the CLV the decision recorded
+# for it: true objective delta(c) = contribution(c) - contribution(p0)
+#                                    - sum_tier CLV_tier * true extra churners_tier(c).
 
 [shadow]
 first_cycle_day = 196          # 2026-07-20 (Monday), the day after the forecast training data

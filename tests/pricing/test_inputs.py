@@ -10,6 +10,8 @@ from pathlib import Path
 import duckdb
 import pytest
 
+from praxis.customer.artifact import ArtifactError as CustomerArtifactError
+from praxis.customer.warehouse import WarehouseUnavailable as CustomerWarehouseUnavailable
 from praxis.forecasting.artifact import ArtifactError
 from praxis.forecasting.panel import SeriesKey
 from praxis.forecasting.service import (
@@ -31,6 +33,7 @@ from praxis.pricing.inputs import (
 from praxis.pricing.problem import Blocked, PricingProblem, TierElasticity
 from praxis.pricing.store import MemoryDecisionStore
 from praxis.pricing.warehouse import load_market
+from tests.customer import helpers as customer_helpers
 from tests.pricing import market_db
 from tests.pricing.helpers import policy
 
@@ -46,9 +49,12 @@ def warehouse(tmp_path: Path) -> Path:
 def evidence() -> PricingEvidence:
     tiers = {"growth": TierElasticity(-1.2, 0.03), "enterprise": TierElasticity(-0.7, 0.03)}
     api = ProductEvidence(
-        "api_requests", "px", date(2026, 2, 2), 28, 0.1823, 0.6, 0.4, 0.9, 0.7, 0.035
+        "api_requests", "px", date(2026, 2, 2), 28, 0.1823, 2.0, 0.5, 3.0, 1.0, 0.2,
+        (("hierarchical", 2.0, 0.5), ("complete_pooling", 1.0, 0.3), ("no_pooling", 3.0, 1.0)),
+    )  # fmt: skip
+    return PricingEvidence(
+        "elasticity-hier-test", "units-test", tiers, {"api_requests": api}, "churn-test"
     )
-    return PricingEvidence("elasticity-hier-test", "units-test", tiers, {"api_requests": api})
 
 
 def forecast(
@@ -99,6 +105,13 @@ def stub(
     return lambda _as_of: Stub(result, error)
 
 
+def fail(exc: Exception) -> Callable[[date], object]:
+    def raise_(_as_of: date) -> object:
+        raise exc
+
+    return raise_
+
+
 def two_products() -> PricingPolicy:
     return policy(
         products={
@@ -114,6 +127,7 @@ def source(warehouse: Path, **kw: object) -> WarehouseProblemSource:
         "warehouse": warehouse,
         "forecaster": stub(forecast()),
         "evidence": evidence(),
+        "customers": lambda _as_of: customer_helpers.values(),
         "store": MemoryDecisionStore(),
     }
     fields.update(kw)
@@ -135,11 +149,6 @@ def test_market_snapshot_values_and_cutoff(warehouse: Path) -> None:
     assert m.served_share[("eu_west", "api_requests", "growth")] == pytest.approx(100 / 110)
     assert m.served_share[("eu_west", "api_requests", "enterprise")] == 1.0
     assert m.payment_loss_rate == pytest.approx(30_000 / 40_000)
-    assert m.exposed_customers == {"api_requests": 2}
-    assert m.daily_contribution_per_customer == pytest.approx(100 * (400_000 - 120_000))
-    assert m.daily_churn_hazard == pytest.approx(1 / 38)
-    assert m.clv_micros(365) == pytest.approx(100 * 280_000 * 38)
-    assert m.clv_micros(10) == pytest.approx(100 * 280_000 * 10)
     assert m.plan.price_on("api_requests", m.cutoff) == 368_000  # 2026-07-20's price unseen
     assert m.version() == m.version() and m.version().startswith("market-")
 
@@ -152,8 +161,7 @@ def test_empty_market_gives_unknowns(tmp_path: Path) -> None:
     con = connect(path)
     m = load_market(con, AS_OF, two_products().valuation)
     con.close()
-    assert m.payment_loss_rate is None and m.daily_churn_hazard is None
-    assert m.clv_micros(365) is None
+    assert m.payment_loss_rate is None
 
 
 # --------------------------------------------------------------------- problems
@@ -173,18 +181,40 @@ def test_builds_a_problem_from_forecast_evidence_and_market(warehouse: Path) -> 
     assert seg["growth"].served_share == pytest.approx(100 / 110)
     assert api.forecast_relative_width == pytest.approx(0.4)
     assert api.regions["eu_west"].unit_cost_micros == 120_000.0
-    # relative effect x the churn rate observed before the decision (1 churner / 38 days)
-    base = 1 - math.exp(-28 / 38)
-    assert api.churn.base_window_churn == pytest.approx(base)
-    assert api.churn.relative_slope == 0.6
-    assert api.churn.slope == pytest.approx(0.6 * base)
-    assert api.churn.slope_upper == pytest.approx((0.6 + 1.6449 * 0.4) * base)
-    assert api.churn.slope_sd == pytest.approx(0.4 * base)  # the pooled posterior, scaled
-    assert api.churn.exposed_customers == 2.0
+    # Phase 9: the bill response applied to each customer's calibrated hazard and api share
+    c = api.churn
+    assert (c.response, c.response_sd) == (2.0, 0.5)  # pooled posterior, no calibration
+    # robust class: the other posteriors ride along; guardrails take the most pessimistic bound
+    assert c.alternatives == ((1.0, 0.3), (3.0, 1.0))
+    assert c.response_upper == pytest.approx(3.0 + 1.6449 * 1.0)
+    assert c.bill_share == 0.2
+    churn_seg = {g.segment: g for g in c.segments}
+    q = [1 - math.exp(-28 * h) for h in (0.002, 0.002, 0.0005, 0.003)]
+    # Laspeyres exposure: api is at 368,000 vs 400,000 when tested (ratio 0.92)
+    from praxis.pricing.inputs import reference_shares
+
+    shares = reference_shares(
+        customer_helpers.values(), {"api_requests": 0.92, "gpu_minutes": 1.0}, evidence().tiers
+    )[:, 0]
+    assert shares[0] < 0.75  # a cut product: today's spend overstates the tested basket
+    growth = churn_seg["growth"]  # c1 and c2
+    assert growth.exposed_customers == 2.0
+    assert growth.window_churn == pytest.approx(q[0] + q[1])
+    assert growth.churn_exposure == pytest.approx(shares[0] * q[0] + shares[1] * q[1])
+    w0, w1 = shares[0] * q[0], shares[1] * q[1]
+    weighted = (5e9 * w0 + 7e9 * w1) / (w0 + w1)
+    assert growth.clv_micros == pytest.approx(weighted)  # the CLV of whom the price would lose
+    assert churn_seg["enterprise"].churn_exposure == pytest.approx(q[2])
+    assert churn_seg["starter"].exposed_customers == 0.0  # c4 never used api_requests
+    # customers by price-change dates in the last 90 days: c1 2, c2 0 (200 days ago), c3 3
+    assert api.price_change_counts == {0: 1, 2: 1, 3: 1}
     assert set(api.lineage) >= {
         "forecast_model_version",
         "elasticity_model_version",
         "market_snapshot",
+        "customer_model_version",
+        "customer_snapshot",
+        "churn_response_version",
     }
     assert api.lineage["forecast_freshness"] == "fresh"
     # gpu has a price but no forecast series in this stub
@@ -214,6 +244,9 @@ def test_executed_changes_count_for_the_cooldown(warehouse: Path) -> None:
         ),
         ({"forecaster": stub(error=ArtifactError("gone"))}, "model_unavailable"),
         ({"evidence": None}, "model_unavailable"),
+        ({"customers": None}, "model_unavailable"),
+        ({"customers": fail(CustomerArtifactError("checksum"))}, "model_unavailable"),
+        ({"customers": fail(CustomerWarehouseUnavailable("no marts"))}, "input_unavailable"),
     ],
 )  # fmt: skip
 def test_unavailable_inputs_block_every_product(
@@ -248,7 +281,7 @@ def test_untested_products_have_no_anchor(warehouse: Path) -> None:
     gpu = source(warehouse, forecaster=both).problems(AS_OF)["gpu_minutes"]
     assert isinstance(gpu, PricingProblem)
     assert gpu.anchor_price_micros is None and gpu.evidence_date is None
-    assert gpu.churn.slope == 0.0 and gpu.last_change is None
+    assert gpu.churn.response == 0.0 and gpu.last_change is None
 
 
 def test_cutoff_source_and_decision_clock() -> None:
@@ -265,30 +298,31 @@ def test_cutoff_source_and_decision_clock() -> None:
     assert decision_clock(AS_OF)().date() == AS_OF
 
 
-@pytest.mark.parametrize("order", [(0, 1, 2), (2, 1, 0)])
-def test_market_contribution_is_exact_whatever_the_row_order(
-    tmp_path: Path, order: tuple[int, int, int]
-) -> None:
-    """Regression: a float SUM depended on aggregation order and changed decision ids."""
-    path = market_db.build(tmp_path / "wh.duckdb")
-    con = duckdb.connect(str(path))
-    con.execute("DELETE FROM marts.fct_usage_daily; DELETE FROM marts.fct_marginal_cost_daily")
-    values = [2**53, 1, 1]  # float: (2^53 + 1) + 1 == 2^53, but 1 + 1 + 2^53 == 2^53 + 2
-    for i in order:
-        day = date(2026, 7, 10 + i)
-        con.execute(
-            "INSERT INTO marts.fct_usage_daily "
-            "VALUES (?, ?, 'api_requests', 'eu_west', 0, 0, ?, 1)",
-            [day, f"c{i}", values[i]],
-        )
-        con.execute(
-            "INSERT INTO marts.fct_marginal_cost_daily "
-            "VALUES (?, 'eu_west', 'api_requests', 24, 0, 0)",
-            [day],
-        )
-    con.close()
-    con = connect(path)
-    m = load_market(con, AS_OF, two_products().valuation)
-    con.close()
-    assert m.daily_contribution_per_customer is not None
-    assert m.daily_contribution_per_customer * 3 == float(2**53 + 2)
+def test_reference_shares_value_the_tested_basket_at_todays_prices() -> None:
+    """Laspeyres exposure: a raised product's share is restored to the tested basket's."""
+    from praxis.pricing.inputs import reference_shares
+
+    values = customer_helpers.values()
+    tiers = {t: TierElasticity(-1.0, 0.0) for t in ("starter", "growth", "enterprise")}
+    same = reference_shares(values, {"api_requests": 1.0, "gpu_minutes": 1.0}, tiers)
+    assert same == pytest.approx(values.snapshot.shares())
+    raised = reference_shares(values, {"api_requests": 1.1, "gpu_minutes": 1.0}, tiers)
+    # c1: api 30 / gpu 10 at today's prices; with e = -1 the tested basket costs 30 x 1.1 today
+    assert raised[0, 0] == pytest.approx(33.0 / 43.0)
+    assert raised[3].tolist() == [0.0, 1.0]  # c4 never used api
+
+
+def test_book_elasticity_adds_the_books_concentration_to_the_posterior() -> None:
+    from dataclasses import replace
+
+    from praxis.pricing.inputs import book_elasticity
+
+    ev = replace(evidence(), heterogeneity={"growth": 0.25, "enterprise": 0.0})
+    values = customer_helpers.values()
+    out = book_elasticity("api_requests", values, ev)
+    # growth api spend: c1 30, c2 20 -> weights 0.6 / 0.4, sum w^2 = 0.52
+    eta = math.sqrt(0.25 * 0.52)
+    assert out["growth"].mean == -1.2
+    assert out["growth"].sd == pytest.approx(math.hypot(0.03, eta))
+    assert out["enterprise"].sd == pytest.approx(0.03)  # no heterogeneity measured
+    assert book_elasticity("other_product", values, ev)["growth"].sd == pytest.approx(0.03)

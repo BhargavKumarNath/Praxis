@@ -9,9 +9,9 @@ import pytest
 
 from praxis.pricing.decision import Status
 from praxis.pricing.optimiser import optimise
-from praxis.pricing.problem import ChurnResponse, RegionContext, SegmentBaseline, TierElasticity
+from praxis.pricing.problem import RegionContext, SegmentBaseline, TierElasticity
 from tests.pricing import reference
-from tests.pricing.helpers import open_policy, policy, problem, single_segment
+from tests.pricing.helpers import churn, open_policy, policy, problem, single_segment
 
 
 @pytest.mark.parametrize(
@@ -56,9 +56,7 @@ def test_at_the_optimum_the_price_holds() -> None:
 def test_churn_guardrail_caps_the_raise_exactly() -> None:
     slope_upper = 0.5
     pol = open_policy(max_step=0.05, max_incremental_churn=0.01)
-    prob = single_segment(
-        -0.5, 10_000.0, 100_000, churn=ChurnResponse(0.0, slope_upper, 28, 0.0, 0.0)
-    )
+    prob = single_segment(-0.5, 10_000.0, 100_000, churn=churn(0.0, slope_upper, 28, 1.0, 0.0))
     d = optimise(prob, pol)
     limit = 100_000 * math.exp(0.01 / slope_upper)  # largest price within the guardrail
     assert d.status is Status.CHANGE
@@ -144,7 +142,7 @@ def test_matches_brute_force_on_random_small_problems(seed: int) -> None:
         elasticity=elasticity,
         segments=segments,
         regions=regions,
-        churn=ChurnResponse(rnd.uniform(0, 0.05), rnd.uniform(0.05, 0.4), 28, 500.0, 3e8),
+        churn=churn(rnd.uniform(0, 0.05), rnd.uniform(0.05, 0.4), 28, 500.0, 3e8),
     )
     pol = policy(
         policy={"price_tick_micros": 100},

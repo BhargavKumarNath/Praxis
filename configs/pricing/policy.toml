@@ -3,6 +3,11 @@
 # this file's hash. Its hash is the decision `policy_version`; any change is a new policy
 # version and must be justified in an ADR, never made to flatter a shadow result.
 #
+# AMENDED 2026-10-10 (Phase 9, ADR 0016), before any Phase 9 decision was computed on any
+# world: [long_term] guardrails ADDED; the CLV proxy cap (valuation.clv_lifetime_cap_days)
+# REMOVED because the CLV model (configs/customer/value.toml) replaces the proxy. No existing
+# threshold, gate or limit changed.
+#
 # Decision unit: the list price of one product (the business sets one list price per product).
 # A cycle decides every product once. Prices are integer micro-GBP per billing unit.
 
@@ -36,14 +41,42 @@ max_extrapolation = 0.1823        # |log(price / price when tested)| <= tested |
 max_evidence_age_days = 365       # randomised evidence older than this cannot move a price
 churn_upper_z = 1.6449            # one-sided 95% bound on the churn response to price
 require_fresh_forecast = true     # the stale fallback forecast never moves a price
+min_bill_share = 0.05             # Phase 9 amendment (ADR 0016): a product below 5% of the
+                                  # experiment customers' bills has no identified churn response
+                                  # (a +-18% test moves their bill < 1%): FROZEN, never priced
+churn_tau_scale = 1.0             # ADR 0016 second amendment: half-Cauchy scale of the
+                                  # between-product SD of the bill response (full-Bayes pooling)
+churn_models = ["hierarchical", "complete_pooling", "no_pooling", "meta_analytic"]
+                                  # robust decision (maxmin): a move must be confident under each
+                                  # of these posteriors of the churn response, not just one
+# ADR 0016 third amendment: "meta_analytic" = each product's own estimate under a robust
+# meta-analytic-predictive prior built from earlier churn experiments' ESTIMATES (development
+# experiment worlds only; `make churn-archive`). A single test that reads "no effect" can no
+# longer carry a raise on its own.
+churn_archive = "configs/pricing/churn_archive.json"
+churn_archive_checksum = "d536efbb285ec3fd4c421db3ccee88312309f6bf9e1e5ef0d6e62b7a1ac92507"
+churn_prior_vague_weight = 0.2    # robust MAP: weight of the vague component (prior-data conflict)
+churn_prior_vague_sd = 4.0        # its SD: bill elasticities of churn beyond +-8 are implausible
 
 [valuation]
 payment_loss_lookback_days = 56   # share of invoiced value finally uncollected
 cost_lookback_days = 7            # recent marginal cost per region and product
 utilization_lookback_days = 14    # recent peak daily-mean utilisation per region
-customer_lookback_days = 28       # active users, contribution and churn hazard for the CLV proxy
-clv_lifetime_cap_days = 365       # CLV proxy = daily contribution x min(1 / hazard, cap) (Phase 9
-                                  # replaces this proxy with a churn / CLV model)
+customer_lookback_days = 28       # served share per region / product / tier
+
+# Long-horizon guardrails (Phase 9, ADR 0016). Segment = tier in force at the decision date.
+# Every churn projection here is at the churn response's one-sided upper bound
+# (evidence.churn_upper_z) and for raises only, like churn_guardrail above.
+[long_term]
+# extra voluntary churn probability per exposed customer of the segment over the 28-day window;
+# tighter where a lost customer is worth more (the global max_incremental_churn still applies)
+max_segment_incremental_churn = { starter = 0.008, growth = 0.005, enterprise = 0.003 }
+max_segment_window_churn = 0.10   # churn-risk ceiling: no raise may take a segment's projected
+                                  # voluntary churn over the window above 10% (a segment already
+                                  # churning that fast gets no raise at all)
+min_segment_customers = 20        # smaller segments are reported, not judged (too noisy)
+max_price_changes_per_customer = 3  # customer-level price-change frequency: no exposed customer may
+price_change_window_days = 90       # see more than 3 dates with a price change in 90 days (incl. this)
 
 # Static commercial bounds per product (absolute, micro-GBP).
 [products.api_requests]

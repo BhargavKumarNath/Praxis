@@ -1,9 +1,14 @@
-"""CLI: ``python -m praxis.elasticity --db WAREHOUSE analyze --out DIR [--models ROOT]``.
+"""CLI: ``python -m praxis.elasticity --db WAREHOUSE {analyze|churn-response}``.
 
+``analyze --out DIR [--models ROOT]``:
 Reads the experiment registry and the warehouse (never the simulator), runs the analysis and
 writes ``DIR/report.json`` plus ``DIR/units.json`` (the analysed units, for the ground-truth
 evaluation in ``praxis.science``). With ``--models`` it also saves the artifact. Exit 1 when a
 validity or diagnostic gate fails (no artifact is saved then).
+
+``churn-response --report DIR/report.json --out FILE`` (Phase 9, ADR 0016): the causal
+voluntary-churn response to the bill from the same concurrent tests. Refuses (exit 1) unless
+the analysis report passed every validity gate.
 """
 
 from __future__ import annotations
@@ -15,9 +20,12 @@ import sys
 from pathlib import Path
 
 from praxis.config import get_settings
+from praxis.elasticity import churn
 from praxis.elasticity.analysis import analyse
 from praxis.elasticity.artifact import build_artifact, save_artifact
 from praxis.elasticity.config import load_elasticity_config, load_registry
+from praxis.elasticity.dataset import build_units as build_unit_table
+from praxis.elasticity.heterogeneity import heterogeneity
 from praxis.elasticity.warehouse import connect, load_extract
 from praxis.logging import configure_logging
 from praxis.provenance import code_revision
@@ -32,12 +40,46 @@ def _parser() -> argparse.ArgumentParser:
     a = sub.add_parser("analyze", help="validity + estimates + hierarchical model")
     a.add_argument("--out", type=Path, required=True)
     a.add_argument("--models", type=Path, default=None, help="artifact root (saved if gates pass)")
+    c = sub.add_parser("churn-response", help="causal churn response to the bill (Phase 9)")
+    c.add_argument("--report", type=Path, required=True, help="the analysis report.json")
+    c.add_argument("--out", type=Path, required=True)
     return p
+
+
+def _churn_response(args: argparse.Namespace) -> int:
+    report = json.loads(args.report.read_text(encoding="utf-8"))
+    if not report.get("validity", {}).get("passed", False):
+        sys.stderr.write("refused: the analysis report failed a validity gate\n")
+        return 1
+    registry = load_registry(args.registry)
+    if report.get("registry_hash") != registry.config_hash:
+        sys.stderr.write("refused: the report used another experiment registry\n")
+        return 1
+    cfg = load_elasticity_config(args.config)
+    con = connect(args.db)
+    try:
+        doc = churn.estimate(con, registry, cfg, report_data_version=str(report["data_version"]))
+        units, designs, _ = build_unit_table(load_extract(con, registry, cfg), cfg)
+    finally:
+        con.close()
+    if units.data_version() != report["data_version"]:
+        sys.stderr.write("refused: the warehouse units differ from the analysed units\n")
+        return 1
+    doc["elasticity_heterogeneity"] = heterogeneity(units, [d.log_ratio for d in designs])
+    doc["code_revision"] = code_revision()
+    doc["checksum"] = churn.checksum(doc)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
+    summary = {p: {"gamma": v["gamma"], "se": v["se"]} for p, v in sorted(doc["products"].items())}
+    sys.stdout.write(json.dumps({"pooled": doc["pooled_fixed"], "products": summary}) + "\n")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     configure_logging("praxis-elasticity", get_settings().log_level)
+    if args.command == "churn-response":
+        return _churn_response(args)
     log = logging.getLogger("praxis.elasticity")
     cfg = load_elasticity_config(args.config)
     registry = load_registry(args.registry)

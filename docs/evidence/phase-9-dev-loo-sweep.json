@@ -1,0 +1,333 @@
+{
+  "changes": 15,
+  "is_synthetic": true,
+  "oracle_per_day_total": 13480.318262596344,
+  "pass_rate": 0.9545454545454546,
+  "response_calibration": {
+    "coverage_90": 1.0,
+    "n": 82,
+    "share_true_above_upper_95": 0.0,
+    "z_mean": 0.09933570937954937,
+    "z_sd": 0.6620921580797928
+  },
+  "right_changes": 13,
+  "rows": [
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 50.23229014304073,
+      "passed": true,
+      "seed": 101,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0638257898380333,
+      "changes": 4,
+      "direction": 0.75,
+      "failed": [
+        "direction"
+      ],
+      "oracle_per_day": 1304.7653620514723,
+      "passed": false,
+      "seed": 102,
+      "status_counts": {
+        "change": 4,
+        "frozen": 14,
+        "hold": 22
+      },
+      "true_delta_per_day": 83.2776797862427
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 1154.3813932307417,
+      "passed": true,
+      "seed": 103,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 1.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 0.0,
+      "passed": true,
+      "seed": 104,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 259.8397816917464,
+      "passed": true,
+      "seed": 105,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 760.5069689015493,
+      "passed": true,
+      "seed": 107,
+      "status_counts": {
+        "frozen": 15,
+        "hold": 25
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 1011.4695510913513,
+      "passed": true,
+      "seed": 109,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 1233.2534425476363,
+      "passed": true,
+      "seed": 110,
+      "status_counts": {
+        "frozen": 17,
+        "hold": 23
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 176.33237066900034,
+      "passed": true,
+      "seed": 111,
+      "status_counts": {
+        "frozen": 18,
+        "hold": 22
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 143.42553746739654,
+      "passed": true,
+      "seed": 112,
+      "status_counts": {
+        "frozen": 9,
+        "hold": 31
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 1.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 0.0,
+      "passed": true,
+      "seed": 113,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.1778829537216571,
+      "changes": 5,
+      "direction": 0.8,
+      "failed": [],
+      "oracle_per_day": 884.1371994123011,
+      "passed": true,
+      "seed": 114,
+      "status_counts": {
+        "change": 5,
+        "frozen": 14,
+        "hold": 21
+      },
+      "true_delta_per_day": 157.2729365266539
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 2007.4306820442644,
+      "passed": true,
+      "seed": 115,
+      "status_counts": {
+        "frozen": 16,
+        "hold": 24
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.48299430021927037,
+      "changes": 3,
+      "direction": 1.0,
+      "failed": [],
+      "oracle_per_day": 473.1105019507399,
+      "passed": true,
+      "seed": 116,
+      "status_counts": {
+        "change": 3,
+        "frozen": 13,
+        "hold": 24
+      },
+      "true_delta_per_day": 228.50967581608535
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 823.6143057909711,
+      "passed": true,
+      "seed": 117,
+      "status_counts": {
+        "frozen": 12,
+        "hold": 28
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 317.51932234210096,
+      "passed": true,
+      "seed": 118,
+      "status_counts": {
+        "frozen": 13,
+        "hold": 27
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 42.8502098208786,
+      "passed": true,
+      "seed": 119,
+      "status_counts": {
+        "frozen": 14,
+        "hold": 26
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 1.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 0.0,
+      "passed": true,
+      "seed": 120,
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 167.20256348581853,
+      "passed": true,
+      "seed": 121,
+      "status_counts": {
+        "frozen": 11,
+        "hold": 29
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 898.5489301966426,
+      "passed": true,
+      "seed": 122,
+      "status_counts": {
+        "frozen": 9,
+        "hold": 31
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.0,
+      "changes": 0,
+      "direction": null,
+      "failed": [],
+      "oracle_per_day": 255.96975925448305,
+      "passed": true,
+      "seed": 123,
+      "status_counts": {
+        "frozen": 15,
+        "hold": 25
+      },
+      "true_delta_per_day": 0.0
+    },
+    {
+      "captured_share": 0.22103962867423743,
+      "changes": 3,
+      "direction": 1.0,
+      "failed": [],
+      "oracle_per_day": 1515.7280905042091,
+      "passed": true,
+      "seed": 124,
+      "status_counts": {
+        "change": 3,
+        "frozen": 18,
+        "hold": 19
+      },
+      "true_delta_per_day": 335.03597429616127
+    }
+  ],
+  "true_delta_per_day_total": 804.0962664251432,
+  "worlds": 22,
+  "worlds_with_changes": 4
+}

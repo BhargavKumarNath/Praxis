@@ -19,6 +19,7 @@ from praxis.elasticity.config import (
     ExperimentRegistry,
     load_elasticity_config,
 )
+from praxis.elasticity.dataset import UnitTable
 from praxis.elasticity.warehouse import (
     Customer,
     ExperimentExtract,
@@ -146,3 +147,33 @@ def small_config() -> ElasticityConfig:
 def replace_estimation(cfg: ElasticityConfig, **update: object) -> ElasticityConfig:
     est = cfg.estimation.model_copy(update=update)
     return cfg.model_copy(update={"estimation": est})
+
+
+def make_units(
+    *, tiers: np.ndarray, treated: np.ndarray, delta: np.ndarray, x: float, status: str
+) -> UnitTable:
+    """A one-test UnitTable built directly (fields not needed by the caller are neutral)."""
+    n = len(tiers)
+    zeros = np.zeros(n)
+    return UnitTable(
+        experiment=np.zeros(n, dtype=np.int64),
+        customer=np.array([f"c{i}" for i in range(n)]),
+        product=np.full(n, "p_up"),
+        tier=np.asarray(tiers, dtype=np.str_),
+        industry=np.full(n, "saas"),
+        region=np.full(n, "eu_west"),
+        is_existing=np.ones(n, dtype=bool),
+        assigned_treatment=np.asarray(treated, dtype=bool),
+        exposure_status=np.full(n, status),
+        x_assigned=np.where(treated, x, 0.0),
+        x_exposed=np.where(treated, x, 0.0),
+        pre_requested=zeros + 100,
+        post_requested=zeros + 100,
+        post_served=zeros + 100,
+        post_value_micros=zeros,
+        active_days=np.full(n, 28, dtype=np.int64),
+        churned_in_window=np.zeros(n, dtype=bool),
+        missing_outcome=np.zeros(n, dtype=bool),
+        delta=np.asarray(delta, dtype=np.float64),
+        design_weight=zeros + 0.25 * x * x,
+    )

@@ -1,0 +1,248 @@
+{
+  "artifact": "data/models/customer/churn-table-9ac145096702",
+  "backtest": [
+    {
+      "events": 20.0,
+      "glm_calibration": {
+        "expected": 20.996641598919485,
+        "observed": 20.0,
+        "ratio": 0.9525332851816276,
+        "segments": {
+          "enterprise": {
+            "expected": 1.5338713071998145,
+            "observed": 0.0,
+            "ratio": 0.0,
+            "rows": 161
+          },
+          "growth": {
+            "expected": 9.98583402734029,
+            "observed": 5.0,
+            "ratio": 0.5007093034302855,
+            "rows": 328
+          },
+          "starter": {
+            "expected": 9.476936264379377,
+            "observed": 15.0,
+            "ratio": 1.5827900052868316,
+            "rows": 284
+          }
+        }
+      },
+      "glm_deviance": 178.76222864233137,
+      "rows": 773,
+      "snapshot": "2026-04-27",
+      "table_calibration": {
+        "expected": 24.077913443031704,
+        "observed": 20.0,
+        "ratio": 0.830636759589653,
+        "segments": {
+          "enterprise": {
+            "expected": 1.7097223115095552,
+            "observed": 0.0,
+            "ratio": 0.0,
+            "rows": 161
+          },
+          "growth": {
+            "expected": 11.318345622335865,
+            "observed": 5.0,
+            "ratio": 0.4417606748227314,
+            "rows": 328
+          },
+          "starter": {
+            "expected": 11.049845509186287,
+            "observed": 15.0,
+            "ratio": 1.3574850424406162,
+            "rows": 284
+          }
+        }
+      },
+      "table_deviance": 178.90593760932651,
+      "train_windows": 2
+    },
+    {
+      "events": 23.0,
+      "glm_calibration": {
+        "expected": 17.71792441771509,
+        "observed": 23.0,
+        "ratio": 1.2981204489733391,
+        "segments": {
+          "enterprise": {
+            "expected": 0.9024667670411577,
+            "observed": 1.0,
+            "ratio": 1.1080740438549515,
+            "rows": 155
+          },
+          "growth": {
+            "expected": 7.72985332022782,
+            "observed": 13.0,
+            "ratio": 1.6817912916899767,
+            "rows": 340
+          },
+          "starter": {
+            "expected": 9.085604330446113,
+            "observed": 9.0,
+            "ratio": 0.9905780257060887,
+            "rows": 261
+          }
+        }
+      },
+      "glm_deviance": 190.4724670337451,
+      "rows": 756,
+      "snapshot": "2026-05-25",
+      "table_calibration": {
+        "expected": 22.023616748132987,
+        "observed": 23.0,
+        "ratio": 1.0443334654354528,
+        "segments": {
+          "enterprise": {
+            "expected": 1.0399928996124435,
+            "observed": 1.0,
+            "ratio": 0.9615450262907113,
+            "rows": 155
+          },
+          "growth": {
+            "expected": 9.56195539789848,
+            "observed": 13.0,
+            "ratio": 1.3595545533350983,
+            "rows": 340
+          },
+          "starter": {
+            "expected": 11.421668450622064,
+            "observed": 9.0,
+            "ratio": 0.7879759458006179,
+            "rows": 261
+          }
+        }
+      },
+      "table_deviance": 189.85192907146245,
+      "train_windows": 3
+    },
+    {
+      "events": 32.0,
+      "glm_calibration": {
+        "expected": 19.332330574011017,
+        "observed": 32.0,
+        "ratio": 1.6552582668443752,
+        "segments": {
+          "enterprise": {
+            "expected": 1.0155428291890676,
+            "observed": 1.0,
+            "ratio": 0.9846950529880864,
+            "rows": 164
+          },
+          "growth": {
+            "expected": 9.403283714692742,
+            "observed": 14.0,
+            "ratio": 1.488841603080085,
+            "rows": 340
+          },
+          "starter": {
+            "expected": 8.913504030129209,
+            "observed": 17.0,
+            "ratio": 1.9072185239987567,
+            "rows": 238
+          }
+        }
+      },
+      "glm_deviance": 256.97829755125065,
+      "rows": 742,
+      "snapshot": "2026-06-22",
+      "table_calibration": {
+        "expected": 21.168830655340862,
+        "observed": 32.0,
+        "ratio": 1.5116564783858977,
+        "segments": {
+          "enterprise": {
+            "expected": 1.0929137908556807,
+            "observed": 1.0,
+            "ratio": 0.9149852516885753,
+            "rows": 164
+          },
+          "growth": {
+            "expected": 10.38402651252676,
+            "observed": 14.0,
+            "ratio": 1.348224600843528,
+            "rows": 340
+          },
+          "starter": {
+            "expected": 9.691890351958417,
+            "observed": 17.0,
+            "ratio": 1.7540437812077445,
+            "rows": 238
+          }
+        }
+      },
+      "table_deviance": 253.00544145018617,
+      "train_windows": 4
+    }
+  ],
+  "champion": "tier_rate_table",
+  "coefficients": [
+    {
+      "coef": -6.922539128909935,
+      "name": "intercept",
+      "se": 0.11338443716468767
+    },
+    {
+      "coef": -0.2217808864938401,
+      "name": "tier_growth",
+      "se": 0.10073051268654494
+    },
+    {
+      "coef": -0.8525813675748709,
+      "name": "tier_enterprise",
+      "se": 0.19319913034187425
+    },
+    {
+      "coef": -0.008103477603789414,
+      "name": "log_tenure_days",
+      "se": 0.09317549414705446
+    },
+    {
+      "coef": 0.1341093822078133,
+      "name": "log_daily_spend_gbp",
+      "se": 0.1166488715617513
+    },
+    {
+      "coef": -0.08824731631203833,
+      "name": "usage_trend",
+      "se": 0.1254421242621925
+    },
+    {
+      "coef": -0.016178108804382724,
+      "name": "log_failed_attempts",
+      "se": 0.09196301850770516
+    },
+    {
+      "coef": -0.0969248539496532,
+      "name": "log_region_error_rate",
+      "se": 0.3440572170158713
+    },
+    {
+      "coef": 0.15535180531938983,
+      "name": "log_region_latency_p95",
+      "se": 0.34481813342462625
+    }
+  ],
+  "data_version": "customers-d0b57e36e2e25cb5",
+  "involuntary_rates": {
+    "enterprise": 0.00014081818564307285,
+    "growth": 0.00019546253977676417,
+    "starter": 0.00030894774960871707
+  },
+  "is_synthetic": true,
+  "metrics": {
+    "backtest_glm_deviance": 626.2129932273272,
+    "backtest_table_deviance": 621.7633081309751,
+    "train_exposure_days": 106204.0,
+    "train_involuntary_events": 24.0,
+    "train_rows": 3868,
+    "train_voluntary_events": 126.0
+  },
+  "model_version": "churn-table-9ac145096702",
+  "tier_rates": {
+    "enterprise": 0.00023575900921791668,
+    "growth": 0.0011943750480238146,
+    "starter": 0.0016991719182696027
+  }
+}

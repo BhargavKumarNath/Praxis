@@ -13,11 +13,12 @@ import math
 import tomllib
 from enum import StrEnum
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 _REPO = Path(__file__).resolve().parents[3]
+REPO_ROOT = _REPO
 DEFAULT_POLICY = _REPO / "configs" / "pricing" / "policy.toml"
 
 
@@ -63,6 +64,28 @@ class Evidence(_Cfg):
     max_evidence_age_days: int = Field(ge=1)
     churn_upper_z: float = Field(ge=0)
     require_fresh_forecast: bool
+    min_bill_share: float = Field(ge=0, lt=1)
+    churn_tau_scale: float = Field(gt=0)
+    # the credible class of churn-response posteriors; the first is the reported (primary) one
+    churn_models: tuple[
+        Literal["hierarchical", "complete_pooling", "no_pooling", "meta_analytic"], ...
+    ] = Field(min_length=1)
+    # ADR 0016 third amendment: robust meta-analytic-predictive prior from the estimates of
+    # earlier churn experiments (required by, and only by, the "meta_analytic" model)
+    churn_archive: str | None = None  # path, relative to the repository root
+    churn_archive_checksum: str | None = None  # the archive's own checksum (pinned here)
+    churn_prior_vague_weight: float = Field(default=0.2, ge=0, lt=1)
+    churn_prior_vague_sd: float = Field(default=4.0, gt=0)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if len(set(self.churn_models)) != len(self.churn_models):
+            raise ValueError("churn_models must be distinct")
+        uses_prior = "meta_analytic" in self.churn_models
+        has_archive = self.churn_archive is not None and self.churn_archive_checksum is not None
+        if uses_prior != has_archive:
+            raise ValueError("meta_analytic needs churn_archive + checksum (and only it does)")
+        return self
 
 
 class Valuation(_Cfg):
@@ -70,7 +93,22 @@ class Valuation(_Cfg):
     cost_lookback_days: int = Field(ge=1)
     utilization_lookback_days: int = Field(ge=1)
     customer_lookback_days: int = Field(ge=1)
-    clv_lifetime_cap_days: int = Field(ge=1)
+
+
+class LongTerm(_Cfg):
+    """Long-horizon guardrails (Phase 9, ADR 0016). Raises only, at the response upper bound."""
+
+    max_segment_incremental_churn: dict[str, float] = Field(min_length=1)
+    max_segment_window_churn: float = Field(gt=0, le=1)
+    min_segment_customers: int = Field(ge=1)
+    max_price_changes_per_customer: int = Field(ge=1)
+    price_change_window_days: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if any(not 0.0 <= v < 1.0 for v in self.max_segment_incremental_churn.values()):
+            raise ValueError("segment churn limits must lie in [0, 1)")
+        return self
 
 
 class ProductBounds(_Cfg):
@@ -90,6 +128,7 @@ class PricingPolicy(_Cfg):
     uncertainty: Uncertainty
     evidence: Evidence
     valuation: Valuation
+    long_term: LongTerm
     products: dict[str, ProductBounds] = Field(min_length=1)
 
     @model_validator(mode="after")

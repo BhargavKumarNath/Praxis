@@ -129,6 +129,38 @@ models:
       - name: tier
         data_tests: [{accepted_values: {arguments: {values: [starter, growth, enterprise]}}}]
 
+  - name: fct_subscriptions
+    description: Subscription starts and tier changes (SYNTHETIC); point-in-time tier and fee (Phase 9).
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_customer'), field: customer_id}}
+      - name: kind
+        data_tests: [{accepted_values: {arguments: {values: [started, changed]}}}]
+      - name: tier
+        data_tests: [not_null, {accepted_values: {arguments: {values: [starter, growth, enterprise]}}}]
+      - name: base_fee_minor
+        data_tests: [not_null]
+
+  - name: fct_customer_price_changes
+    description: Price changes shown to each customer (SYNTHETIC); pricing exposure history (Phase 9).
+    columns:
+      - name: change_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_customer'), field: customer_id}}
+      - name: product
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_product'), field: product_id}}
+      - name: unit_price_micros
+        data_tests: [not_null]
+
   - name: fct_marginal_cost_daily
     description: Daily marginal cost per region and product (SYNTHETIC), Phase 6 optimiser input.
     data_tests:

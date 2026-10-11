@@ -1,0 +1,104 @@
+{
+  "assignment_date": "2026-02-02",
+  "checksum": "bd6d795af49f40b291de1d5a201bcfad5277ce98ccd6a0c51de90a12555e3605",
+  "code_revision": "9526243-dirty",
+  "elasticity_heterogeneity": {
+    "enterprise": {
+      "raw": 0.1161420856713425,
+      "se": 0.040916343394905144,
+      "tests": 5,
+      "variance": 0.1161420856713425
+    },
+    "growth": {
+      "raw": 0.23900562160008357,
+      "se": 0.03533268255079851,
+      "tests": 5,
+      "variance": 0.23900562160008357
+    },
+    "starter": {
+      "raw": 0.5207853859423532,
+      "se": 0.05274199014716191,
+      "tests": 5,
+      "variance": 0.5207853859423532
+    }
+  },
+  "end_date": "2026-03-01",
+  "exposure_days": 178784.0,
+  "heterogeneity": {
+    "df": 4.0,
+    "p_value": 0.3702973282421704,
+    "q": 4.273165991273138
+  },
+  "involuntary_events": 41.0,
+  "is_synthetic": true,
+  "method": "bill_shock_poisson.v1",
+  "nuisance": {
+    "log_h0_enterprise": -7.187908753362397,
+    "log_h0_growth": -6.718865663791747,
+    "log_h0_starter": -6.433378774506658,
+    "log_pre_spend_std": -0.12571180026739376
+  },
+  "pooled_fixed": {
+    "gamma": 1.4335831668732841,
+    "se": 0.8488267117806769
+  },
+  "products": {
+    "api_requests": {
+      "experiment_id": "px-2026-02-api-requests",
+      "gamma": 0.8645309826727209,
+      "log_ratio": 0.1823215567939546,
+      "mean_share": 0.3855711753911137,
+      "se": 1.362013769684048,
+      "se_model": 1.3584565464794975,
+      "se_robust": 1.362013769684048,
+      "treated_units": 3270
+    },
+    "cpu_minutes": {
+      "experiment_id": "px-2026-02-cpu-minutes",
+      "gamma": 6.057216539159594,
+      "log_ratio": -0.1823215567939546,
+      "mean_share": 0.14886466940544857,
+      "se": 3.3983873760791234,
+      "se_model": 3.269030983405421,
+      "se_robust": 3.3983873760791234,
+      "treated_units": 3226
+    },
+    "data_transfer_gb": {
+      "experiment_id": "px-2026-02-data-transfer",
+      "gamma": 1.4030223775006792,
+      "log_ratio": -0.1823215567939546,
+      "mean_share": 0.22525260043297685,
+      "se": 2.0139489620787105,
+      "se_model": 2.0139489620787105,
+      "se_robust": 1.9751087487096957,
+      "treated_units": 3280
+    },
+    "gpu_minutes": {
+      "experiment_id": "px-2026-02-gpu-minutes",
+      "gamma": -16.326894225980116,
+      "log_ratio": 0.1823215567939546,
+      "mean_share": 0.022763553786008982,
+      "se": 12.172390620501819,
+      "se_model": 12.167431671960813,
+      "se_robust": 12.172390620501819,
+      "treated_units": 3234
+    },
+    "premium_latency": {
+      "experiment_id": "px-2026-02-premium-latency",
+      "gamma": 0.689329724049994,
+      "log_ratio": 0.1823215567939546,
+      "mean_share": 0.21754800098445184,
+      "se": 1.7388736537000316,
+      "se_model": 1.7388736537000316,
+      "se_robust": 1.7244268453188012,
+      "treated_units": 3261
+    }
+  },
+  "registry_hash": "6b4f4d882bdd2c73e29a2413330bfbc8e61352bc71170ecaca8e8ab825afbd4a",
+  "report_data_version": "units-925597c31f252610",
+  "response_format": 3,
+  "units": 6515,
+  "units_version": "billunits-f7dce53b0b93a0a2",
+  "voluntary_events": 228.0,
+  "window_days": 28
+}

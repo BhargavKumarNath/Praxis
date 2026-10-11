@@ -8,6 +8,7 @@ codes on decisions.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from enum import StrEnum
 
 import numpy as np
@@ -31,6 +32,10 @@ class Constraint(StrEnum):
     MARGIN_FLOOR = "margin_floor"
     CAPACITY = "capacity"
     CHURN_GUARDRAIL = "churn_guardrail"
+    # long-horizon guardrails (Phase 9, ADR 0016)
+    SEGMENT_CHURN = "segment_churn_guardrail"
+    CHURN_CEILING = "churn_risk_ceiling"
+    CHANGE_FREQUENCY = "price_change_frequency"
 
 
 def in_cooldown(problem: PricingProblem, policy: PricingPolicy) -> bool:
@@ -65,18 +70,71 @@ def check(problem: PricingProblem, policy: PricingPolicy, ev: Evaluation) -> dic
     out[Constraint.CAPACITY] = np.all(ok_region, axis=1)
     churn = projected_churn(problem, x)
     out[Constraint.CHURN_GUARDRAIL] = churn <= c.max_incremental_churn + EPS
+    seg = segment_projection(problem, policy, x)
+    out[Constraint.SEGMENT_CHURN] = np.all(seg.incremental <= seg.limits[None, :] + EPS, axis=1)
+    below = seg.window <= policy.long_term.max_segment_window_churn + EPS
+    out[Constraint.CHURN_CEILING] = (x <= EPS) | np.all(below, axis=1)
+    over = customers_over_change_limit(problem, policy)
+    out[Constraint.CHANGE_FREQUENCY] = (p == p0) | (over == 0)
     return out
 
 
 def projected_churn(problem: PricingProblem, log_ratio: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Extra churn probability per exposed customer over the evidence window (upper bound).
+    """Extra voluntary churn probability per exposed customer over the window (upper bound).
 
     Raises only: a cut is never credited with lower churn here (that would let noise in the
     churn estimate justify cuts); the objective values the posterior symmetrically.
     """
-    upper = max(problem.churn.slope_upper, 0.0)
-    projected: NDArray[np.float64] = upper * np.maximum(log_ratio, 0.0)
+    c = problem.churn
+    exposed = c.exposed_customers
+    if exposed <= 0:
+        return np.zeros(len(log_ratio))
+    upper = max(c.response_upper, 0.0)
+    projected: NDArray[np.float64] = upper * c.total_exposure * np.maximum(log_ratio, 0.0) / exposed
     return projected
+
+
+@dataclass(frozen=True)
+class SegmentProjection:
+    """Per judged segment (enough customers): projected churn at the response upper bound."""
+
+    names: tuple[str, ...]
+    limits: NDArray[np.float64]  # (G,) incremental churn limit per segment
+    incremental: NDArray[np.float64]  # (k, G) extra churn probability per exposed customer
+    window: NDArray[np.float64]  # (k, G) baseline + extra voluntary churn probability
+
+
+def segment_projection(
+    problem: PricingProblem, policy: PricingPolicy, log_ratio: NDArray[np.float64]
+) -> SegmentProjection:
+    lt = policy.long_term
+    judged = [g for g in problem.churn.segments if g.exposed_customers >= lt.min_segment_customers]
+    upper = max(problem.churn.response_upper, 0.0)
+    rise = np.maximum(log_ratio, 0.0)[:, None]
+    exposed = np.array([g.exposed_customers for g in judged])
+    inc = upper * rise * np.array([g.churn_exposure for g in judged])[None, :] / exposed
+    base = np.array([g.window_churn for g in judged]) / exposed
+    limits = np.array(
+        [
+            lt.max_segment_incremental_churn.get(
+                g.segment, policy.constraints.max_incremental_churn
+            )
+            for g in judged
+        ]
+    )
+    shape = (len(log_ratio), len(judged))
+    return SegmentProjection(
+        tuple(g.segment for g in judged),
+        limits,
+        inc.reshape(shape),
+        (base[None, :] + inc).reshape(shape),
+    )
+
+
+def customers_over_change_limit(problem: PricingProblem, policy: PricingPolicy) -> int:
+    """Exposed customers whom one more price change would put over the frequency limit."""
+    limit = policy.long_term.max_price_changes_per_customer
+    return sum(n for k, n in problem.price_change_counts.items() if k + 1 > limit)
 
 
 def violations(mask: dict[Constraint, BOOL], i: int) -> tuple[str, ...]:

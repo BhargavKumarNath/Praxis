@@ -1,0 +1,75 @@
+# Customer value (Phase 9): churn hazard, CLV and segment value. SYNTHETIC business.
+# See ADR 0016 and docs/customer-value.md.
+#
+# PRE-REGISTERED 2026-10-10, before any churn / CLV model was fitted or evaluated on any world.
+# A test pins this file's hash; never loosen a value after seeing a result (CLAUDE.md s16): a
+# change needs an ADR and the owner's approval.
+
+[label]
+# Churn label: VOLUNTARY churn (churn.observed reason = voluntary) within `window_days` after a
+# snapshot date T, for customers active at T (created before T, not churned before T).
+# Involuntary (payment) churn ends a customer's exposure without an event (competing risk);
+# its rate is modelled separately per segment and added back for survival / CLV.
+window_days = 28
+# Training snapshots every `snapshot_step_days`, the first `first_snapshot_day` days after the
+# world's first day (features need that much history). Windows never overlap, so a customer
+# contributes independent person-time (piecewise-exponential likelihood).
+snapshot_step_days = 28
+first_snapshot_day = 56
+
+[features]
+# customer_features.v1: every feature uses data strictly before the snapshot date.
+spend_window_days = 28        # spend, contribution and product shares
+trend_half_days = 14          # usage trend: last 14 days vs the 14 days before
+failure_window_days = 56      # failed payment attempts
+service_window_days = 7       # region error rate and p95 latency the customer experienced
+
+[hazard]
+ridge = 1.0                   # L2 penalty on standardised slopes (not on the intercept)
+max_iter = 100
+tol = 1e-10
+# Champion rule (pre-registered): the GLM is champion only if, summed over the rolling-origin
+# backtest windows, its Poisson deviance is below the tier rate-table baseline's; otherwise the
+# baseline is champion (it is the model's complement, never silently dropped).
+backtest_windows = 3          # the last 3 snapshot windows of the training range, each scored by
+                              # a model fitted on the windows that end before it
+rate_prior_weight = 28.0      # rate table: person-days of pooling toward the overall rate
+
+[calibration]
+# At decision time the champion's voluntary hazard is rescaled by the churn observed over the
+# last `window_days` (observed + 0.5) / (expected + 0.5), with SD(log factor) = 1 / sqrt(obs + 0.5).
+# Price multiplies the hazard (ADR 0013 second amendment), so the LEVEL must be current.
+enabled = true
+# AMENDED 2026-10-10 (ADR 0016 second amendment; development worlds only): the level above is
+# centred ~14 days BEFORE the decision while the decision is scored on the 7 days AFTER it; with
+# the hazard rising ~5-8% a week in a degrading service regime, churn was under-predicted by
+# ~12% on development worlds. "trend" fits observed ~ Poisson(expected x exp(a + b t)) on the
+# last 8 weekly windows and forecasts the factor at the middle of the decision week (+3.5 days),
+# SD from the fit's covariance. With fewer than 10 observed churners it falls back to "level".
+method = "trend"
+weeks = 8
+horizon_days = 3.5
+min_events = 10
+slope_prior_sd = 0.1              # N(0, 0.1^2) prior on the weekly log trend: hazards move a few
+                                  # percent a week; a noisy 8-week slope is shrunk, a real one kept
+
+[clv]
+# CLV_i = m_i * sum_{t=1..H} d^t S_i(t), S_i(t) = exp(-(h_vol_i + h_inv_seg) t), d = (1 + r)^(-1/365)
+# m_i = daily contribution: usage value - marginal cost over the spend window, plus the tier fee
+#       accrued per day, times (1 - payment loss rate). Constant over the horizon (no growth).
+# Horizon 365 days = the Phase 6 CLV proxy cap, so the switch to the model changes the method,
+# not the valuation horizon. Sensitivity is reported for every combination below.
+horizon_days = 365
+annual_discount_rate = 0.10
+sensitivity_discount_rates = [0.0, 0.05, 0.10, 0.20]
+sensitivity_horizons_days = [90, 180, 365, 730, 1095]
+
+[segments]
+# Segment = tier in force at the snapshot date (point in time, fct_subscriptions).
+names = ["starter", "growth", "enterprise"]
+
+[monitoring]
+# Segment monitoring alerts (reported; Phase 11 wires them to the alerting stack).
+max_window_churn = 0.10       # observed voluntary churn over the last window, per segment
+max_calibration_ratio = 1.5   # observed / expected voluntary churn, per segment (and 1 / ratio)
+min_customers = 20            # segments smaller than this are reported, never alerted on

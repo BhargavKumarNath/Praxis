@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from praxis.customer.__main__ import main as customer_main
 from praxis.data.config import load_sources_config
 from praxis.data.warehouse import Warehouse
 from praxis.forecasting.artifact import save_artifact, train_artifact
@@ -26,7 +27,7 @@ from praxis.pricing.__main__ import main as pricing_main
 from praxis.science.__main__ import main as science_main
 from praxis.simulator.config import load_config
 from praxis.simulator.runner import run_simulation
-from tests.pricing.fakes import write_artifact, write_report
+from tests.pricing.fakes import write_artifact, write_churn_response, write_report
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 REPO = Path(__file__).resolve().parents[2]
@@ -74,6 +75,19 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Path:
     save_artifact(manifest, files, root / "models/demand")
     write_artifact(root / "models/elasticity")
     write_report(root / "report.json")
+    write_churn_response(root / "churn_response.json")
+    # customer value model trained on the same prefix (Phase 9)
+    assert (
+        customer_main(
+            [
+                "--db", str(db), "train",
+                "--start", start.isoformat(),
+                "--cutoff", (start + timedelta(days=PREFIX_DAYS)).isoformat(),
+                "--out", str(root / "models/customer"),
+            ]
+        )
+        == 0
+    )  # fmt: skip
     return root
 
 
@@ -88,6 +102,10 @@ def _decide(world: Path, *extra: str) -> list[str]:
         str(world / "models/elasticity"),
         "--elasticity-report",
         str(world / "report.json"),
+        "--churn-response",
+        str(world / "churn_response.json"),
+        "--customer-model",
+        str(next((world / "models/customer").iterdir())),
         *extra,
     ]
 
@@ -177,6 +195,8 @@ def test_shadow_evaluation_cli(world: Path, tmp_path: Path) -> None:
             "--forecast-models", str(world / "models/demand"),
             "--elasticity-model", str(world / "models/elasticity"),
             "--elasticity-report", str(world / "report.json"),
+            "--churn-response", str(world / "churn_response.json"),
+            "--customer-models", str(world / "models/customer"),
             "--out", str(out),
         ]
     )  # fmt: skip
@@ -195,6 +215,7 @@ def test_shadow_evaluation_cli(world: Path, tmp_path: Path) -> None:
         "forecast_model_unavailable",
         "evidence_unavailable",
         "inflated_uncertainty",
+        "customer_model_unavailable",
     }
 
 
@@ -212,6 +233,30 @@ def test_shadow_evaluation_refuses_a_forecast_from_another_world(
             "--forecast-models", str(other),
             "--elasticity-model", str(world / "models/elasticity"),
             "--elasticity-report", str(world / "report.json"),
+            "--churn-response", str(world / "churn_response.json"),
+            "--customer-models", str(world / "models/customer"),
+            "--out", str(tmp_path / "out"),
+        ]
+    )  # fmt: skip
+    assert code == 1
+
+
+def test_shadow_evaluation_refuses_a_customer_model_from_another_world(
+    world: Path, tmp_path: Path
+) -> None:
+    other = tmp_path / "customer"
+    other.mkdir()
+    code = science_main(
+        [
+            "pricing-shadow",
+            "--db", str(world / "wh.duckdb"),
+            "--sim", str(world / "sim"),
+            "--scenario", str(SCENARIO),
+            "--forecast-models", str(world / "models/demand"),
+            "--elasticity-model", str(world / "models/elasticity"),
+            "--elasticity-report", str(world / "report.json"),
+            "--churn-response", str(world / "churn_response.json"),
+            "--customer-models", str(other),
             "--out", str(tmp_path / "out"),
         ]
     )  # fmt: skip
@@ -229,7 +274,11 @@ def _toml(raw: dict[str, object]) -> str:
             continue
         lines.append(f"[{section}]")
         for k, v in body.items():
-            lines.append(f"{k} = {json.dumps(v)}")
+            if isinstance(v, dict):  # inline table
+                inner = ", ".join(f"{ik} = {json.dumps(iv)}" for ik, iv in v.items())
+                lines.append(f"{k} = {{ {inner} }}")
+            else:
+                lines.append(f"{k} = {json.dumps(v)}")
     return "\n".join(lines) + "\n"
 
 

@@ -2,33 +2,48 @@
 
 * Tier elasticities (posterior mean, SD) from the gated elasticity artifact (checksums
   verified on load).
-* The churn response to each product's price, as a RELATIVE effect: the log ratio of the
-  treatment and control churn rates of its randomised test (the analysis report's guardrails),
-  per unit log price, with a delta-method standard error. Price multiplies the churn hazard, so
-  the relative effect transports across periods while an absolute one does not: the base
-  hazard moves with service quality (ADR 0013, second amendment: an absolute slope measured
-  in February understated August's by 1.5-2.3x). The pricing inputs scale it by the churn rate
-  observed just before each decision. One test per product is noisy, so product effects are
-  partially pooled (empirical Bayes, Paule-Mandel between-product variance, Morris posterior
-  SD); without pooling an optimiser picks the products whose noise looks most favourable.
+* The causal voluntary-churn response to each product's price, measured per unit log BILL
+  change (``praxis.elasticity.churn``, ADR 0016): gamma_p from all concurrent randomised tests
+  jointly, partially pooled across products here by a FULL-BAYES normal hierarchical model
+  (between-product SD tau integrated over a half-Cauchy prior; ADR 0016 second amendment).
+  Without pooling an optimiser picks the products whose noise looks most favourable; with a
+  plug-in tau (empirical Bayes, tau-hat = 0 for five noisy tests) it pools away real product
+  differences behind a falsely small SD (the seed-45 failure). Price multiplies the hazard,
+  so the response stays RELATIVE: the pricing inputs apply it to each customer's own
+  calibrated hazard and bill share at decision time (ADR 0013 second amendment, kept).
 * The test registry: which products were tested, when (evidence age, extrapolation anchor),
   and at what log ratio.
 
 The report must belong to the artifact (same ``data_version`` and registry hash) and must
-have passed every validity gate, otherwise no evidence is returned.
+have passed every validity gate; the churn-response document must belong to the report and
+carry a valid checksum. Otherwise no evidence is returned.
 """
 
 from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from praxis.elasticity.artifact import ArtifactError, load_artifact
+from praxis.elasticity.churn import METHOD as CHURN_METHOD
+from praxis.elasticity.churn import RESPONSE_FORMAT as CHURN_FORMAT
+from praxis.elasticity.churn import checksum as churn_checksum
 from praxis.elasticity.config import ExperimentDesign, ExperimentRegistry
+from praxis.pricing.churn_prior import (
+    ChurnArchive,
+    ChurnPriorError,
+    load_archive,
+    predictive_prior,
+    robust_posterior,
+    tau_posterior,
+)
+from praxis.pricing.config import REPO_ROOT, Evidence
 from praxis.pricing.problem import TierElasticity
 
 
@@ -43,14 +58,14 @@ class ProductEvidence:
     assignment_date: date
     window_days: int
     log_ratio: float
-    churn_rel_slope: float  # d log(churn rate) / d log price, partially pooled
-    churn_rel_se: float  # posterior SD of the pooled relative slope
-    raw_churn_rel_slope: float  # this product's test alone
-    raw_churn_rel_se: float
-    control_churn_rate: float  # churn rate of the control arm over the window (audit only)
-
-    def churn_rel_upper(self, z: float) -> float:
-        return self.churn_rel_slope + z * self.churn_rel_se
+    churn_response: float  # d log(voluntary hazard) / d log(bill), partially pooled
+    churn_response_sd: float  # posterior SD of the pooled response
+    raw_churn_response: float  # this product's test (joint fit) alone
+    raw_churn_response_sd: float
+    bill_share: float = 1.0  # mean share of the product in the experiment customers' bills
+    # (model, posterior mean, posterior SD) for every member of the policy's credible class;
+    # the first is the primary (= churn_response, churn_response_sd)
+    churn_models: tuple[tuple[str, float, float], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -59,22 +74,32 @@ class PricingEvidence:
     data_version: str
     tiers: dict[str, TierElasticity]
     products: dict[str, ProductEvidence]
+    churn_response_version: str = ""  # checksum of the churn-response document
+    churn_archive_version: str = ""  # checksum of the meta-analytic archive ("" if unused)
+    # customer-level Var(elasticity) per (signup) tier, randomisation-based (ADR 0016)
+    heterogeneity: dict[str, float] = field(default_factory=dict)
 
 
-def churn_rel_slope(guardrails: dict[str, Any], log_ratio: float) -> tuple[float, float, float]:
-    """(slope, SE, control rate): log churn-rate ratio per unit log price, one randomised test.
+def check_churn_document(doc: dict[str, Any]) -> None:
+    """Method, format and content checksum of a churn-response document."""
+    if doc.get("method") != CHURN_METHOD or doc.get("response_format") != CHURN_FORMAT:
+        raise EvidenceError(f"unsupported churn response method {doc.get('method')}")
+    if churn_checksum(doc) != doc.get("checksum"):
+        raise EvidenceError("churn response checksum mismatch")
 
-    Rates use a +0.5 continuity correction, so an arm without churners stays finite. The SE is
-    the delta-method SE of a log ratio of binomial proportions.
-    """
-    c, t = guardrails["control"], guardrails["treatment"]
-    n_c, n_t = int(c["units"]), int(t["units"])
-    p_c, p_t = float(c["churn_rate"]), float(t["churn_rate"])
-    if n_c <= 0 or n_t <= 0 or not (math.isfinite(p_c) and math.isfinite(p_t)) or log_ratio == 0:
-        raise EvidenceError("guardrail churn rates are missing or empty")
-    q_c, q_t = (p_c * n_c + 0.5) / (n_c + 1), (p_t * n_t + 0.5) / (n_t + 1)
-    se = math.sqrt((1 - q_t) / (n_t * q_t) + (1 - q_c) / (n_c * q_c))
-    return math.log(q_t / q_c) / log_ratio, se / abs(log_ratio), p_c
+
+def load_churn_response(path: Path, report: dict[str, Any], registry_hash: str) -> dict[str, Any]:
+    """The churn-response document, verified against the analysis report and its checksum."""
+    try:
+        doc: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise EvidenceError(f"churn response unusable: {exc}") from exc
+    check_churn_document(doc)
+    if doc.get("report_data_version") != report.get("data_version"):
+        raise EvidenceError("churn response does not belong to the analysis report")
+    if doc.get("registry_hash") != registry_hash:
+        raise EvidenceError("churn response used another experiment registry")
+    return doc
 
 
 def resolve_artifact_dir(path: Path, report_path: Path) -> Path:
@@ -94,44 +119,165 @@ def resolve_artifact_dir(path: Path, report_path: Path) -> Path:
     raise EvidenceError(f"no elasticity artifact under {path} for data version {version}")
 
 
-def pool_slopes(slopes: list[float], ses: list[float]) -> tuple[list[float], list[float], float]:
-    """Random-effects partial pooling toward the common mean: (posterior means, SDs, tau).
+@dataclass(frozen=True)
+class PriorSettings:
+    """The robust meta-analytic-predictive prior (``praxis.pricing.churn_prior``)."""
 
-    tau^2 by Paule-Mandel (generalised Q = k - 1); posterior SD by Morris (1983), which adds the
-    uncertainty of the estimated common mean. One estimate returns itself.
+    archive: ChurnArchive
+    vague_weight: float
+    vague_sd: float
+
+
+def posteriors(
+    estimates: list[float],
+    ses: list[float],
+    *,
+    tau_scale: float,
+    priors: list[tuple[float, float]] | None = None,
+    prior: PriorSettings | None = None,
+) -> dict[str, tuple[list[float], list[float]]]:
+    """Every member of the credible class: (means, SDs) per product.
+
+    * ``hierarchical``: full Bayes, tau ~ half-Cauchy(tau_scale) integrated out;
+    * ``complete_pooling``: one common response (tau = 0): the precision-weighted mean and its SE;
+    * ``no_pooling``: each product's own estimate (tau = infinity);
+    * ``meta_analytic`` (with ``priors``, one predictive (mean, SD) per product, and ``prior``):
+      each product's own estimate under its robust meta-analytic-predictive prior.
     """
-    b = [float(x) for x in slopes]
-    v = [float(se) ** 2 for se in ses]
-    if any(x <= 0 for x in v):
-        raise EvidenceError("churn slope standard errors must be positive")
-    k = len(b)
-    if k == 1:
-        return b, [math.sqrt(v[0])], 0.0
+    post = hierarchical_pool(estimates, ses, tau_scale=tau_scale)
+    w = [1.0 / s**2 for s in ses]
+    common = sum(wi * y for wi, y in zip(w, estimates, strict=True)) / sum(w)
+    common_se = math.sqrt(1.0 / sum(w))
+    k = len(estimates)
+    out = {
+        "hierarchical": (post.means, post.sds),
+        "complete_pooling": ([common] * k, [common_se] * k),
+        "no_pooling": (list(estimates), list(ses)),
+    }
+    if priors is not None and prior is not None:
+        robust = [
+            robust_posterior(y, s, m, sd, vague_weight=prior.vague_weight, vague_sd=prior.vague_sd)
+            for y, s, (m, sd) in zip(estimates, ses, priors, strict=True)
+        ]
+        out["meta_analytic"] = ([m for m, _ in robust], [s for _, s in robust])
+    return out
 
-    def mean_and_q(tau2: float) -> tuple[float, float, float]:
-        w = [1.0 / (vi + tau2) for vi in v]
-        mu = sum(wi * bi for wi, bi in zip(w, b, strict=True)) / sum(w)
-        q = sum(wi * (bi - mu) ** 2 for wi, bi in zip(w, b, strict=True))
-        return mu, q, 1.0 / sum(w)
 
-    tau2 = 0.0
-    if mean_and_q(0.0)[1] > k - 1:
-        lo, hi = 0.0, max(v) * 100.0 + max(abs(x) for x in b) ** 2
-        for _ in range(200):  # Q(tau^2) is decreasing in tau^2
-            mid = 0.5 * (lo + hi)
-            lo, hi = (mid, hi) if mean_and_q(mid)[1] > k - 1 else (lo, mid)
-        tau2 = 0.5 * (lo + hi)
-    mu, _, var_mu = mean_and_q(tau2)
-    means, sds = [], []
-    for bi, vi in zip(b, v, strict=True):
-        shrink = vi / (vi + tau2)  # weight on the common mean
-        means.append(mu + (1.0 - shrink) * (bi - mu))
-        sds.append(math.sqrt((1.0 - shrink) * vi + shrink**2 * var_mu))
-    return means, sds, math.sqrt(tau2)
+def prior_settings(
+    cfg: Evidence, root: Path = REPO_ROOT, *, archive_override: Path | None = None
+) -> PriorSettings | None:
+    """The policy's robust MAP prior, its archive verified against the pinned checksum.
+
+    ``archive_override``: a DEVELOPMENT leave-one-out archive (the nightly seed-1 world is in
+    the pinned archive, so deciding it needs the archive without it); verified by its own
+    checksum only and recorded in the lineage. Never for a held-out evaluation.
+    """
+    if cfg.churn_archive is None:
+        return None
+    path = archive_override or Path(cfg.churn_archive)
+    try:
+        archive = load_archive(path if path.is_absolute() else root / path)
+    except ChurnPriorError as exc:
+        raise EvidenceError(str(exc)) from exc
+    if archive_override is None and archive.checksum != cfg.churn_archive_checksum:
+        raise EvidenceError("churn archive differs from the one the policy pins")
+    return PriorSettings(archive, cfg.churn_prior_vague_weight, cfg.churn_prior_vague_sd)
+
+
+def _predictive_priors(
+    names: list[str], churn: dict[str, Any], prior: PriorSettings, tau_scale: float
+) -> list[tuple[float, float]]:
+    """One predictive prior per product from the archive; the decided experiment must not be
+    in it (its data would count twice)."""
+    archive = prior.archive
+    if archive.registry_hash != churn.get("registry_hash"):
+        raise EvidenceError("churn archive used another experiment registry")
+    if churn.get("checksum") in archive.sources:
+        raise EvidenceError("the decided experiment is in its own prior archive")
+    missing = [n for n in names if n not in archive.estimates]
+    if missing:
+        raise EvidenceError(f"churn archive lacks products {missing}")
+    try:
+        return [predictive_prior(*archive.estimates[n], tau_scale=tau_scale) for n in names]
+    except ChurnPriorError as exc:
+        raise EvidenceError(f"churn prior: {exc}") from exc
+
+
+@dataclass(frozen=True)
+class HierarchicalPosterior:
+    """Full-Bayes normal hierarchical posterior, tau integrated out (one entry per estimate)."""
+
+    means: list[float]
+    sds: list[float]
+    tau_mean: float
+    tau_p90: float
+
+
+def hierarchical_pool(
+    estimates: list[float], ses: list[float], *, tau_scale: float, grid: int = 4000
+) -> HierarchicalPosterior:
+    """theta_j ~ N(mu, tau^2), y_j ~ N(theta_j, s_j^2), flat mu, tau ~ half-Cauchy(tau_scale).
+
+    tau is integrated over a deterministic grid (BDA3 s5.4): given tau, mu and theta_j are
+    normal; the posterior of theta_j is the tau-mixture of those normals, summarised by its
+    mean and SD. Unlike a plug-in tau-hat (Paule-Mandel gives 0 whenever Q < k - 1, routine
+    with five noisy tests), this keeps the uncertainty about how different the products are:
+    a product whose own estimate disagrees with the others is not pooled away with a falsely
+    small SD (Gelman 2006; Polson and Scott 2012; few-group random-effects meta-analysis).
+    """
+    try:
+        post = tau_posterior(estimates, ses, tau_scale=tau_scale, grid=grid)
+    except ChurnPriorError as exc:
+        raise EvidenceError(f"hierarchical pooling: {exc}") from exc
+    y = np.asarray(estimates, dtype=np.float64)
+    v = np.asarray(ses, dtype=np.float64) ** 2
+    if len(y) == 1:
+        return HierarchicalPosterior([float(y[0])], [float(math.sqrt(v[0]))], 0.0, 0.0)
+    tau, weight, mu, v_mu = post.tau, post.weight, post.mu, post.v_mu
+    prec_data = 1.0 / v[None, :]
+    prec_prior = 1.0 / tau[:, None] ** 2
+    shrink = prec_prior / (prec_data + prec_prior)  # weight on mu
+    cond_mean = (1.0 - shrink) * y[None, :] + shrink * mu[:, None]
+    cond_var = 1.0 / (prec_data + prec_prior) + shrink**2 * v_mu[:, None]
+    mean = (weight[:, None] * cond_mean).sum(axis=0)
+    second = (weight[:, None] * (cond_var + cond_mean**2)).sum(axis=0)
+    cdf = np.cumsum(weight)
+    return HierarchicalPosterior(
+        [float(m) for m in mean],
+        [float(math.sqrt(max(s - m * m, 0.0))) for s, m in zip(second, mean, strict=True)],
+        float((weight * tau).sum()),
+        float(tau[int(np.searchsorted(cdf, 0.9))]),
+    )
+
+
+def _churn_class(
+    names: list[str],
+    churn: dict[str, Any],
+    models: tuple[str, ...],
+    tau_scale: float,
+    prior: PriorSettings | None,
+) -> dict[str, tuple[list[float], list[float]]]:
+    """Every requested member of the credible class, from the decided experiment's estimates."""
+    raw = [float(churn["products"][n]["gamma"]) for n in names]
+    raw_sd = [float(churn["products"][n]["se"]) for n in names]
+    if "meta_analytic" in models and prior is None:
+        raise EvidenceError("the meta_analytic churn model needs a prior archive")
+    priors = None if prior is None else _predictive_priors(names, churn, prior, tau_scale)
+    by_model = posteriors(raw, raw_sd, tau_scale=tau_scale, priors=priors, prior=prior)
+    if not models or any(m not in by_model for m in models):
+        raise EvidenceError(f"unknown churn models {models}")
+    return by_model
 
 
 def load_evidence(
-    artifact_dir: Path, report_path: Path, registry: ExperimentRegistry
+    artifact_dir: Path,
+    report_path: Path,
+    registry: ExperimentRegistry,
+    churn_path: Path,
+    *,
+    tau_scale: float,
+    models: tuple[str, ...] = ("hierarchical",),
+    prior: PriorSettings | None = None,
 ) -> PricingEvidence:
     """``artifact_dir`` may be the artifact itself or the artifact root (see above)."""
     artifact_dir = resolve_artifact_dir(artifact_dir, report_path)
@@ -150,37 +296,49 @@ def load_evidence(
         raise EvidenceError("experiment registry differs from the one the evidence used")
     if not report.get("validity", {}).get("passed", False):
         raise EvidenceError("analysis report failed a validity gate")
+    churn = load_churn_response(churn_path, report, registry.config_hash)
     tiers = {
         tier: TierElasticity(float(v["mean"]), float(v["sd"]))
         for tier, v in art.estimates["tier"].items()
     }
-    by_id = {e["id"]: e for e in report.get("experiments", [])}
-    latest: dict[str, tuple[ExperimentDesign, float, float, float]] = {}
+    latest: dict[str, ExperimentDesign] = {}
     for design in registry.experiments:
-        exp = by_id.get(design.id)
-        if exp is None:
-            raise EvidenceError(f"report has no results for experiment {design.id}")
-        slope, se, base = churn_rel_slope(exp["guardrails"], design.log_ratio)
         current = latest.get(design.product)
-        if current is None or design.assignment_date > current[0].assignment_date:
-            latest[design.product] = (design, slope, se, base)
+        if current is None or design.assignment_date > current.assignment_date:
+            latest[design.product] = design
     names = sorted(latest)
-    pooled, pooled_sd, _tau = pool_slopes(
-        [latest[n][1] for n in names], [latest[n][2] for n in names]
-    )
+    measured = churn.get("products", {})
+    if set(names) - set(measured):
+        raise EvidenceError(f"churn response lacks products {sorted(set(names) - set(measured))}")
+    raw = [float(measured[n]["gamma"]) for n in names]
+    raw_sd = [float(measured[n]["se"]) for n in names]
+    by_model = _churn_class(names, churn, models, tau_scale, prior)
+    pooled, pooled_sd = by_model[models[0]]
     products = {
         n: ProductEvidence(
             n,
-            latest[n][0].id,
-            latest[n][0].assignment_date,
-            latest[n][0].window_days,
-            latest[n][0].log_ratio,
+            latest[n].id,
+            latest[n].assignment_date,
+            latest[n].window_days,
+            latest[n].log_ratio,
             pooled[i],
             pooled_sd[i],
-            latest[n][1],
-            latest[n][2],
-            latest[n][3],
+            raw[i],
+            raw_sd[i],
+            float(measured[n]["mean_share"]),
+            tuple((m, by_model[m][0][i], by_model[m][1][i]) for m in models),
         )
         for i, n in enumerate(names)
     }
-    return PricingEvidence(art.model_version, str(manifest["data_version"]), tiers, products)
+    return PricingEvidence(
+        art.model_version,
+        str(manifest["data_version"]),
+        tiers,
+        products,
+        churn_response_version="churn-" + str(churn["checksum"])[:16],
+        churn_archive_version="" if prior is None else "archive-" + prior.archive.checksum[:16],
+        heterogeneity={
+            str(t): float(v["variance"])
+            for t, v in churn.get("elasticity_heterogeneity", {}).items()
+        },
+    )

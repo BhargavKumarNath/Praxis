@@ -8,7 +8,8 @@ day BEFORE the decision date: a decision at the start of day T uses data through
 * utilisation per region                (fct_service_metrics_hourly, recent peak daily mean)
 * served share per region/product/tier  (fct_usage_daily: served / requested)
 * payment loss rate                     (fct_payments: invoiced value finally uncollected)
-* exposed customers, CLV proxy          (fct_usage_daily x cost, dim_customer churn)
+
+Customers, churn and lifetime value come from ``praxis.customer`` (Phase 9), not from here.
 """
 
 from __future__ import annotations
@@ -33,16 +34,6 @@ class MarketSnapshot:
     utilization: dict[str, float]  # region -> peak daily-mean utilisation
     served_share: dict[tuple[str, str, str], float]  # (region, product, tier)
     payment_loss_rate: float | None
-    exposed_customers: dict[str, int]  # product -> active customers using it
-    daily_contribution_per_customer: float | None  # micro-GBP per active customer-day
-    daily_churn_hazard: float | None
-
-    def clv_micros(self, cap_days: int) -> float | None:
-        if self.daily_contribution_per_customer is None or self.daily_churn_hazard is None:
-            return None
-        hazard = self.daily_churn_hazard
-        lifetime = cap_days if hazard <= 0 else min(1.0 / hazard, float(cap_days))
-        return max(self.daily_contribution_per_customer, 0.0) * lifetime
 
     def version(self) -> str:
         """Content reference recorded on every decision (feature snapshot lineage)."""
@@ -52,17 +43,7 @@ class MarketSnapshot:
             "unit_cost": sorted((list(k), v) for k, v in self.unit_cost.items()),
             "utilization": sorted(self.utilization.items()),
             "served_share": sorted((list(k), v) for k, v in self.served_share.items()),
-            "rest": {
-                k: v
-                for k, v in asdict(self).items()
-                if k
-                in (
-                    "payment_loss_rate",
-                    "exposed_customers",
-                    "daily_contribution_per_customer",
-                    "daily_churn_hazard",
-                )
-            },
+            "rest": {k: v for k, v in asdict(self).items() if k == "payment_loss_rate"},
         }
         text = json.dumps(body, sort_keys=True, separators=(",", ":"))
         return "market-" + hashlib.sha256(text.encode()).hexdigest()[:16]
@@ -105,37 +86,6 @@ SELECT sum(amount)::DOUBLE, sum(CASE WHEN lost THEN amount ELSE 0 END)::DOUBLE
 FROM invoices WHERE amount IS NOT NULL
 """
 
-_EXPOSED_SQL = """
-SELECT product, count(DISTINCT customer_id)
-FROM marts.fct_usage_daily
-WHERE event_date BETWEEN ? AND ?
-GROUP BY product
-"""
-
-# Exact: integer numerators (value x hours - units x hourly cost sum) summed per `hours`, one
-# division per group. A float sum would depend on DuckDB's parallel aggregation order and make
-# rebuilt decisions differ in the last digit (found by the reproducibility check).
-_CONTRIBUTION_SQL = """
-SELECT c.hours,
-       sum(u.usage_value_micros::HUGEINT * c.hours - u.units::HUGEINT * c.cost_micros_sum)
-FROM marts.fct_usage_daily AS u
-JOIN marts.fct_marginal_cost_daily AS c
-  ON u.event_date = c.event_date AND u.region_id = c.region_id AND u.product = c.product
-WHERE u.event_date BETWEEN ? AND ? AND c.event_date BETWEEN ? AND ?
-GROUP BY c.hours ORDER BY c.hours
-"""
-
-_CUSTOMER_DAYS_SQL = """
-SELECT count(DISTINCT (customer_id, event_date))
-FROM marts.fct_usage_daily
-WHERE event_date BETWEEN ? AND ?
-"""
-
-_CHURN_SQL = """
-SELECT count(*) FROM marts.dim_customer
-WHERE CAST(churned_at AS DATE) BETWEEN ? AND ?
-"""
-
 
 def load_market(con: duckdb.DuckDBPyConnection, as_of: date, v: Valuation) -> MarketSnapshot:
     cutoff = as_of - timedelta(days=1)
@@ -161,11 +111,6 @@ def load_market(con: duckdb.DuckDBPyConnection, as_of: date, v: Valuation) -> Ma
         None,
         None,
     )
-    exposed = {p: int(n) for p, n in con.execute(_EXPOSED_SQL, cw).fetchall()}
-    groups = con.execute(_CONTRIBUTION_SQL, cw + cw).fetchall()
-    contrib = sum(int(total) / int(hours) for hours, total in groups) if groups else None
-    customer_days = (con.execute(_CUSTOMER_DAYS_SQL, cw).fetchone() or (0,))[0]
-    churned = (con.execute(_CHURN_SQL, cw).fetchone() or (0,))[0]
     return MarketSnapshot(
         cutoff=cutoff,
         plan=load_price_plan(con, until=cutoff),
@@ -173,9 +118,4 @@ def load_market(con: duckdb.DuckDBPyConnection, as_of: date, v: Valuation) -> Ma
         utilization=util,
         served_share=served,
         payment_loss_rate=None if not invoiced else float(lost or 0.0) / float(invoiced),
-        exposed_customers=exposed,
-        daily_contribution_per_customer=None
-        if not customer_days or contrib is None
-        else float(contrib) / customer_days,
-        daily_churn_hazard=None if not customer_days else float(churned) / customer_days,
     )

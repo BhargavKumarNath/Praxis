@@ -1,4 +1,4 @@
-"""CLI: ``python -m praxis.science {elasticity|pricing-shadow|recovery}``.
+"""CLI: ``python -m praxis.science {elasticity|pricing-shadow|pricing-compare|recovery}``.
 
 * ``elasticity --analysis DIR --sim SIMDIR --scenario TOML``: joins the elasticity analysis
   (``DIR/report.json``, ``DIR/units.json``) with the simulator's ground truth
@@ -8,6 +8,8 @@
   optimiser in shadow mode on the pricing world and scores every decision against simulator
   truth (``configs/pricing/shadow_acceptance.toml``). Writes ``DIR/shadow.json`` and
   ``DIR/decisions.jsonl``.
+* ``pricing-compare --before A --after B --out FILE``: the same world decided by two methods
+  (Phase 9 controlled example: the Phase 6 seed-42 decisions vs the Phase 9 method).
 * ``recovery --db WAREHOUSE --sim SIMDIR --scenario TOML --models ROOT --out DIR``: evaluates the
   recovery artifact and the dunning policy against the simulator's latent cure times
   (``configs/recovery/acceptance.toml``). Writes ``DIR/evaluation.json``.
@@ -22,6 +24,7 @@ import json
 import sys
 from pathlib import Path
 
+from praxis.customer.config import load_config as load_customer_config
 from praxis.elasticity.config import load_registry
 from praxis.pricing.config import load_policy
 from praxis.recovery.config import load_policy as load_recovery_policy
@@ -46,10 +49,23 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--forecast-models", type=Path, required=True, help="demand artifact root")
     s.add_argument("--elasticity-model", type=Path, required=True)
     s.add_argument("--elasticity-report", type=Path, required=True)
+    s.add_argument("--churn-response", type=Path, required=True, help="churn_response.json")
+    s.add_argument("--customer-models", type=Path, required=True, help="customer artifact root")
+    s.add_argument("--customer-config", type=Path, default=None)
     s.add_argument("--registry", type=Path, default=None)
     s.add_argument("--policy", type=Path, default=None)
     s.add_argument("--acceptance", type=Path, default=None)
+    s.add_argument(
+        "--churn-archive",
+        type=Path,
+        default=None,
+        help="development leave-one-out MAP archive (never for a held-out evaluation)",
+    )
     s.add_argument("--out", type=Path, required=True)
+    c = sub.add_parser("pricing-compare", help="two shadow reports of one world, side by side")
+    c.add_argument("--before", type=Path, required=True, help="earlier method's shadow.json")
+    c.add_argument("--after", type=Path, required=True, help="later method's shadow.json")
+    c.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("recovery", help="recovery models + dunning policy vs truth")
     r.add_argument("--db", type=Path, required=True, help="warehouse of the recovery world")
     r.add_argument("--sim", type=Path, required=True, help="simulator output dir of that world")
@@ -133,6 +149,10 @@ def pricing_shadow_main(args: argparse.Namespace) -> int:
         elasticity_report=args.elasticity_report,
         registry=load_registry(args.registry),
         policy=load_policy(args.policy),
+        churn_response=args.churn_response,
+        customer_models=args.customer_models,
+        customer_config=load_customer_config(args.customer_config),
+        churn_archive=args.churn_archive,
     )
     cfg = pricing_shadow.load_shadow_config(args.acceptance)
     try:
@@ -152,10 +172,27 @@ def pricing_shadow_main(args: argparse.Namespace) -> int:
     return 0 if report["passed"] else 1
 
 
+def pricing_compare_main(args: argparse.Namespace) -> int:
+    before, after = load_json(args.before), load_json(args.after)
+    if before.get("world_config_hash") != after.get("world_config_hash") or before.get(
+        "seed"
+    ) != after.get("seed"):
+        sys.stderr.write("refused: the two reports are not of the same world\n")
+        return 1
+    out = pricing_shadow.compare_reports(before, after)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(out, indent=2, sort_keys=True) + "\n")
+    keys = ("before_changes", "before_losing_changes", "losing_altered", "after_true_delta_per_day")
+    sys.stdout.write(json.dumps({k: out[k] for k in keys}) + "\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "pricing-shadow":
         return pricing_shadow_main(args)
+    if args.command == "pricing-compare":
+        return pricing_compare_main(args)
     if args.command == "recovery":
         return recovery_main(args)
     manifest = load_json(args.sim / "manifest.json")
