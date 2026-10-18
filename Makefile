@@ -5,7 +5,8 @@
 	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
 	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
 	stripe-verify recovery-data recovery-train recovery-evaluate \
-	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive
+	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive \
+	mlops-data mlops-drill
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -450,3 +451,34 @@ nightly-security: audit
 stripe-verify: pg-up
 	PRAXIS_STRIPE_LIVE=1 STRIPE_CLI_IMAGE=$(STRIPE_CLI_IMAGE) .venv/bin/pytest tests/payments/test_stripe_sandbox.py \
 		-m stripe_live -v -p no:cacheprovider --no-cov
+
+# --- Phase 10 MLOps lifecycle (local Postgres + DuckDB + MLflow on SQLite; no cloud) --------
+# Pre-registered drill (configs/mlops/lifecycle_acceptance.toml): a steady world (the pricing
+# shadow scenario) and a drift world (configs/simulator/scenarios/mlops_drift.toml) of one
+# seed. ML_SEED=1 = development; ML_SEED=601 = evaluation (build and run ONCE).
+ML_SEED ?= 1
+ML_CUSTOMERS ?= 1000
+ML_DIR ?= data/mlops/seed$(ML_SEED)-c$(ML_CUSTOMERS)
+
+define ml_world  # $(1) = world name, $(2) = scenario
+	rm -f $(ML_DIR)/$(1)/warehouse.duckdb
+	.venv/bin/python -m praxis.simulator --scenario $(2) --customers $(ML_CUSTOMERS) \
+		--seed $(ML_SEED) --validate --out $(ML_DIR)/$(1)/sim >/dev/null
+	.venv/bin/python -m praxis.data --db $(ML_DIR)/$(1)/warehouse.duckdb --raw $(ML_DIR)/$(1)/raw \
+		load-sim --dir $(ML_DIR)/$(1)/sim
+	DBT_TARGET_PATH=$(CURDIR)/$(ML_DIR)/$(1)/dbt/target DBT_LOG_PATH=$(CURDIR)/$(ML_DIR)/$(1)/dbt/logs \
+		PRAXIS_DUCKDB_PATH=$(ML_DIR)/$(1)/warehouse.duckdb .venv/bin/dbt run --project-dir dbt \
+		--profiles-dir dbt --quiet
+endef
+
+# simulate -> raw load -> dbt marts for both drill worlds (offline)
+mlops-data:
+	$(call ml_world,steady,configs/simulator/scenarios/pricing_shadow.toml)
+	$(call ml_world,drift,configs/simulator/scenarios/mlops_drift.toml)
+
+# the real lifecycle, day by day, on fresh throwaway registry databases (local Postgres)
+mlops-drill: pg-up
+	MLFLOW_DISABLE_AGENT_HINT=1 PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.mlops \
+		--database-url $(PRAXIS_TEST_DATABASE_URL) drill --seed $(ML_SEED) \
+		--steady $(ML_DIR)/steady/warehouse.duckdb --drift $(ML_DIR)/drift/warehouse.duckdb \
+		--out $(ML_DIR)/drill > $(ML_DIR)/drill.log

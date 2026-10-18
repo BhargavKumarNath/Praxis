@@ -11,12 +11,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from praxis import __version__
-from praxis.api.forecast import build_forecast_service, forecast_router
+from praxis.api.forecast import ForecastProvider, build_forecast_service, forecast_router
 from praxis.api.tasks import RetryHandler, tasks_router
 from praxis.api.webhooks import webhook_router
 from praxis.config import Settings, get_settings
 from praxis.control.db import make_engine
-from praxis.forecasting.service import ForecastService
 from praxis.logging import configure_logging
 from praxis.payments.store import PostgresInbox
 from praxis.payments.webhook import WebhookReceiver
@@ -66,7 +65,7 @@ def build_retry_handler(settings: Settings) -> RetryHandler | None:
 
 def create_app(
     settings: Settings | None = None,
-    forecast_service: ForecastService | None = None,
+    forecast_service: ForecastProvider | None = None,
     webhook_receiver: WebhookReceiver | None = None,
     retry_handler: RetryHandler | None = None,
 ) -> FastAPI:

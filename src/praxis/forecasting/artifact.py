@@ -77,6 +77,22 @@ def train_artifact(
     now: datetime | None = None,
 ) -> tuple[dict[str, Any], dict[str, str]]:
     """Fit on every row whose target is observed. Returns (manifest, model files)."""
+    manifest, files, _ = train_artifact_with_model(
+        panel, plan, cfg, code_revision=code_revision, backtest=backtest, now=now
+    )
+    return manifest, files
+
+
+def train_artifact_with_model(
+    panel: DemandPanel,
+    plan: PricePlan,
+    cfg: ForecastConfig,
+    *,
+    code_revision: str,
+    backtest: dict[str, Any] | None = None,
+    now: datetime | None = None,
+) -> tuple[dict[str, Any], dict[str, str], HybridForecaster]:
+    """``train_artifact`` plus the in-memory model (training / serving parity checks)."""
     ds = make_dataset(panel, plan, cfg)
     rows = np.flatnonzero(~np.isnan(ds.target))
     frame = ds.frame.take(rows)
@@ -130,7 +146,7 @@ def train_artifact(
     checksum = _content_checksum(manifest)
     manifest["artifact_checksum"] = checksum
     manifest["model_version"] = f"demand-hybrid-{checksum[:12]}"
-    return manifest, files
+    return manifest, files, model
 
 
 def _backtest_summary(report: dict[str, Any] | None) -> dict[str, Any] | None:

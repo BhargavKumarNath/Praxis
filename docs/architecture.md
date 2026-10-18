@@ -63,7 +63,9 @@ src/praxis/        Python package: api, config, logging, tracing, events (envelo
                    streaming (Phase 3 transport, producer, consumers), control (Postgres + Alembic),
                    forecasting (Phase 4), elasticity (Phase 5), pricing (Phase 6 optimiser, audit
                    store), payments (Phase 7 PaymentGateway: Stripe Sandbox + synthetic, webhook
-                   inbox, processor), science (the only package joining model output with ground truth)
+                   inbox, processor), recovery + dunning (Phase 8), customer + glm (Phase 9),
+                   mlops (Phase 10 registry, validation gate, drift, shadow, probation, serving
+                   router), science (the only package joining model output with ground truth)
 tests/             unit, contract, simulator, data, streaming, control, integration (emulator),
                    payments (contract suite on both gateways; live Stripe only via stripe-verify)
 schemas/events/    Versioned JSON Schemas: envelope and per-event payloads (payloads/)
@@ -81,7 +83,10 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
 * All payment operations go through `PaymentGateway` (ADR 0003). Stripe webhooks are only
   verified and stored in the request; state is re-fetched asynchronously and turned into the
   same internal events the synthetic provider produces (ADR 0014, `docs/payments.md`).
-* Retraining never implies promotion (ADR 0005).
+* Retraining never implies promotion (ADR 0005). The control-plane registry, not an
+  environment variable or an MLflow alias, decides which model version serves; promotion
+  needs a named approver and a passing shadow; the only automatic champion change is a
+  probation rollback that restores the previous version (ADR 0017, `docs/mlops.md`).
 * Large-scale tests use the synthetic gateway only (ADR 0006).
 * Consumers are idempotent and order-independent; state changes only via transition tables,
   enforced again in Postgres (ADR 0009, `docs/event-backbone.md`).

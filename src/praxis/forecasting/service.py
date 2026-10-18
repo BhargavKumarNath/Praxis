@@ -184,11 +184,15 @@ class ForecastService:
         series: Sequence[SeriesKey] | None = None,
         horizons: Sequence[int] | None = None,
         planned_prices: Mapping[str, int] | None = None,
+        *,
+        snapshot: Snapshot | None = None,
     ) -> ForecastResult:
+        """Forecast from the latest snapshot, or from ``snapshot`` (shadow scoring: two
+        versions answering one request see exactly the same observations)."""
         started = time.perf_counter()
         labels: dict[str, Any] = {"model_version": self.model_version}
         try:
-            result = self._forecast(series, horizons, planned_prices or {})
+            result = self._forecast(series, horizons, planned_prices or {}, snapshot)
         except ForecastRequestError as exc:
             self._finish("rejected_request", started, labels | {"reason": exc.code})
             raise
@@ -254,21 +258,27 @@ class ForecastService:
                 )
         return snap.plan.with_planned(planned, snap.feature_date + timedelta(days=1))
 
+    def fetch_snapshot(self) -> Snapshot:
+        """The latest complete feature snapshot as of the service clock."""
+        try:
+            snap = self.source.snapshot(self.artifact.series, not_after=self.clock().date())
+        except WarehouseUnavailable as exc:
+            raise ForecastUnavailable("warehouse_unavailable", str(exc)) from exc
+        if snap is None:
+            raise ForecastUnavailable("features_unavailable", "no complete feature day")
+        return snap
+
     def _forecast(
         self,
         series: Sequence[SeriesKey] | None,
         horizons: Sequence[int] | None,
         planned: Mapping[str, int],
+        snapshot: Snapshot | None,
     ) -> ForecastResult:
         chosen, chosen_h = self._validate(series, horizons)
         now = self.clock()
         today = now.date()
-        try:
-            snap = self.source.snapshot(self.artifact.series, not_after=today)
-        except WarehouseUnavailable as exc:
-            raise ForecastUnavailable("warehouse_unavailable", str(exc)) from exc
-        if snap is None:
-            raise ForecastUnavailable("features_unavailable", "no complete feature day")
+        snap = snapshot if snapshot is not None else self.fetch_snapshot()
         lag = (today - snap.feature_date).days
         if lag > self._serving.stale_max_lag_days:
             raise ForecastUnavailable(

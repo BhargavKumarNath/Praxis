@@ -1,0 +1,53 @@
+# Phase 10 lifecycle drill: pre-registered acceptance (ADR 0017). SYNTHETIC worlds.
+#
+# PRE-REGISTERED 2026-10-11, before either world below was built for any seed and before
+# any monitor, shadow or rollback ran on a simulator world. tests/mlops/test_config.py pins
+# this hash. The lifecycle policy itself is configs/mlops/demand.toml (pinned too).
+#
+# The drill runs the REAL subsystem (Postgres registry, validation gate, daily monitor,
+# retraining, shadow, probation) one data day at a time over the eight weeks after the
+# champion's training window, on two worlds of the same seed:
+#
+#   steady = configs/simulator/scenarios/pricing_shadow.toml (no change after day 195)
+#   drift  = configs/simulator/scenarios/mlops_drift.toml   (eu_west ramp from day 203,
+#            us_east api_requests x0.5 from day 210)
+#
+# Champion: the Phase 4 recipe (configs/forecast/demand.toml, unchanged) trained on days
+# 0..195 of the world, registered, validated and approved by a named operator (bootstrap).
+# Retraining uses the same recipe. Promotion to champion always needs a named approver: in
+# the drill the approver is the drill operator, acting only after the registry reports the
+# version ready (shadow passed against the current champion); that is recorded as such.
+
+[worlds]
+development_seed = 1      # method work happens here
+evaluation_seed = 601     # fresh; built once through every gate and run ONCE after dev
+customers = 1000
+champion_training_end_day = 195
+first_as_of_day = 196     # first day the champion serves (data through day 195)
+last_as_of_day = 252      # data through day 251 (the worlds have 252 days)
+drift_onset_day = 203
+
+[checks]
+# Gate "bad candidate is automatically rejected"
+bad_candidate_rejected = true          # misconfigured recipe (ridge alpha 1e9, one tree)
+# Gate "good candidate can progress through configured stages"
+champion_validation_passes = true      # the Phase 4 recipe passes every offline check
+steady_candidate_reaches_ready = true  # steady world: a retrained candidate passes validation,
+                                       # enters shadow automatically and passes shadow
+steady_candidate_promoted_by_approver = true
+# Gate "drift alert can create retraining request"
+drift_detected_within_days = 14        # residual or segment drift by onset + 14 days
+drift_opens_retraining_request = true
+# Decision-signal false alarms on the steady world (residual, segment, calibration).
+# Feature / prediction PSI are investigation signals: reported, not gated (ADR 0017).
+steady_max_decision_alarm_days = 0
+# Gate "production does not blindly promote a replacement"
+no_champion_change_without_approver = true   # every move INTO champion has a named actor
+                                             # (approver, drill operator) or is a rollback
+# Gate "rollback restores previous known-good version" (steady world, development env)
+rollback_drill = true      # force-promote the bad candidate; probation must roll it back
+                           # within [probation].days; the router must serve the previous
+                           # version afterwards; the audit must hold the rollback decision
+# Gate "registry records complete lineage" and "production service exposes model version"
+lineage_complete_for_every_version = true
+served_version_equals_registry_champion = true

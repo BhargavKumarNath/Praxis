@@ -1,0 +1,108 @@
+# Model lifecycle policy for the demand forecaster (Phase 10, ADR 0017). SYNTHETIC world.
+#
+# PRE-REGISTERED 2026-10-11, before any validation, shadow, monitoring or rollback run on any
+# world. tests/mlops/test_config.py pins this file's hash: changing a threshold after seeing a
+# result needs an ADR and the owner's approval (CLAUDE.md s16).
+
+model_name = "demand_forecaster"
+
+[lifecycle]
+# Stages a candidate passes on its way to champion. Canary is NOT used (and the loader
+# refuses it until a canary evaluation exists): forecasts feed the weekly pricing cycle as
+# one batch, so serving two versions to a share of requests would mix versions inside one
+# optimisation without a per-decision outcome to compare. Shadow already scores the
+# challenger on exactly the observations the champion sees.
+stages = ["challenger", "shadow", "champion"]
+# Automation may move a validated candidate up to this stage and no further (ADR 0005):
+# retraining is automatic, promotion to champion is not.
+auto_advance_to = "shadow"
+champion_requires_approval = true
+# promote.forced (development drills only, e.g. a deliberately bad champion to prove rollback)
+forced_promotion_environments = ["local", "dev"]
+
+[validation]
+# Offline gate a candidate must pass to become challenger. The Phase 4 rolling-origin
+# backtest acceptance (configs/forecast/demand.toml, incl. baselines, slices and coverage)
+# is required on the candidate's own training panel.
+require_backtest_acceptance = true
+require_clean_code_revision = false   # true in production; dev worlds run on dirty trees
+min_training_days = 112
+min_training_rows = 2000              # sanity floor: catches empty or truncated pulls
+latency_repeats = 15                  # full-catalogue predictions timed per candidate
+latency_budget_ms_p95 = 500.0         # = forecast serving budget
+memory_budget_mb = 256.0              # Python heap peak while loading + predicting
+max_artifact_mb = 50.0
+leakage_poison_factor = 10.0          # future rows x10 must not change any prediction
+# AMENDMENT 2026-10-17 (ADR 0017; owner-approved after the development world, seed 1, let
+# the pre-registered misconfigured recipe through: the gate had only absolute acceptance).
+# Skill = backtest vWAPE / seasonal-naive vWAPE on the version's own rolling-origin
+# backtest. A candidate's skill may be at most this x the champion's. The margin is reused
+# from [shadow] max_vwape_ratio_vs_champion; it was not chosen from any result.
+max_skill_ratio_vs_champion = 1.02
+
+[shadow]
+# Challenger vs champion on the SAME observations (same snapshots, same matured actuals).
+# A retrained model is expected to be about as good, so non-inferiority margins, not "must
+# win": a 2% worse overall error or a 10% worse slice is a rejection.
+min_origins = 14
+max_vwape_ratio_vs_champion = 1.02
+max_pinball_ratio_vs_champion = 1.02
+max_slice_vwape_ratio_vs_champion = 1.10
+min_slice_rows = 300
+coverage_80 = [0.70, 0.90]
+coverage_50 = [0.40, 0.60]
+
+[monitoring]
+# Daily drift check of the champion over the trailing window of MATURED forecasts (target
+# date with complete actuals), re-scored point in time from the warehouse.
+window_days = 14
+min_rows = 1000
+# residual drift: window vWAPE / the champion's own backtest vWAPE (pooled and per slice)
+max_vwape_ratio_vs_reference = 1.30
+max_slice_vwape_ratio_vs_reference = 1.50
+min_slice_rows = 300
+# calibration drift: empirical coverage of the 80% interval outside this band
+coverage_80 = [0.65, 0.95]
+# feature / prediction drift: population stability index vs the last reference_days of the
+# training window (decile bins fixed at registration). Fires only above psi_alert AND above
+# the no-change sampling bound chi2_{1-psi_alpha}(bins-1) * (1/n_ref + 1/n_cur) on effective
+# sample sizes (distinct values; a region's context value repeats for each of its series).
+# AMENDED 2026-10-11 before any simulator world was run (ADR 0017): the first version had no
+# noise bound and monitored log_scale. A 12-series test fixture fired feature drift on a
+# world with no drift at all: PSI on ~40-80 distinct region-days is mostly sampling noise,
+# and log_scale is a slowly moving per-series level (an identifier of the series, not an
+# input distribution). Threshold 0.25 unchanged.
+psi_alert = 0.25
+psi_alpha = 0.001
+psi_bins = 10
+reference_days = 28
+features = [
+    "lag_dow_1", "mean_7", "ewm_7", "std_28", "served_ratio_7", "active_ratio",
+    "ctx_avg_utilization", "ctx_avg_error_rate", "ctx_avg_latency_p95_ms",
+]
+
+[retraining]
+# Triggers besides drift (each creates at most one live request per model).
+scheduled_every_days = 28   # data age: days since the champion's last training target
+min_new_labels = 1512       # matured (series, day) targets since then (= 21 days x 72 series)
+# No request within cooldown_days of the previous one (a rejected candidate is not retried
+# every day). Investigation-only triggers (schedule, new labels, feature / prediction PSI)
+# also wait while a retrained version is still being evaluated (candidate, challenger,
+# shadow); decision signals (residual, segment, calibration drift) do not, because that
+# version may predate the change. AMENDED 2026-10-11 before any simulator world was run
+# (ADR 0017): the first version re-requested daily while drift persisted (test fixture).
+cooldown_days = 7
+
+[probation]
+# After a promotion the previous champion keeps being scored on the same matured
+# observations; a clearly worse new champion is rolled back automatically (a safety action:
+# it restores the last known-good version, it never promotes anything new).
+# Evidence unit = fully matured forecast origins (as in shadow), not rows. AMENDED 2026-10-11
+# before any simulator world was run (ADR 0017): the first version decided on min_rows =
+# 1000, i.e. one or two correlated days with 72 series, and rolled back a good champion on
+# the test fixture. 7 origins (vs 14 for shadow: rollback should react faster, with a wider
+# 5% margin); days 14 -> 21 so that 7 origins can mature inside the window.
+days = 21
+min_origins = 7
+max_vwape_ratio_vs_previous = 1.05
+auto_rollback = true

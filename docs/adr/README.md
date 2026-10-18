@@ -18,5 +18,6 @@
 | [0014](0014-stripe-webhooks-inbox-and-state-refetch.md) | Stripe integration: signed webhook inbox, state re-fetch, shared event contracts |
 | [0015](0015-dunning-states-recovery-models-and-retry-scheduling.md) | Dunning states, recovery models and scheduled retries |
 | [0016](0016-customer-value-and-long-horizon-guardrails.md) | Customer value, churn hazard and long-horizon pricing guardrails |
+| [0017](0017-model-registry-continuous-training-and-safe-promotion.md) | Model registry (control plane, MLflow mirror), continuous training, drift and safe promotion |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

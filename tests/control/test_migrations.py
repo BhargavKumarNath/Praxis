@@ -11,6 +11,13 @@ from sqlalchemy import Engine, create_engine, exc, inspect, text
 
 from praxis.control.db import MIGRATIONS_DIR, alembic_config, migrate
 from praxis.domain.dunning import DUNNING_TRANSITIONS, RETRY_JOB_TRANSITIONS
+from praxis.domain.model_lifecycle import (
+    MODEL_TRANSITIONS,
+    RETRAINING_TRANSITIONS,
+    ModelStage,
+    RetrainingStatus,
+    direct_moves,
+)
 from praxis.domain.states import (
     CUSTOMER_TRANSITIONS,
     INVOICE_TRANSITIONS,
@@ -30,6 +37,11 @@ TABLES = {
     "dunning_cases",
     "dunning_decisions",
     "retry_jobs",
+    "model_versions",
+    "model_stage_events",
+    "model_validation_reports",
+    "model_monitoring_reports",
+    "retraining_requests",
 }
 
 
@@ -48,7 +60,7 @@ def test_upgrade_creates_schema_and_is_rerunnable(empty_pg_url: str) -> None:
     engine = create_engine(empty_pg_url)
     assert set(inspect(engine).get_table_names()) >= TABLES
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0005"
     engine.dispose()
 
 
@@ -76,6 +88,18 @@ def test_allowed_moves_equal_the_python_transition_closure() -> None:
     seeded = {**_migration().ALLOWED_MOVES, **_migration("0004_dunning").ALLOWED_MOVES}
     expected["dunning"] = DUNNING_TRANSITIONS.reachable_pairs()
     expected["retry_job"] = RETRY_JOB_TRANSITIONS.reachable_pairs()
+    assert set(seeded) == set(expected)
+    for machine, pairs in expected.items():
+        assert set(seeded[machine]) == {(a.value, b.value) for a, b in pairs}, machine
+
+
+def test_model_registry_moves_equal_the_direct_lifecycle_edges() -> None:
+    """Model versions move one audited step at a time: direct edges, not the closure."""
+    seeded = _migration("0005_model_registry").ALLOWED_MOVES
+    expected = {
+        "model": direct_moves(MODEL_TRANSITIONS, ModelStage),
+        "retraining": direct_moves(RETRAINING_TRANSITIONS, RetrainingStatus),
+    }
     assert set(seeded) == set(expected)
     for machine, pairs in expected.items():
         assert set(seeded[machine]) == {(a.value, b.value) for a, b in pairs}, machine

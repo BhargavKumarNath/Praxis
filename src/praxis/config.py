@@ -78,6 +78,14 @@ class Settings(BaseSettings):
     forecast_model_dir: Path | None = None
     warehouse_path: Path = Path("data/warehouse/praxis.duckdb")
 
+    # MLOps (Phase 10, ADR 0017). With forecast_from_registry the API serves the registry's
+    # champion (control-plane database) instead of forecast_model_dir, re-reading the
+    # champion pointer at most every model_refresh_interval_s. MLflow mirrors the registry
+    # when mlflow_tracking_uri is set (local SQLite by default in make targets).
+    forecast_from_registry: bool = False
+    model_refresh_interval_s: float = Field(default=30.0, ge=1.0, le=3600.0)
+    mlflow_tracking_uri: str | None = None
+
     @model_validator(mode="after")
     def _require_cloud_identity_outside_local(self) -> Self:
         if self.environment is not Environment.LOCAL and not self.gcp_project_id:

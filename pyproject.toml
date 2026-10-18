@@ -19,6 +19,7 @@ dependencies = [
     "pymc>=6.3.2",
     "scipy>=1.18.1",
     "httpx>=0.27",
+    "mlflow-skinny>=3.16.1,<3.17",
 ]
 
 [dependency-groups]
@@ -117,7 +118,7 @@ type = "layers"
 layers = [
     "praxis.api | praxis.science",
     "praxis.dunning",
-    "praxis.pricing | praxis.payments",
+    "praxis.pricing | praxis.payments | praxis.mlops",
     "praxis.streaming | praxis.forecasting | praxis.elasticity | praxis.recovery | praxis.customer",
     "praxis.control | praxis.data | praxis.simulator",
     "praxis.events",
@@ -130,7 +131,7 @@ name = "Models never import the simulator (ground truth stays out of reach)"
 type = "forbidden"
 source_modules = [
     "praxis.forecasting", "praxis.elasticity", "praxis.pricing", "praxis.recovery",
-    "praxis.dunning", "praxis.customer",
+    "praxis.dunning", "praxis.customer", "praxis.mlops",
 ]
 # praxis.science is the only place that joins model output with ground truth (ADR 0012).
 forbidden_modules = ["praxis.simulator", "praxis.science"]
@@ -150,7 +151,7 @@ source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
     "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
     "praxis.pricing", "praxis.payments", "praxis.recovery", "praxis.dunning", "praxis.customer",
-    "praxis.glm",
+    "praxis.glm", "praxis.mlops",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
 
@@ -190,6 +191,8 @@ forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "pr
 "src/praxis/recovery/*" = 95               # recovery models, planner, fallback policy
 "src/praxis/customer/__main__.py" = 85     # CLI wiring; the models and values it calls are >= 95
 "src/praxis/customer/*" = 95               # churn hazard, CLV, segment value, guardrail inputs
+"src/praxis/mlops/__main__.py" = 85       # CLI wiring; registry, gates and rollback are >= 95
+"src/praxis/mlops/*" = 95                  # promotion / rollback, validation gate (s5, Phase 10)
 "src/praxis/glm.py" = 95                   # shared Poisson solver (hazard + churn response)
 "src/praxis/api/*" = 95
 "src/praxis/*" = 85

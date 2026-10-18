@@ -439,6 +439,21 @@ wheels = [
 ]
 
 [[package]]
+name = "databricks-sdk"
+version = "0.151.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-auth" },
+    { name = "protobuf" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f0/c9/01ff4721e7d56c546309b92789161054439f890c13af4c32a7b1c33080ea/databricks_sdk-0.151.0.tar.gz", hash = "sha256:fadd9da86d5e4ba991f7507a90dc099ee4ca10dad2b36b594654dacdb2b34b63", size = 1143960, upload-time = "2026-10-10T04:35:58.949Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6b/6f/c06a4d71bc64464ea39aced92183cac4b6083d1ebfbec625b7c1ac627656/databricks_sdk-0.151.0-py3-none-any.whl", hash = "sha256:61a3d339eb56c95c64945a3feab2c8c910f5ed212ed04bf7f866c37dae9bd2d0", size = 1088273, upload-time = "2026-10-10T04:35:56.896Z" },
+]
+
+[[package]]
 name = "db-dtypes"
 version = "1.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -705,6 +720,30 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/70/51/2bc9e529f154fad99b6cd0073e609291eb32fd23581b32362d33d164d316/filelock-4.0.9.tar.gz", hash = "sha256:635e7d67fa92654eed444e75e9ca18426d34e77ad9c469bf4373f75a932f7b22", size = 251200, upload-time = "2026-10-01T23:09:14.029Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/01/4f/83454fafd628e1e7e1726d74e44fb2332be5969d04c6182ca1fecb6c580e/filelock-4.0.9-py3-none-any.whl", hash = "sha256:9287fd61b99a806e5202be29a83034c0808a1b9830e820537c2f5773981f7eeb", size = 110368, upload-time = "2026-10-01T23:09:12.391Z" },
+]
+
+[[package]]
+name = "gitdb"
+version = "4.0.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "smmap" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/94/63b0fc47eb32792c7ba1fe1b694daec9a63620db1e313033d18140c2320a/gitdb-4.0.12.tar.gz", hash = "sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571", size = 394684, upload-time = "2025-01-02T07:20:46.413Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/61/5c78b91c3143ed5c14207f463aecfc8f9dbb5092fb2869baf37c273b2705/gitdb-4.0.12-py3-none-any.whl", hash = "sha256:67073e15955400952c6565cc3e707c554a4eea2e428946f7a4c162fab9bd9bcf", size = 62794, upload-time = "2025-01-02T07:20:43.624Z" },
+]
+
+[[package]]
+name = "gitpython"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gitdb" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6e/2d/6f6e649818da44d4499604802c89329b8d9799687a124e3a5e467a643336/gitpython-3.2.0.tar.gz", hash = "sha256:fb92310af6844d96adc95ca066ed2e617c00e1dbd146a326626c81e72e18cc2e", size = 238091, upload-time = "2026-09-30T09:10:32.65Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/48/f36d233ce749d1bb880cb5e6f8bb171dc2effabc7435c31da604d831b3ec/gitpython-3.2.0-py3-none-any.whl", hash = "sha256:bd70c5ec05cd2b797423e7eb312147d2458d3cca92085888fba2213f85905537", size = 228537, upload-time = "2026-09-30T09:10:31.159Z" },
 ]
 
 [[package]]
@@ -1423,6 +1462,38 @@ wheels = [
 ]
 
 [[package]]
+name = "mlflow-skinny"
+version = "3.16.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "cachetools" },
+    { name = "click" },
+    { name = "cloudpickle" },
+    { name = "databricks-sdk" },
+    { name = "fastapi" },
+    { name = "gitpython" },
+    { name = "importlib-metadata" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-proto" },
+    { name = "opentelemetry-sdk" },
+    { name = "packaging" },
+    { name = "protobuf" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "sqlparse" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f6/21/5b8e556d3fc3030affe5d6b3ecf58d9dcc972c644ebf941d77bf8b4a5769/mlflow_skinny-3.16.1.tar.gz", hash = "sha256:7298b47942b1b0e826e02191653b8c203c3bb242fb699f8beec98e928dbec115", size = 3193879, upload-time = "2026-09-16T22:08:20.298Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/f1/89f8a4386ddde208806b57f6dc8e89138e0b92ae667c0dfc5fc2d8a4d418/mlflow_skinny-3.16.1-py3-none-any.whl", hash = "sha256:41ec1697710b91d001f8951bdc2d00391a277065ed82268c81706238fa2b918e", size = 3797284, upload-time = "2026-09-16T22:08:18.176Z" },
+]
+
+[[package]]
 name = "more-itertools"
 version = "10.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1577,6 +1648,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1f/dc/e12c1fe1ed8a7b7149777127b1a0e12ce5bd5a81d97408bedc2128c260f5/opentelemetry_api-1.45.0.tar.gz", hash = "sha256:711ede81773c8025c2c03dac0450bc89f3d30aea6eabcc815c570d4e35a963f7", size = 72115, upload-time = "2026-09-25T12:32:28.399Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/44/b9/040d1a1c7836922828e6480cd2366bb8fe0ebf75b413d2bb51a9b0e7f78f/opentelemetry_api-1.45.0-py3-none-any.whl", hash = "sha256:80e068aba7cd56c8b58512d6a36f8d25cb1dfaa0c0a4cc1c938ccf9f362d9cb3", size = 60020, upload-time = "2026-09-25T12:32:03.192Z" },
+]
+
+[[package]]
+name = "opentelemetry-proto"
+version = "1.45.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4b/7f/15f014fb195da6c2dbb6c71399b8e76824878718e94de6454038488eed28/opentelemetry_proto-1.45.1.tar.gz", hash = "sha256:79e0fb95e4616691a469439238aa9224d75779b3e108e895d1aa125ab29ca77c", size = 46488, upload-time = "2026-10-06T17:33:11.49Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ab/9a/42ec8180a769516ae757e893b69736826efceac7332553915b4528a91c6d/opentelemetry_proto-1.45.1-py3-none-any.whl", hash = "sha256:f38e2a8413053c180cd3d2637fbb279673ec2f6a6e09c995aafa2f452c52b46e", size = 72488, upload-time = "2026-10-06T17:32:53.057Z" },
 ]
 
 [[package]]
@@ -1780,6 +1863,7 @@ dependencies = [
     { name = "google-cloud-pubsub" },
     { name = "httpx" },
     { name = "lightgbm" },
+    { name = "mlflow-skinny" },
     { name = "numpy" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -1816,6 +1900,7 @@ requires-dist = [
     { name = "google-cloud-pubsub", specifier = ">=2.25" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "lightgbm", specifier = ">=4.7.0" },
+    { name = "mlflow-skinny", specifier = ">=3.16.1,<3.17" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.8" },
@@ -2415,6 +2500,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
+]
+
+[[package]]
+name = "smmap"
+version = "5.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/ea/49c993d6dfdd7338c9b1000a0f36817ed7ec84577ae2e52f890d1a4ff909/smmap-5.0.3.tar.gz", hash = "sha256:4d9debb8b99007ae47165abc08670bd74cb74b5227dda7f643eccc4e9eb5642c", size = 22506, upload-time = "2026-03-09T03:43:26.1Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/d4/59e74daffcb57a07668852eeeb6035af9f32cbfd7a1d2511f17d2fe6a738/smmap-5.0.3-py3-none-any.whl", hash = "sha256:c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f", size = 24390, upload-time = "2026-03-09T03:43:24.361Z" },
 ]
 
 [[package]]

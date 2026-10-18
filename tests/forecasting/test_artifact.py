@@ -16,8 +16,10 @@ from praxis.forecasting.artifact import (
     load_artifact,
     save_artifact,
     train_artifact,
+    train_artifact_with_model,
 )
-from praxis.forecasting.features import FEATURE_VERSION, build_features
+from praxis.forecasting.features import CATEGORICAL, FEATURE_VERSION, build_features, build_frame
+from praxis.forecasting.models import RidgeBaseline
 from tests.forecasting.conftest import N_DAYS
 from tests.forecasting.helpers import make_panel, make_plan, small_config
 
@@ -77,6 +79,30 @@ def test_saved_model_predicts_exactly_like_the_trained_one(artifact_dir: Path) -
     frame = build_features(panel, N_DAYS - 1, (1, 7), make_plan(), loaded.catalogue)
     assert np.isfinite(loaded.model.predict(frame).quantiles).all()
     assert loaded.fallback.predict(frame).point.shape == (len(frame),)
+
+
+def test_loaded_artifact_predicts_like_the_in_memory_model(artifact: ForecastArtifact) -> None:
+    """Regression (2026-10-11): the ridge state is stored with sorted keys; loading rebuilt
+    the categorical one-hot blocks in JSON order, misaligning their coefficients. State
+    equality (dict ==, order-blind) did not catch it; predictions do."""
+    panel = make_panel(n_days=N_DAYS)
+    *_, model = train_artifact_with_model(
+        panel, make_plan(), small_config(), code_revision="test-rev"
+    )
+    frame = build_frame(
+        panel, range(N_DAYS - 15, N_DAYS - 1), (1, 4, 7), make_plan(), artifact.catalogue
+    )
+    trained, served = model.predict(frame), artifact.model.predict(frame)
+    assert np.array_equal(served.point, trained.point)
+    assert np.array_equal(served.quantiles, trained.quantiles)
+    assert list(artifact.model.ridge._cats) == list(CATEGORICAL)
+
+
+def test_ridge_state_with_unknown_categories_is_refused(artifact: ForecastArtifact) -> None:
+    state = artifact.model.ridge.state()
+    state["categories"]["colour"] = [0.0]
+    with pytest.raises(ValueError, match="categories"):
+        RidgeBaseline.from_state(artifact.model.ridge.residuals.levels, state)
 
 
 def _files(artifact: ForecastArtifact) -> dict[str, str]:

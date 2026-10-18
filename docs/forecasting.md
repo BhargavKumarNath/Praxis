@@ -96,6 +96,21 @@ current list price (the model has no evidence outside it). Each call is logged a
 `forecast.served` / `forecast.unavailable` / `forecast.rejected_request` with the model
 version and latency, and counted in `ForecastMetrics` (OpenTelemetry export is Phase 11).
 
+### Lifecycle (Phase 10)
+
+With `PRAXIS_FORECAST_FROM_REGISTRY=true` the API serves the control-plane registry's
+champion instead of `PRAXIS_FORECAST_MODEL_DIR`, and names the served version in every
+response (`X-Praxis-Model-Version`). Validation, shadow, drift monitoring, probation and
+rollback: `docs/mlops.md`, ADR 0017.
+
+**Fixed 2026-10-11 (found by Phase 10):** loading an artifact rebuilt the ridge's categorical
+one-hot blocks in the JSON key order of `ridge.json` (sorted) instead of the fit order, so
+every LOADED artifact applied its categorical coefficients to the wrong columns. Training, the
+backtest acceptance and the checksums were unaffected; the API and the Phase 6 / 9 pricing
+inputs (which load artifacts) were. Dev world seed 1, 8-week pricing window: vWAPE 0.1623
+(loaded, before) vs 0.1558 (after). A regression test now compares predictions, and the
+Phase 10 gate checks `serving_parity` for every candidate.
+
 ## Limitations
 
 * The forecaster's price features are predictive, not causal; elasticity is Phase 5.

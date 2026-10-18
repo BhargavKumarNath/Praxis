@@ -192,7 +192,13 @@ class RidgeBaseline:
         model._mu = np.asarray(state["mu"], dtype=np.float64)
         model._sd = np.asarray(state["sd"], dtype=np.float64)
         model._beta = np.asarray(state["beta"], dtype=np.float64)
-        model._cats = {c: np.asarray(v, dtype=np.float64) for c, v in state["categories"].items()}
+        # Rebuild the one-hot blocks in FIT order (CATEGORICAL), never in the JSON key order:
+        # the artifact stores this state with sort_keys=True, and a reordered block would
+        # misalign every categorical coefficient (fixed 2026-10-11, found by Phase 10).
+        cats = state["categories"]
+        if set(cats) != set(CATEGORICAL):
+            raise ValueError(f"ridge state categories {sorted(cats)} != {sorted(CATEGORICAL)}")
+        model._cats = {c: np.asarray(cats[c], dtype=np.float64) for c in CATEGORICAL}
         model.residuals = ResidualQuantiles.from_json(levels, state["residual_quantiles"])
         return model
 
