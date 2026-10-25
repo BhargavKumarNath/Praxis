@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from praxis.control.db import make_engine
+from praxis.control.metric_snapshots import MetricSnapshotStore
 from praxis.mlops.__main__ import main
 from praxis.mlops.training import Candidate
 from tests.mlops import helpers as h
@@ -121,6 +124,8 @@ def test_cli_lifecycle(
         world.date(143).isoformat(),
     )
     assert code == 0 and len(out["days"]) == 2
+    sources = MetricSnapshotStore(make_engine(pg_url)).read(datetime.now(UTC)).sources
+    assert [(x.component, x.stale) for x in sources] == [("mlops", False)]  # ADR 0020
     code, out = cli(
         capsys, base, "--actor", "oncall", "rollback", "--as-of", world.date(144).isoformat()
     )

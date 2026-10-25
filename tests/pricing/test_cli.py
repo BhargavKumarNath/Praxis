@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import runpy
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
 
+from praxis.control.metric_snapshots import BATCH_TTL, MetricSnapshotStore
 from praxis.pricing.__main__ import main
 from praxis.pricing.config import Mode
 from praxis.pricing.store import PostgresDecisionStore
@@ -50,6 +52,25 @@ def test_unusable_evidence_still_records_a_decision_per_product(tmp_path: Path) 
     assert {d["status"] for d in payload["decisions"]} == {"unavailable"}
     assert all(d["reason_codes"] == ["model_unavailable"] for d in payload["decisions"])
     assert all("EvidenceError" in r["errors"][0] for r in payload["records"])
+
+
+def test_a_cycle_with_a_database_publishes_its_metrics(tmp_path: Path, pg_url: str) -> None:
+    db = market_db.build(tmp_path / "wh.duckdb")
+    missing = [str(tmp_path / n) for n in ("f", "e", "r.json", "c.json", "m")]
+    code = main(
+        [
+            "decide", "--db", str(db), "--database-url", pg_url,
+            "--forecast-model", missing[0], "--elasticity-model", missing[1],
+            "--elasticity-report", missing[2], "--churn-response", missing[3],
+            "--customer-model", missing[4], "--as-of", "2026-07-20",
+            "--out", str(tmp_path / "cycle.json"),
+        ]
+    )  # fmt: skip
+    assert code == 0
+    fleet = MetricSnapshotStore(create_engine(pg_url)).read(datetime.now(UTC))
+    (src,) = fleet.sources
+    assert src.component == "pricing" and src.expires_at - src.published_at == BATCH_TTL
+    assert fleet.view.total("pricing_decisions_total") == 5
 
 
 def test_execute_and_approve_by_decision_id(

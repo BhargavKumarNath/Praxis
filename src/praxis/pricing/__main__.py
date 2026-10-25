@@ -19,6 +19,7 @@ from typing import Any
 
 from praxis.config import get_settings
 from praxis.control.db import make_engine
+from praxis.control.metric_snapshots import publish_batch
 from praxis.customer.artifact import load_artifact as load_customer_artifact
 from praxis.customer.config import load_config as load_customer_config
 from praxis.elasticity.config import load_registry
@@ -110,6 +111,8 @@ def cmd_decide(args: argparse.Namespace) -> int:
     }
     _write(args.out, payload)
     sys.stdout.write(json.dumps(result.summary()["decisions"]) + "\n")
+    if args.database_url is not None:
+        publish_batch(make_engine(args.database_url), "pricing")  # fleet metrics (ADR 0020)
     return 0 if result.audit_complete else 1
 
 

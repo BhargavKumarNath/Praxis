@@ -23,12 +23,14 @@ import sys
 import threading
 import time
 from collections.abc import Iterator
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 from praxis import __version__
 from praxis.config import get_settings
 from praxis.control.db import make_engine, migrate
+from praxis.control.metric_snapshots import MetricSnapshotStore, SnapshotPublisher, publish_batch
 from praxis.control.store import ControlPlaneStore, snapshot_checksum
 from praxis.data.warehouse import Warehouse
 from praxis.logging import configure_logging
@@ -43,7 +45,7 @@ from praxis.streaming.consumers.operational import OperationalConsumer
 from praxis.streaming.consumers.warehouse import WarehouseConsumer
 from praxis.streaming.faults import CrashPlan
 from praxis.streaming.memory import FaultPlan
-from praxis.streaming.metrics import StreamMetrics
+from praxis.streaming.metrics import StreamMetrics, record_backlog
 from praxis.streaming.pipeline import (
     ROLES,
     LocalPipeline,
@@ -139,6 +141,8 @@ def cmd_run_local(args: argparse.Namespace) -> int:
         published = pipeline.run(events_list, chunk=args.chunk)
         elapsed = time.perf_counter() - started
         before_redrive = store.dead_letter_breakdown()
+        backlog = pipeline.backlog()
+        record_backlog({pipeline.subscription(r): backlog[r] for r in backlog if r != DLQ_INSPECT})
         # Chaos harness only: exercise the operator redrive so recovery is measured too.
         redriven = redrive_dead_letters(store, pipeline.broker, pipeline.topology.events_topic)
         pipeline.drain()
@@ -172,6 +176,7 @@ def cmd_run_local(args: argparse.Namespace) -> int:
             "drain": {k: vars(v) for k, v in pipeline.reports.items()},
             "metrics": pipeline.metrics.snapshot(),
         }
+    publish_batch(engine, "streaming-local", ttl=timedelta(hours=1))  # end of the harness run
     engine.dispose()
     _write(report, args.report)
     return 0 if report["matches_oracle"] else 1
@@ -240,7 +245,13 @@ def cmd_consume(args: argparse.Namespace) -> int:
         warehouse.migrate()
     worker = _worker(args.role, topo, store, warehouse, metrics, PubSubPublisher(args.project))
     puller = PubSubPuller(args.project, topo.by_role(args.role).name)
-    report = run_pull_loop(puller, worker, idle_timeout_s=args.idle_timeout)
+    # Fleet metrics (ADR 0020). The emulator exposes no backlog, so queue_backlog is not
+    # reported here; on Cloud Pub/Sub it comes from Cloud Monitoring.
+    publisher = SnapshotPublisher(MetricSnapshotStore(engine), f"consumer-{args.role}")
+    report = run_pull_loop(
+        puller, worker, idle_timeout_s=args.idle_timeout, heartbeat=publisher.maybe_publish
+    )
+    publisher.publish()
     puller.close()
     if warehouse is not None:
         warehouse.close()

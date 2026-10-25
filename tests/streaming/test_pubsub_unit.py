@@ -126,6 +126,14 @@ def test_pull_loop_acks_nacks_and_stops_when_idle(batches: bool) -> None:
     assert client.acked == ["ack1", "ack3"] and client.nacked == ["ack2"]
 
 
+def test_pull_loop_beats_once_per_pull() -> None:
+    beats: list[int] = []
+    client = FakeSubscriberClient([[_rm(1)], [_rm(3)]])
+    report = run_pull_loop(PubSubPuller("p", "s", client), ScriptedWorker(True),
+                           idle_timeout_s=0.0, heartbeat=lambda: beats.append(1))  # fmt: skip
+    assert len(beats) == report.pulls
+
+
 def test_pull_loop_stops_on_crash_and_respects_cap() -> None:
     client = FakeSubscriberClient([[_rm(1), _rm(4)]])
     report = run_pull_loop(PubSubPuller("p", "s", client), ScriptedWorker(False, crash_on="m4"))

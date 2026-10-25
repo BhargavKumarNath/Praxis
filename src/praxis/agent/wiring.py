@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from sqlalchemy import Engine
 
@@ -22,6 +23,7 @@ from praxis.mlops.registry import ModelRegistry
 from praxis.mlops.store import RegistryStore
 from praxis.ops.config import load_ops_config
 from praxis.ops.incidents import IncidentManager, LogNotifier, PostgresIncidentStore
+from praxis.ops.system import build_reader
 from praxis.pricing.config import load_policy
 from praxis.pricing.freeze import PostgresFreezeStore
 from praxis.pricing.store import PostgresDecisionStore
@@ -52,7 +54,9 @@ class ControlPlane:
     desk: ApprovalDesk
 
 
-def control_plane(engine: Engine, environment: Environment) -> ControlPlane:
+def control_plane(
+    engine: Engine, environment: Environment, warehouse_path: Path | None = None
+) -> ControlPlane:
     registry = ModelRegistry(RegistryStore(engine), load_mlops_config(), environment=environment)
     requests = PostgresRequestStore(engine)
     freezes = PostgresFreezeStore(engine)
@@ -66,6 +70,9 @@ def control_plane(engine: Engine, environment: Environment) -> ControlPlane:
         recovery=PostgresRecoverySource(engine),
         products=frozenset(load_policy().products),
     )
+    # Fleet-wide metrics and their inputs (ADR 0020), the same view as the health API.
+    reader = build_reader(engine, warehouse_path)
+    backends.system = lambda: reader.read(backends.clock())
     return ControlPlane(
         backends,
         PostgresAuditStore(engine),

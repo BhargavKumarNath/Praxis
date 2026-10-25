@@ -9,6 +9,7 @@ from praxis.ops.config import Category, OpsConfig
 from praxis.ops.evaluate import Alert
 from praxis.ops.health import HealthReport, build_health
 from praxis.ops.incidents import IncidentManager, IncidentReport
+from praxis.ops.system import SystemReader
 from praxis.telemetry import telemetry
 
 
@@ -19,13 +20,22 @@ class Tick:
 
 
 class OpsMonitor:
-    def __init__(self, cfg: OpsConfig, manager: IncidentManager) -> None:
+    def __init__(
+        self, cfg: OpsConfig, manager: IncidentManager, reader: SystemReader | None = None
+    ) -> None:
+        """Without a ``reader`` the tick sees only this process's telemetry."""
         self.cfg = cfg
         self.manager = manager
+        self.reader = reader
 
     def tick(self, now: datetime | None = None, *, extra: list[Alert] | None = None) -> Tick:
         now = now or datetime.now(UTC)
-        health = build_health(self.cfg, telemetry().snapshot(), self.manager.store.live(), now=now)
+        if self.reader is None:
+            view, inputs = telemetry().snapshot(), None
+        else:
+            system = self.reader.read(now)
+            view, inputs = system.view, system.inputs()
+        health = build_health(self.cfg, view, self.manager.store.live(), now=now, inputs=inputs)
         report = self.manager.process(health.alerts() + (extra or []), now)
         return Tick(health, report)
 

@@ -30,6 +30,7 @@ from typing import Any
 
 from praxis.config import Environment, get_settings
 from praxis.control.db import make_engine, migrate
+from praxis.control.metric_snapshots import publish_batch
 from praxis.domain.model_lifecycle import ModelStage
 from praxis.domain.states import InvalidTransition
 from praxis.forecasting.artifact import load_artifact
@@ -301,6 +302,9 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
+MONITORING_COMMANDS = frozenset({"run-day", "operate"})  # the commands that set model gauges
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     configure_logging("praxis-mlops", get_settings().log_level.value)
@@ -312,7 +316,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_drill(args)
     lc = _lifecycle(args)
     try:
-        return COMMANDS[args.command](lc, args)
+        code = COMMANDS[args.command](lc, args)
+        if args.command in MONITORING_COMMANDS:  # drift / calibration gauges (ADR 0020)
+            publish_batch(make_engine(args.database_url), "mlops")
+        return code
     except (PromotionRefused, LineageError) as exc:
         _write({"refused": str(exc)})
         return 1

@@ -21,5 +21,6 @@
 | [0017](0017-model-registry-continuous-training-and-safe-promotion.md) | Model registry (control plane, MLflow mirror), continuous training, drift and safe promotion |
 | [0018](0018-telemetry-slos-alerts-and-incidents.md) | Telemetry (OpenTelemetry), SLOs, alert rules, incident flow and runbooks |
 | [0019](0019-constrained-ai-operator.md) | Constrained AI Revenue Operator: typed tools, permission tiers, guarded requests, price freeze |
+| [0020](0020-cross-process-metrics-and-ops-monitor.md) | Cross-process metric snapshots, pull collectors, the ops monitor process |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

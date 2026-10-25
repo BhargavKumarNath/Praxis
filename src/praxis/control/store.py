@@ -21,7 +21,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -381,6 +381,41 @@ class ControlPlaneStore:
             for sub, reason, n in rows:
                 out.setdefault(str(sub), {})[str(reason)] = int(n)
         return out
+
+    def dead_letter_backlog(self) -> dict[str, int]:
+        """Open dead letters per source subscription, including subscriptions that have had
+        dead letters but have none open now (0), so a drained queue reads as 0, not absent."""
+        with transient_errors(), self.engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT source_subscription, count(*) FILTER (WHERE redriven_at IS NULL) "
+                    "FROM dead_letters GROUP BY 1 ORDER BY 1"
+                )
+            )
+            return {str(sub): int(n) for sub, n in rows}
+
+    def daily_paid_revenue(self, days: int) -> dict[str, list[tuple[date, int]]]:
+        """Paid revenue (minor units) per currency for the last ``days`` COMPLETE ledger
+        days, ending the day before the newest payment (that day may still be filling).
+        Days without payments are 0. Times are the ledger's (simulated) ``paid_at``."""
+        with transient_errors(), self.engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "WITH c AS (SELECT currency, min(paid_at)::date AS first, "
+                    "  max(paid_at)::date - 1 AS last FROM payment_ledger GROUP BY currency), "
+                    "d AS (SELECT c.currency, g::date AS day FROM c, generate_series("
+                    "  greatest(c.first, c.last - (:days - 1)), c.last, interval '1 day') g) "
+                    "SELECT d.currency, d.day, coalesce(sum(l.amount_minor), 0) FROM d "
+                    "LEFT JOIN payment_ledger l ON l.currency = d.currency "
+                    "  AND l.paid_at::date = d.day "
+                    "GROUP BY 1, 2 ORDER BY 1, 2"
+                ),
+                {"days": days},
+            )
+            out: dict[str, list[tuple[date, int]]] = {}
+            for currency, day, minor in rows:
+                out.setdefault(str(currency), []).append((day, int(minor)))
+            return out
 
     def processed_for_correlation(self, correlation_id: str) -> list[dict[str, Any]]:
         with transient_errors(), self.engine.connect() as conn:

@@ -20,7 +20,7 @@ from typing import Any, Self
 import duckdb
 
 from praxis.data.config import Location
-from praxis.data.models import BatchProvenance, SignalRecord, SourceId
+from praxis.data.models import BatchProvenance, QualityStatus, SignalRecord, SourceId
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
@@ -52,10 +52,17 @@ class MigrationError(RuntimeError):
 
 
 class Warehouse:
-    def __init__(self, path: Path | None = None) -> None:
-        if path is not None:
+    def __init__(self, path: Path | None = None, *, read_only: bool = False) -> None:
+        """``read_only`` (readers such as the ops collectors) never creates the file and
+        never takes the writer lock; DuckDB refuses it while a writer holds the file."""
+        if path is not None and not read_only:
             path.parent.mkdir(parents=True, exist_ok=True)
-        self._con = duckdb.connect(str(path) if path else ":memory:")
+        if read_only:
+            if path is None:
+                raise ValueError("a read-only warehouse needs a file")
+            self._con = duckdb.connect(str(path), read_only=True)
+        else:
+            self._con = duckdb.connect(str(path) if path else ":memory:")
         self._con.execute("SET TimeZone = 'UTC'")
 
     def __enter__(self) -> Self:
@@ -174,6 +181,15 @@ class Warehouse:
         if row is None or row[0] is None:
             return None
         return datetime.fromtimestamp(float(row[0]), tz=UTC)
+
+    def quarantined_batches(self, since: datetime, until: datetime) -> dict[str, int]:
+        """Batches that failed their contract, by source, retrieved in [since, until)."""
+        rows = self._con.execute(
+            "SELECT source, count(*) FROM raw.ingest_batches WHERE quality_status = ? "
+            "AND retrieved_at >= ? AND retrieved_at < ? GROUP BY source ORDER BY source",
+            [QualityStatus.QUARANTINED.value, since, until],
+        ).fetchall()
+        return {str(source): int(n) for source, n in rows}
 
     # --- internal (simulator) events --------------------------------------------------
     def load_sim_events(self, ndjson: Path, manifest: dict[str, Any]) -> int:

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -189,11 +189,16 @@ def run_pull_loop(
     max_messages: int = 100,
     idle_timeout_s: float = 5.0,
     max_deliveries: int | None = None,
+    heartbeat: Callable[[], object] | None = None,
 ) -> PullLoopReport:
-    """Pull, process, ack / nack until idle for ``idle_timeout_s`` (or a delivery cap)."""
+    """Pull, process, ack / nack until idle for ``idle_timeout_s`` (or a delivery cap).
+
+    ``heartbeat`` runs once per pull (e.g. a throttled metric-snapshot publisher)."""
     report = PullLoopReport()
     last_activity = time.monotonic()
     while max_deliveries is None or report.deliveries < max_deliveries:
+        if heartbeat is not None:
+            heartbeat()
         deliveries = puller.pull(max_messages, timeout_s=max(1.0, min(idle_timeout_s, 5.0)))
         report.pulls += 1
         if not deliveries:

@@ -6,10 +6,13 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from praxis.control.db import make_engine
+from praxis.control.metric_snapshots import MetricSnapshotStore
 from praxis.streaming.__main__ import main
 from tests.streaming.helpers import command_output
 
@@ -52,6 +55,11 @@ def test_run_local_matches_oracle_and_writes_report(
     assert any((tmp_path / "archive").rglob("part-*.ndjson"))
     out = command_output(capsys.readouterr().out)
     assert out["control_plane_checksum"] == report["control_plane_checksum"]
+    # ADR 0020: the harness publishes its metrics, with the sampled queue backlog
+    view = MetricSnapshotStore(make_engine(pg_url)).read(datetime.now(UTC)).view
+    backlog = {p.labels["subscription"] for p in view.select("queue_backlog")}
+    assert backlog and not any("dlq" in sub for sub in backlog)  # dead letters: dlq_backlog
+    assert view.total("events_consumed_total") > 0
 
 
 @pytest.mark.parametrize(

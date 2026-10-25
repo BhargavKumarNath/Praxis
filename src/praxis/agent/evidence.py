@@ -1,9 +1,10 @@
 """Tier 0 tools: read-only evidence. None of them writes anything except their audit rows.
 
-Every result says where its numbers come from. A metric nothing feeds reports ``no_data``
-(never a guessed zero), and the known gaps are named: unfed Phase 11 gauges, the in-process
-telemetry scope, the missing ``OpsMonitor.tick`` scheduler, unvalidated pricing shadow
-results, and which runbooks were actually exercised in a test.
+Every result says where its numbers come from. A metric without a value reports ``no_data``
+(never a guessed zero) with its feed and the live status of the inputs behind it (ADR 0020):
+the telemetry scope, stale processes, collector status and whether the ops monitor is
+running. Unvalidated pricing shadow results and which runbooks were actually exercised in a
+test are named too.
 """
 
 from __future__ import annotations
@@ -16,10 +17,8 @@ from pydantic import Field
 
 from praxis.agent.tools import (
     EXERCISED_RUNBOOKS,
-    NO_SCHEDULER,
+    FEEDS,
     PRICING_NOT_VALIDATED,
-    TELEMETRY_SCOPE,
-    UNFED_METRICS,
     Args,
     Backends,
     DecisionId,
@@ -31,27 +30,30 @@ from praxis.agent.tools import (
     Tier,
     Tool,
     ToolError,
+    monitor_note,
+    scope_note,
 )
 from praxis.domain.model_lifecycle import ModelStage
 from praxis.mlops.registry import ModelRegistry
 from praxis.mlops.store import MonitoringReport, VersionRow
 from praxis.ops.health import build_health
-from praxis.telemetry import MetricsView
+from praxis.ops.system import SystemSnapshot
 
 REPORT_LIMIT = 5
 
 
-def _series(view: MetricsView, metric: str) -> dict[str, Any]:
-    points = view.select(metric)
+def _series(system: SystemSnapshot, metric: str) -> dict[str, Any]:
+    points = system.view.select(metric)
+    feed = FEEDS.get(metric)
     if not points:
-        return {"metric": metric, "status": "no_data", "why": UNFED_METRICS.get(metric, "no value")}
+        why = "no value" + (f"; feed: {feed}" if feed else "")
+        return {"metric": metric, "status": "no_data", "why": why}
     return {
         "metric": metric,
         "status": "ok",
         "series": [{"labels": p.labels, "value": p.value} for p in points],
-        **({"feed": UNFED_METRICS[metric] + "; value recorded by a caller"}
-           if metric in UNFED_METRICS else {}),
-    }  # fmt: skip
+        **({"feed": feed} if feed else {}),
+    }
 
 
 def _rule_threshold(b: Backends, rule_id: str) -> float | None:
@@ -60,14 +62,16 @@ def _rule_threshold(b: Backends, rule_id: str) -> float | None:
 
 # ------------------------------------------------------------------ health
 def get_system_health(b: Backends, _args: NoArgs, _s: SessionView) -> dict[str, Any]:
-    view = b.metrics()
-    report = build_health(b.ops, view, b.incidents.store.live(), now=b.clock())
+    system = b.system()
+    report = build_health(
+        b.ops, system.view, b.incidents.store.live(), now=b.clock(), inputs=system.inputs()
+    )
     out = report.as_dict()
-    out["unfed_metrics"] = {
-        m: ("no_data: " + why) if not view.select(m) else "value present (recorded by a caller)"
-        for m, why in UNFED_METRICS.items()
+    out["feeds"] = {
+        m: (f"value present; {feed}" if system.view.select(m) else f"no_data; feed: {feed}")
+        for m, feed in FEEDS.items()
     }
-    out["notes"] = [TELEMETRY_SCOPE, NO_SCHEDULER]
+    out["notes"] = [scope_note(system), monitor_note(system)]
     return out
 
 
@@ -85,12 +89,14 @@ def _source_limit(b: Backends, source: str | None) -> float | None:
 
 
 def get_source_freshness(b: Backends, args: FreshnessArgs, _s: SessionView) -> dict[str, Any]:
-    view = b.metrics()
+    system = b.system()
     match = {"source": args.source} if args.source else {}
-    points = view.select("data_source_age_s", **match)
+    points = system.view.select("data_source_age_s", **match)
+    collector = system.collectors.get("warehouse", {"status": "not configured"})
+    notes = [scope_note(system)]
     if not points:
-        return {"status": "no_data", "why": UNFED_METRICS["data_source_age_s"],
-                "notes": [TELEMETRY_SCOPE]}  # fmt: skip
+        return {"status": "no_data", "why": f"no value; feed: {FEEDS['data_source_age_s']}",
+                "collector": collector, "notes": notes}  # fmt: skip
     sources = []
     for p in points:
         name = p.labels.get("source")
@@ -100,23 +106,26 @@ def get_source_freshness(b: Backends, args: FreshnessArgs, _s: SessionView) -> d
     return {
         "status": "ok",
         "sources": sources,
-        "contract_failures": _series(view, "data_contract_failures_total"),
-        "notes": [TELEMETRY_SCOPE, UNFED_METRICS["data_source_age_s"] + "; values were recorded"],
+        "never_delivered": collector.get("missing", []),
+        "contract_failures": _series(system, "data_contract_failures_total"),
+        "collector": collector,
+        "notes": notes,
     }
 
 
 def get_queue_health(b: Backends, _args: NoArgs, _s: SessionView) -> dict[str, Any]:
-    view = b.metrics()
+    system = b.system()
+    view = system.view
     return {
-        "queue_backlog": _series(view, "queue_backlog"),
-        "dlq_backlog": _series(view, "dlq_backlog"),
+        "queue_backlog": _series(system, "queue_backlog"),
+        "dlq_backlog": _series(system, "dlq_backlog"),
         "limits": {"queue_backlog": _rule_threshold(b, "queue_backlog_high"),
                    "dlq_backlog": _rule_threshold(b, "dlq_backlog_high")},
         "event_lag_p95_ms": view.quantile("event_lag_ms", 0.95),
         "consumer_outcomes": {
             p.labels.get("outcome", "?"): p.value for p in view.select("events_consumed_total")
         },
-        "notes": [TELEMETRY_SCOPE],
+        "notes": [scope_note(system)],
     }  # fmt: skip
 
 
@@ -152,30 +161,31 @@ def inspect_drift(b: Backends, _args: NoArgs, _s: SessionView) -> dict[str, Any]
     reg = _registry(b)
     champion = _champion(reg)
     live = reg.store.live_request(reg.model_name)
+    system = b.system()
     return {
         "model_name": reg.model_name,
         "champion": _row(champion),
         "drift_reports": _reports(reg.store.monitoring_reports(champion.model_version, "drift")),
-        "drift_alarm_gauge": _series(b.metrics(), "model_drift_alarm"),
+        "drift_alarm_gauge": _series(system, "model_drift_alarm"),
         "live_retraining_request": None if live is None else
             {"request_id": live.request_id, "status": live.status.value,
              "triggers": list(live.triggers)},
-        "notes": [TELEMETRY_SCOPE, "model metrics come from SYNTHETIC simulator worlds"],
+        "notes": [scope_note(system), "model metrics come from SYNTHETIC simulator worlds"],
     }  # fmt: skip
 
 
 def inspect_forecast_error(b: Backends, _args: NoArgs, _s: SessionView) -> dict[str, Any]:
     reg = _registry(b)
     champion = _champion(reg)
-    view = b.metrics()
+    system = b.system()
     return {
         "champion": _row(champion),
         "probation_reports": _reports(
             reg.store.monitoring_reports(champion.model_version, "probation")
         ),
-        "calibration_80": _series(view, "model_calibration_80"),
-        "forecast_age_hours": _series(view, "forecast_age_hours"),
-        "notes": [TELEMETRY_SCOPE, "forecast errors are measured on SYNTHETIC worlds"],
+        "calibration_80": _series(system, "model_calibration_80"),
+        "forecast_age_hours": _series(system, "forecast_age_hours"),
+        "notes": [scope_note(system), "forecast errors are measured on SYNTHETIC worlds"],
     }
 
 

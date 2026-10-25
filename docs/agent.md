@@ -76,12 +76,14 @@ python -m praxis.agent investigate --kind review_candidate --as-of ... --model-v
 
 ## Honest-output rules (tested)
 
-* A metric nothing feeds is `no_data` and names the gap: `data_source_age_s`,
-  `data_contract_failures_total`, `business_kpi_deviation`, `queue_backlog` and
-  `dlq_backlog` have no automatic feed (Phase 11 carry-over).
-* Telemetry is in-process only: the agent sees only the metrics of its own process.
-* No scheduler runs `OpsMonitor.tick`, so the incident list reflects only manual or drill
-  ticks.
+* Metrics are the fleet view (ADR 0020) when a database is configured. Each result's notes say
+  which: `Telemetry scope: fleet` (and which processes are STALE and left out), or
+  `process` (only the agent's own metrics).
+* A metric without a value is `no_data` and names the feed that should supply it
+  (`tools.FEEDS`); `get_source_freshness` also returns the warehouse collector's status and the
+  sources that never delivered.
+* `get_system_health` says whether the ops monitor (`python -m praxis.ops run`) is running,
+  stale or not seen, so the incident list is not mistaken for current alerts.
 * Pricing results are shadow evaluations, NOT validated for execution (Phase 4 loader defect).
 * Only `pubsub-backlog` and `agent-failure` runbooks are exercised in a test.
 

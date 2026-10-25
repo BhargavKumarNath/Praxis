@@ -91,8 +91,10 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
   probation rollback that restores the previous version (ADR 0017, `docs/mlops.md`).
 * Operations (ADR 0018, `docs/observability.md`): OpenTelemetry metrics and traces share the
   Praxis trace id; SLOs and alert rules are pinned config evaluated by pure functions; firing
-  alerts become deduplicated incidents that link a runbook. None of it is on the decision
-  path: if telemetry or ops fail, pricing, payments and MLOps are unaffected.
+  alerts become deduplicated incidents that link a runbook. Each process publishes its metrics
+  to the control plane and the ops monitor / health API read the merged, staleness-checked
+  fleet view (ADR 0020). None of it is on the decision path: if telemetry or ops fail,
+  pricing, payments and MLOps are unaffected (a failed publish is logged and skipped).
 * The AI operator (ADR 0019, `docs/agent.md`) sits at the top layer and nothing imports it.
   It reaches the system only through typed, tiered, audited tools; it cannot import the
   optimiser, the pricing cycle, payment execution or a shell (import contract). Guarded

@@ -71,11 +71,11 @@ no cloud spend, no new dependency, no live LLM call without the owner's approval
   deterministic investigator that was written alongside the scenarios. It is a regression
   benchmark, NOT a held-out measure of LLM diagnostic competence. That needs a live provider
   and fresh, unseen scenarios (an owner decision).
-* Read tools inherit the Phase 11 gaps and report them instead of hiding them. No automatic
-  feed exists for `data_source_age_s`, `data_contract_failures_total`,
-  `business_kpi_deviation` or the backlog gauges, so those report `no_data` unless a caller
-  recorded a value in-process. Telemetry is in-process only. No scheduler runs
-  `OpsMonitor.tick`.
+* Read tools inherit the Phase 11 gaps and report them instead of hiding them. Amended by
+  ADR 0020: they now read the fleet view (`ops.system.SystemReader`) and their notes are
+  computed from its inputs (telemetry scope, stale processes, collector status, whether the
+  ops monitor is running) instead of the fixed "not wired" / "no scheduler" labels. A metric
+  without a value is still `no_data`, now with the feed that should supply it.
 * Pricing tools label every result as shadow and NOT validated for execution (Phase 4 loader
   defect; Phases 6 and 9 need a fresh pre-registered evaluation before live pricing).
 * `get_runbook` reports which runbooks are exercised in a test (`pubsub-backlog`,

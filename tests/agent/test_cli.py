@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 
 from praxis.agent.__main__ import main
 from praxis.control.db import make_engine
+from praxis.control.metric_snapshots import MetricSnapshotStore
 from praxis.pricing.freeze import PostgresFreezeStore
 from praxis.telemetry import Telemetry
 
@@ -34,6 +36,30 @@ def test_tools_lists_every_tool_with_its_tier(capsys: pytest.CaptureFixture[str]
     assert main(["tools"]) == 0
     tools = _json(capsys.readouterr().out)
     assert len(tools) == 17 and {t["tier"] for t in tools} == {0, 1, 2}
+
+
+def test_health_through_the_cli_reads_the_fleet_and_names_its_inputs(
+    db: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    snapshots = MetricSnapshotStore(make_engine(db))
+    now = datetime.now(UTC)
+    consumer = Telemetry()
+    consumer.set("queue_backlog", 4000, subscription="praxis-operational")
+    snapshots.publish("consumer-operational", "h:1", consumer.snapshot(), now=now,
+                      ttl=timedelta(minutes=5), started_at=now)  # fmt: skip
+    snapshots.publish("ops-monitor", "h:2", Telemetry().snapshot(), now=now,
+                      ttl=timedelta(minutes=5), started_at=now)  # fmt: skip
+    old = now - timedelta(days=2)
+    snapshots.publish("pricing", "h:3", Telemetry().snapshot(), now=old,
+                      ttl=timedelta(hours=26), started_at=old)  # fmt: skip
+    assert main(["call", "get_system_health"]) == 0
+    data = _json(capsys.readouterr().out)["data"]
+    scope, monitor = data["notes"]
+    assert scope.startswith("Telemetry scope: fleet") and "STALE and left out: pricing" in scope
+    assert monitor.startswith("The ops monitor is running")
+    assert data["feeds"]["queue_backlog"].startswith("value present")
+    assert "queue_backlog_high" in {a["rule_id"] for a in data["sections"]["service"]["alerts"]}
+    assert data["inputs"]["collectors"]["dead_letters"]["status"] == "ok"
 
 
 def test_commands_need_a_database() -> None:

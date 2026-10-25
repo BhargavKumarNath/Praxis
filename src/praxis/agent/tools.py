@@ -23,9 +23,10 @@ from praxis.dunning.store import RecoveryWindow, recovery_window
 from praxis.mlops.registry import ModelRegistry
 from praxis.ops.config import RUNBOOK_DIR, Category, OpsConfig
 from praxis.ops.incidents import IncidentManager
+from praxis.ops.system import SystemSnapshot
 from praxis.pricing.freeze import FreezeStore
 from praxis.pricing.store import DecisionStore
-from praxis.telemetry import MetricsView, telemetry
+from praxis.telemetry import telemetry
 
 
 class Tier(IntEnum):
@@ -40,20 +41,52 @@ class ToolError(RuntimeError):
 
 # ------------------------------------------------------------------ provenance labels
 SYNTHETIC = "All business numbers are SYNTHETIC simulator output, never real-world results."
-TELEMETRY_SCOPE = (
-    "Telemetry is an in-process reader with no exporter: these are only the metrics of the "
-    "process running the agent, not of the whole deployment."
-)
-UNFED_METRICS = {
-    "data_source_age_s": "no automatic feed is wired (Phase 11 carry-over)",
-    "data_contract_failures_total": "no automatic feed is wired (Phase 11 carry-over)",
-    "business_kpi_deviation": "no automatic feed from the revenue mart (Phase 11 carry-over)",
-    "queue_backlog": "no automatic backlog sampler is wired (Phase 11 carry-over)",
-    "dlq_backlog": "no automatic backlog sampler is wired (Phase 11 carry-over)",
+# How each Phase 11 signal is fed (ADR 0020). A metric with no value is reported with its
+# feed and the live input status (collector / process), never as a healthy zero.
+FEEDS = {
+    "data_source_age_s": "pulled from the warehouse by the ops collectors (newest observation)",
+    "data_contract_failures_total": (
+        "pulled from the warehouse by the ops collectors (quarantined batches, last 24 h)"
+    ),
+    "business_kpi_deviation": (
+        "pulled from the SYNTHETIC payment ledger by the revenue collector (needs 7 complete "
+        "days of history)"
+    ),
+    "queue_backlog": (
+        "published by consumers whose broker can count it (the in-memory harness); the Pub/Sub "
+        "emulator exposes no backlog and Cloud Pub/Sub would need Cloud Monitoring"
+    ),
+    "dlq_backlog": "pulled from the control-plane dead_letters table by the ops collectors",
 }
-NO_SCHEDULER = (
-    "No scheduler runs OpsMonitor.tick: the incident list reflects only manual or drill ticks."
-)
+MONITOR_COMPONENT = "ops-monitor"
+
+
+def scope_note(system: SystemSnapshot) -> str:
+    """What these metrics cover, from the actual inputs of this read."""
+    if system.scope != "fleet":
+        return (
+            f"Telemetry scope: {system.scope}. These are only the metrics of the process running "
+            "the agent, not of the whole deployment."
+        )
+    stale = sorted({p.component for p in system.processes if p.stale})
+    return (
+        "Telemetry scope: fleet (every process that published within its TTL, plus the pull "
+        "collectors; ADR 0020)." + (f" STALE and left out: {', '.join(stale)}." if stale else "")
+    )
+
+
+def monitor_note(system: SystemSnapshot) -> str:
+    """Whether the ops monitor (the scheduler of OpsMonitor.tick) is running."""
+    seen = [p for p in system.processes if p.component == MONITOR_COMPONENT]
+    if any(not p.stale for p in seen):
+        return "The ops monitor is running: incidents reflect its latest tick."
+    state = "stale (stopped or stalled)" if seen else "not seen"
+    return (
+        f"The ops monitor is {state}: incidents may not reflect current alerts "
+        "(start it with `python -m praxis.ops run`)."
+    )
+
+
 PRICING_NOT_VALIDATED = (
     "Pricing results here are SHADOW evaluations and are NOT validated for execution: the "
     "Phase 4 loader defect requires a fresh pre-registered Phase 6/9 evaluation before live "
@@ -122,8 +155,8 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _snapshot() -> MetricsView:
-    return telemetry().snapshot()
+def _local_system() -> SystemSnapshot:
+    return SystemSnapshot(telemetry().snapshot(), "process")
 
 
 @dataclass
@@ -138,7 +171,7 @@ class Backends:
     decisions: DecisionStore | None = None
     recovery: RecoverySource | None = None
     products: frozenset[str] | None = None  # priced products (freeze scope check)
-    metrics: Callable[[], MetricsView] = _snapshot
+    system: Callable[[], SystemSnapshot] = _local_system  # ops.system.SystemReader in wiring
     runbook_dir: Path = RUNBOOK_DIR
     clock: Callable[[], datetime] = _now
 

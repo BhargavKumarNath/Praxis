@@ -15,10 +15,8 @@ from sqlalchemy import Engine, text
 from praxis.agent.audit import incomplete_calls
 from praxis.agent.tools import (
     EXERCISED_RUNBOOKS,
-    NO_SCHEDULER,
+    FEEDS,
     PRICING_NOT_VALIDATED,
-    TELEMETRY_SCOPE,
-    UNFED_METRICS,
     Tier,
 )
 from praxis.agent.wiring import TOOLS
@@ -93,15 +91,18 @@ def test_invalid_arguments_are_rejected_before_execution(
 def test_health_reports_no_data_and_names_the_gaps(memory_world: World) -> None:
     data = ok_call(memory_world, memory_world.session()).data
     assert data["status"] == "no_data" and data["data_origin"] == "synthetic"
-    assert set(data["unfed_metrics"]) == set(UNFED_METRICS)
-    assert all(v.startswith("no_data") for v in data["unfed_metrics"].values())
-    assert TELEMETRY_SCOPE in data["notes"] and NO_SCHEDULER in data["notes"]
+    assert set(data["feeds"]) == set(FEEDS)
+    assert all(v.startswith("no_data; feed: ") for v in data["feeds"].values())
+    scope, monitor = data["notes"]
+    assert scope.startswith("Telemetry scope: process.") and "not of the whole" in scope
+    assert "ops monitor is not seen" in monitor
+    assert data["inputs"]["telemetry_scope"] == "process"
 
 
 def test_health_reflects_a_recorded_metric(memory_world: World, tel: Telemetry) -> None:
     tel.set("queue_backlog", 5000, subscription="praxis-operational")
     data = ok_call(memory_world, memory_world.session()).data
-    assert data["unfed_metrics"]["queue_backlog"].startswith("value present")
+    assert data["feeds"]["queue_backlog"].startswith("value present")
     rules = {a["rule_id"] for a in data["sections"]["service"]["alerts"]}
     assert "queue_backlog_high" in rules
 
@@ -109,7 +110,8 @@ def test_health_reflects_a_recorded_metric(memory_world: World, tel: Telemetry) 
 def test_freshness_and_queue_no_data_then_values(memory_world: World, tel: Telemetry) -> None:
     s = memory_world.session()
     empty = memory_world.executor.call(s, "get_source_freshness", {}).data
-    assert empty["status"] == "no_data" and "no automatic feed" in empty["why"]
+    assert empty["status"] == "no_data" and FEEDS["data_source_age_s"] in empty["why"]
+    assert empty["collector"] == {"status": "not configured"}
     queue = memory_world.executor.call(s, "get_queue_health", {}).data
     assert queue["queue_backlog"]["status"] == "no_data" and queue["event_lag_p95_ms"] is None
     tel.set("data_source_age_s", 7_000_000, source="fred")  # limit 6,480,000 s
@@ -124,7 +126,7 @@ def test_freshness_and_queue_no_data_then_values(memory_world: World, tel: Telem
     assert [x["source"] for x in one["sources"]] == ["eia"]
     queue = memory_world.executor.call(s, "get_queue_health", {}).data
     assert queue["dlq_backlog"]["series"][0]["value"] == 12
-    assert "recorded by a caller" in queue["dlq_backlog"]["feed"]
+    assert queue["dlq_backlog"]["feed"] == FEEDS["dlq_backlog"]
     assert queue["consumer_outcomes"] == {"applied": 1}
 
 

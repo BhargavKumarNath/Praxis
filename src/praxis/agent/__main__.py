@@ -34,7 +34,9 @@ def _plane() -> ControlPlane:
     if settings.database_url is None:
         raise SystemExit("PRAXIS_DATABASE_URL is required (the control-plane database)")
     return control_plane(
-        make_engine(settings.database_url.get_secret_value()), settings.environment
+        make_engine(settings.database_url.get_secret_value()),
+        settings.environment,
+        settings.warehouse_path,
     )
 
 

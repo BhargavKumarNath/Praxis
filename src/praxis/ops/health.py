@@ -8,7 +8,7 @@ by the caller (``environment`` / ``data_origin``).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from html import escape
 from typing import Any
@@ -45,6 +45,9 @@ class HealthReport:
     sections: tuple[Section, ...]
     incidents: tuple[Incident, ...]
     data_origin: str
+    # Where the numbers came from (``ops.system.SystemSnapshot.inputs``); empty = this
+    # process's metrics only.
+    inputs: dict[str, Any] = field(default_factory=dict)
 
     @property
     def status(self) -> str:
@@ -76,6 +79,7 @@ class HealthReport:
                 for s in self.sections
             },
             "incidents": [i.as_dict() for i in self.incidents],
+            "inputs": self.inputs or {"telemetry_scope": "process"},
         }  # fmt: skip
 
 
@@ -96,6 +100,7 @@ def build_health(
     *,
     now: datetime | None = None,
     data_origin: str = "synthetic",
+    inputs: dict[str, Any] | None = None,
 ) -> HealthReport:
     slo_statuses = evaluate_slos(cfg.slos, view)
     alerts = evaluate_alerts(cfg.rules, slo_statuses, view)
@@ -121,6 +126,7 @@ def build_health(
         tuple(sections),
         tuple(incidents or ()),
         data_origin,
+        inputs or {},
     )
 
 
@@ -161,6 +167,7 @@ def render_html(report: HealthReport) -> str:
             f"{escape(a.summary)} (observed {a.observed:g}) runbook: {escape(a.runbook_path)}</p>"
             for a in s.alerts
         ]
+    parts += _inputs_html(report.inputs)
     parts.append("<h2>Incidents</h2><table>")
     parts += [
         f"<tr><td>{escape(i.incident_id)}</td><td>{escape(i.status.value)}</td>"
@@ -169,3 +176,24 @@ def render_html(report: HealthReport) -> str:
     ] or ["<tr><td>none</td></tr>"]
     parts.append("</table>")
     return "".join(parts)
+
+
+def _inputs_html(inputs: dict[str, Any]) -> list[str]:
+    """Where the numbers came from; stale processes and unavailable collectors are flagged."""
+    scope = str(inputs.get("telemetry_scope", "process"))
+    parts = [f"<h2>Inputs</h2><p>Telemetry scope: <b>{escape(scope)}</b></p><table>"]
+    for p in inputs.get("processes", []):
+        state = "degraded" if p["stale"] else "ok"
+        label = "STALE" if p["stale"] else "fresh"
+        parts.append(
+            f"<tr><td>{escape(p['component'])}</td><td>{escape(p['instance'])}</td>"
+            f"<td class={state}>{label}, {p['age_s']:g}s old</td></tr>"
+        )
+    for name, note in inputs.get("collectors", {}).items():
+        state = "ok" if note.get("status") == "ok" else "degraded"
+        parts.append(
+            f"<tr><td>collector {escape(name)}</td><td></td>"
+            f"<td class={state}>{escape(str(note.get('status')))}</td></tr>"
+        )
+    parts.append("</table>")
+    return parts

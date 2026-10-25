@@ -72,3 +72,7 @@
 | Price freeze | An approved block on price EXECUTION for one product or all (`*`); decisions are still recorded. |
 | Grounded answer | An agent conclusion that cites only call ids of successful tool calls in the same session. |
 | Deterministic triage | Rule-based investigator behind the provider interface (not an LLM): the fallback and benchmark reference. |
+| Metric snapshot | A process's latest in-process metrics published to the control plane with an expiry (ADR 0020). |
+| Fleet view | The merge of every unexpired snapshot, the pull collectors and the reader's own metrics; expired inputs are listed as stale, never used. |
+| Pull collector | An ops function that derives a metric from a store of record at read time (source age, contract failures, DLQ backlog, revenue KPI). |
+| Ops monitor | `python -m praxis.ops run`: the scheduler that turns the fleet view's alerts into incidents every interval. |

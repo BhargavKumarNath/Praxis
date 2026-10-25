@@ -3,6 +3,9 @@
 Status: Accepted (Phase 11). Written 2026-10-25. The SLO targets and alert thresholds in
 `configs/ops/` are PRE-REGISTERED (version `2026-10-25.1`) before any drill ran and are pinned
 by `tests/ops/test_config.py`; changing one needs an ADR amendment and owner approval.
+Amended by ADR 0020 (2026-10-25): metrics now cross processes (control-plane snapshots), the
+data / backlog / KPI inputs are fed, and `python -m praxis.ops run` schedules the tick. The
+first four limitations below are resolved there; the thresholds are unchanged.
 
 ## Context
 Phases 0-10 left "in-process metrics, Phase 11 exports through OpenTelemetry" notes in

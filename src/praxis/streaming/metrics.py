@@ -53,3 +53,11 @@ class StreamMetrics:
             }
             for s in subs
         }
+
+
+def record_backlog(backlog: dict[str, int]) -> None:
+    """``queue_backlog`` per subscription, sampled from a broker that can count it (the
+    in-memory broker). Dead letters are not passed here: they are ``dlq_backlog``, counted
+    from the control plane by the ops collectors (ADR 0020)."""
+    for subscription, n in backlog.items():
+        telemetry().set("queue_backlog", n, subscription=subscription)
