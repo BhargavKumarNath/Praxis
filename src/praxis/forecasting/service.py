@@ -37,6 +37,7 @@ from praxis.forecasting.warehouse import (
     load_price_plan,
 )
 from praxis.observability import LatencySample
+from praxis.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -192,13 +193,17 @@ class ForecastService:
         started = time.perf_counter()
         labels: dict[str, Any] = {"model_version": self.model_version}
         try:
-            result = self._forecast(series, horizons, planned_prices or {}, snapshot)
+            with telemetry().span("model.inference", model="demand_forecast", **labels):
+                result = self._forecast(series, horizons, planned_prices or {}, snapshot)
         except ForecastRequestError as exc:
             self._finish("rejected_request", started, labels | {"reason": exc.code})
             raise
         except ForecastUnavailable as exc:
             self._finish("unavailable", started, labels | {"reason": exc.code})
             raise
+        telemetry().set(
+            "forecast_age_hours", result.feature_lag_days * 24.0, model="demand_forecast"
+        )
         self._finish(
             "served",
             started,
@@ -216,6 +221,10 @@ class ForecastService:
 
     def _finish(self, outcome: str, started: float, labels: dict[str, Any]) -> None:
         elapsed_ms = (time.perf_counter() - started) * 1000.0
+        tel = telemetry()
+        tel.inc("model_inference_total", model="demand_forecast", outcome=outcome)
+        tel.observe("model_inference_duration_ms", elapsed_ms, model="demand_forecast")
+        tel.set("model_version_info", 1, model="demand_forecast", version=labels["model_version"])
         self.metrics.record(outcome, elapsed_ms, **labels)
         logger.info(
             "forecast.%s",

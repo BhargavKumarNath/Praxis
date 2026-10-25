@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from praxis.errors import TransientError
 from praxis.payments.signature import SIGNATURE_HEADER, SignatureError
 from praxis.payments.webhook import PayloadError, PayloadTooLarge, WebhookReceiver
+from praxis.telemetry import telemetry
 from praxis.tracing import current_correlation_id
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ class WebhookError(BaseModel):
 
 
 def _error(status: int, reason: str) -> JSONResponse:
+    telemetry().inc("webhook_events_total", outcome=reason.split(":")[0])
     body = WebhookError(error=reason, correlation_id=current_correlation_id())
     return JSONResponse(status_code=status, content=body.model_dump())
 
@@ -81,6 +83,7 @@ def webhook_router(receiver: WebhookReceiver | None) -> APIRouter:
         except TransientError:
             logger.warning("webhook inbox unavailable")
             return _error(_UNAVAILABLE, "inbox_unavailable")
+        telemetry().inc("webhook_events_total", outcome=result.status.value)
         return WebhookAck(
             status=result.status.value, event_id=result.event_id, event_type=result.event_type
         )

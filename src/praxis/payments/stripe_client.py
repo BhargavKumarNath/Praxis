@@ -29,6 +29,7 @@ from pydantic import SecretStr
 
 from praxis.errors import TransientError
 from praxis.payments.gateway import GatewayError, IdempotencyConflict
+from praxis.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +201,27 @@ class StripeClient:
         raise GatewayError("pagination_limit", f"{path} has more than {max_pages} pages")
 
     def _request(
+        self, method: str, path: str, params: Mapping[str, Any], idempotency_key: str | None
+    ) -> dict[str, Any]:
+        tel = telemetry()
+        started = time.perf_counter()
+        outcome = "error"
+        try:
+            with tel.span("external.stripe", method=method):
+                body = self._send(method, path, params, idempotency_key)
+            outcome = "ok"
+            return body
+        except StripeTransientError:
+            outcome = "transient_error"
+            raise
+        finally:
+            tel.inc("external_calls_total", service="stripe", outcome=outcome)
+            tel.observe(
+                "external_call_duration_ms", (time.perf_counter() - started) * 1000.0,
+                service="stripe",
+            )  # fmt: skip
+
+    def _send(
         self, method: str, path: str, params: Mapping[str, Any], idempotency_key: str | None
     ) -> dict[str, Any]:
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else {}

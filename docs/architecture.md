@@ -87,6 +87,10 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
   environment variable or an MLflow alias, decides which model version serves; promotion
   needs a named approver and a passing shadow; the only automatic champion change is a
   probation rollback that restores the previous version (ADR 0017, `docs/mlops.md`).
+* Operations (ADR 0018, `docs/observability.md`): OpenTelemetry metrics and traces share the
+  Praxis trace id; SLOs and alert rules are pinned config evaluated by pure functions; firing
+  alerts become deduplicated incidents that link a runbook. None of it is on the decision
+  path: if telemetry or ops fail, pricing, payments and MLOps are unaffected.
 * Large-scale tests use the synthetic gateway only (ADR 0006).
 * Consumers are idempotent and order-independent; state changes only via transition tables,
   enforced again in Postgres (ADR 0009, `docs/event-backbone.md`).

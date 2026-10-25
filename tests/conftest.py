@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from praxis.config import get_settings
+from praxis.telemetry import Telemetry, use_telemetry
 
 pytest_plugins = ["tests.pg"]
 
@@ -22,6 +23,13 @@ def _isolated_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def tel() -> Iterator[Telemetry]:
+    """A fresh telemetry instance per test, so metric counts never leak between tests."""
+    with use_telemetry() as instance:
+        yield instance
 
 
 @pytest.fixture

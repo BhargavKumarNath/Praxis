@@ -1,4 +1,4 @@
-.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch test test-fast pytest-cov \
+.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch ops-check test test-fast pytest-cov \
 	coverage-gate schemas sim-smoke secrets audit tf-check frontend-check workflow-lint check run \
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
 	forecast-data forecast-signals forecast-backtest forecast-train \
@@ -68,6 +68,10 @@ typecheck:
 arch:
 	.venv/bin/lint-imports
 
+# Phase 11: SLO / alert / dashboard config loads, and every alert has a complete runbook.
+ops-check:
+	.venv/bin/python -m praxis.ops validate
+
 schemas:
 	.venv/bin/python scripts/export_payload_schemas.py --check
 
@@ -115,8 +119,8 @@ frontend-check:
 	cd frontend && npm run typecheck && npm run lint
 
 # Everything CI runs on a push / PR, in one command.
-check: lint typecheck arch test coverage-gate events-check schemas secrets audit frontend-check \
-	tf-check workflow-lint
+check: lint typecheck arch ops-check test coverage-gate events-check schemas secrets audit \
+	frontend-check tf-check workflow-lint
 
 # --- Phase 2 data platform (local DuckDB; no cloud resources) -----------------------------
 SIM_DIR ?= data/sim

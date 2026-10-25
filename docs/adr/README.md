@@ -19,5 +19,6 @@
 | [0015](0015-dunning-states-recovery-models-and-retry-scheduling.md) | Dunning states, recovery models and scheduled retries |
 | [0016](0016-customer-value-and-long-horizon-guardrails.md) | Customer value, churn hazard and long-horizon pricing guardrails |
 | [0017](0017-model-registry-continuous-training-and-safe-promotion.md) | Model registry (control plane, MLflow mirror), continuous training, drift and safe promotion |
+| [0018](0018-telemetry-slos-alerts-and-incidents.md) | Telemetry (OpenTelemetry), SLOs, alert rules, incident flow and runbooks |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

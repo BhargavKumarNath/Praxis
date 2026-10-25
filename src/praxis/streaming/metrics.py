@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from praxis.observability import LatencySample
+from praxis.telemetry import telemetry
 
 
 @dataclass
@@ -24,8 +25,11 @@ class StreamMetrics:
     def inc(self, subscription: str, name: str, n: int = 1) -> None:
         with self._lock:
             self.counters[subscription][name] += n
+        telemetry().inc("events_consumed_total", n, subscription=subscription, outcome=name)
 
     def observe(self, subscription: str, name: str, value_ms: float) -> None:
+        if name == "end_to_end":
+            telemetry().observe("event_lag_ms", value_ms, subscription=subscription)
         with self._lock:
             sample = self.latency[subscription].get(name)
             if sample is None:

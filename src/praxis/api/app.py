@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
@@ -12,13 +13,17 @@ from pydantic import BaseModel
 
 from praxis import __version__
 from praxis.api.forecast import ForecastProvider, build_forecast_service, forecast_router
+from praxis.api.ops import ops_router
 from praxis.api.tasks import RetryHandler, tasks_router
 from praxis.api.webhooks import webhook_router
 from praxis.config import Settings, get_settings
 from praxis.control.db import make_engine
 from praxis.logging import configure_logging
+from praxis.ops.config import load_ops_config
+from praxis.ops.incidents import IncidentStore, PostgresIncidentStore
 from praxis.payments.store import PostgresInbox
 from praxis.payments.webhook import WebhookReceiver
+from praxis.telemetry import telemetry
 from praxis.tracing import (
     CORRELATION_HEADER,
     current_correlation_id,
@@ -63,17 +68,37 @@ def build_retry_handler(settings: Settings) -> RetryHandler | None:
     return executor.execute if executor is not None else None
 
 
+def _record_request(request: Request, status: int, started: float) -> None:
+    """Request count, 5xx count and latency, labelled by route TEMPLATE (bounded cardinality)."""
+    route = getattr(request.scope.get("route"), "path", None) or "unmatched"
+    tel = telemetry()
+    tel.inc("http_requests_total", route=route, method=request.method, status=status)
+    if status >= 500:
+        tel.inc("http_server_errors_total", route=route)
+    tel.observe("http_request_duration_ms", (time.perf_counter() - started) * 1000.0, route=route)
+
+
+def build_incident_store(settings: Settings) -> IncidentStore | None:
+    if settings.database_url is None:
+        return None
+    return PostgresIncidentStore(make_engine(settings.database_url.get_secret_value()))
+
+
 def create_app(
     settings: Settings | None = None,
     forecast_service: ForecastProvider | None = None,
     webhook_receiver: WebhookReceiver | None = None,
     retry_handler: RetryHandler | None = None,
+    incident_store: IncidentStore | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level.value)
     app = FastAPI(title="Praxis", version=__version__)
     app.include_router(forecast_router(forecast_service or build_forecast_service(settings)))
     app.include_router(webhook_router(webhook_receiver or build_webhook_receiver(settings)))
+    app.include_router(
+        ops_router(load_ops_config(), incident_store or build_incident_store(settings))
+    )
     token = settings.tasks_token.get_secret_value() if settings.tasks_token else None
     app.include_router(tasks_router(retry_handler or build_retry_handler(settings), token))
 
@@ -100,6 +125,7 @@ def create_app(
         inbound = request.headers.get(CORRELATION_HEADER)
         correlation_id = inbound if inbound and is_valid_correlation_id(inbound) else None
         correlation_id = correlation_id or new_correlation_id()
+        started = time.perf_counter()
         with trace_context(correlation_id=correlation_id) as (_trace_id, cid):
             try:
                 response = await call_next(request)
@@ -110,6 +136,7 @@ def create_app(
                     content=ErrorResponse(error="internal_error", correlation_id=cid).model_dump(),
                 )
             response.headers[CORRELATION_HEADER] = cid
+            _record_request(request, response.status_code, started)
             return response
 
     @app.get("/healthz", response_model=HealthResponse)

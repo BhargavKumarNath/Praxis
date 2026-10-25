@@ -40,6 +40,7 @@ from praxis.events.codec import (
 )
 from praxis.streaming.metrics import StreamMetrics
 from praxis.streaming.transport import Delivery, Disposition, Publisher
+from praxis.telemetry import telemetry
 from praxis.tracing import is_valid_correlation_id, is_valid_trace_id, trace_context
 
 logger = logging.getLogger(__name__)
@@ -195,7 +196,10 @@ class ConsumerWorker:
                 "delivery_attempt": delivery.delivery_attempt,
             }
             try:
-                status = self.consumer.handle(event, delivery)
+                with telemetry().span(
+                    "event.consume", subscription=sub, event_type=event.event_type
+                ):
+                    status = self.consumer.handle(event, delivery)
             except PermanentError as exc:
                 return self._dead_letter(delivery, exc.reason, exc.detail)
             except TransientError as exc:

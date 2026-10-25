@@ -1,0 +1,154 @@
+# Praxis alert rules (Phase 11, ADR 0018). PRE-REGISTERED 2026-10-25 before the ops drill.
+# Pinned by tests/ops/test_config.py. A rule fires when ANY matching series violates the
+# condition; every rule names its runbook (docs/runbooks/<runbook>.md).
+version = "2026-10-25.1"
+
+# --- service ---------------------------------------------------------------------------
+[[rule]]
+id = "api_availability_slo_breach"
+category = "service"
+severity = "page"
+kind = "slo"
+slo = "api_availability"
+runbook = "database-outage"
+summary = "API availability is below its SLO"
+
+[[rule]]
+id = "webhook_success_slo_breach"
+category = "service"
+severity = "page"
+kind = "slo"
+slo = "webhook_processing_success"
+runbook = "stripe-webhook-surge"
+summary = "Stripe webhooks are failing to be accepted"
+
+[[rule]]
+id = "decision_latency_slo_breach"
+category = "service"
+severity = "ticket"
+kind = "slo"
+slo = "pricing_decision_latency_p95"
+runbook = "database-outage"
+summary = "Pricing decisions are slower than the p95 target"
+
+[[rule]]
+id = "consumer_lag_slo_breach"
+category = "service"
+severity = "ticket"
+kind = "slo"
+slo = "event_consumer_lag_p95"
+runbook = "pubsub-backlog"
+summary = "Event consumers are lagging behind the p95 target"
+
+[[rule]]
+id = "queue_backlog_high"
+category = "service"
+severity = "page"
+kind = "threshold"
+metric = "queue_backlog"
+op = ">"
+threshold = 1000
+runbook = "pubsub-backlog"
+summary = "A subscription has more than 1000 undelivered messages"
+
+[[rule]]
+id = "dlq_backlog_high"
+category = "service"
+severity = "page"
+kind = "slo"
+slo = "dlq_backlog"
+runbook = "pubsub-backlog"
+summary = "Dead-letter backlog exceeds its maximum"
+
+[[rule]]
+id = "inference_failures"
+category = "service"
+severity = "page"
+kind = "threshold"
+metric = "model_inference_total"
+labels = { outcome = "unavailable" }
+denominator = "model_inference_total"
+min_denominator = 20
+op = ">"
+threshold = 0.05
+runbook = "broken-candidate-deployment"
+summary = "More than 5% of model inferences are unavailable"
+
+# --- data ------------------------------------------------------------------------------
+# Per-source maximum age in seconds = configs/data/sources.toml [freshness] hours * 3600.
+[[rule]]
+id = "source_stale"
+category = "data"
+severity = "ticket"
+kind = "threshold"
+metric = "data_source_age_s"
+op = ">"
+threshold_by = { label = "source", values = { open_meteo = 604800, carbon_intensity = 172800, eia = 432000, fred = 6480000 } }
+runbook = "external-source-outage"
+summary = "An external source has not delivered within its freshness limit"
+
+[[rule]]
+id = "data_contract_failure"
+category = "data"
+severity = "page"
+kind = "threshold"
+metric = "data_contract_failures_total"
+op = ">"
+threshold = 0
+runbook = "external-source-outage"
+summary = "Incoming data failed its contract"
+
+# --- model -----------------------------------------------------------------------------
+[[rule]]
+id = "model_drift"
+category = "model"
+severity = "ticket"
+kind = "threshold"
+metric = "model_drift_alarm"
+op = ">="
+threshold = 1
+runbook = "stale-model"
+summary = "The champion model has a persistent drift alarm"
+
+[[rule]]
+id = "calibration_regression"
+category = "model"
+severity = "ticket"
+kind = "threshold"
+metric = "model_calibration_80"
+op = "<"
+threshold = 0.70
+runbook = "severe-forecast-error"
+summary = "80% prediction interval coverage fell below 70%"
+
+[[rule]]
+id = "forecast_stale"
+category = "model"
+severity = "ticket"
+kind = "slo"
+slo = "forecast_freshness"
+runbook = "stale-model"
+summary = "The served forecast is older than the freshness limit"
+
+# --- business --------------------------------------------------------------------------
+[[rule]]
+id = "business_kpi_shock"
+category = "business"
+severity = "page"
+kind = "threshold"
+metric = "business_kpi_deviation"
+op = "abs>"
+threshold = 0.30
+runbook = "business-kpi-shock"
+summary = "A business KPI deviates more than 30% from its trailing baseline"
+
+[[rule]]
+id = "price_volatility"
+category = "business"
+severity = "ticket"
+kind = "threshold"
+metric = "price_change_fraction"
+op = ">"
+threshold = 0.50
+runbook = "business-kpi-shock"
+summary = "More than half of the products changed price in one cycle"

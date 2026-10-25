@@ -46,9 +46,19 @@ from praxis.mlops.store import (
 )
 from praxis.mlops.training import Candidate, train_candidate, utc_midnight
 from praxis.mlops.validation import Gate, validate_candidate
+from praxis.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
 PROBATION_ACTOR = "mlops-probation"
+
+
+def _emit_model_health(report: dict[str, Any]) -> None:
+    """Drift alarm and interval coverage of the champion as gauges (alert inputs)."""
+    tel = telemetry()
+    tel.set("model_drift_alarm", 1.0 if report["alarms"] else 0.0, model="demand_forecast")
+    coverage = report["residual"].get("coverage_80")
+    if coverage is not None:
+        tel.set("model_calibration_80", coverage, model="demand_forecast")
 
 
 @dataclass
@@ -195,6 +205,7 @@ class DemandLifecycle:
             champion, "drift", as_of, start, bool(report["drift_fired"]), report
         )
         report["report_id"] = report_id
+        _emit_model_health(report)
         decision_drift = bool(report["alarms"])
         blocked = (
             "no new labels since the champion's training data"

@@ -1,0 +1,111 @@
+# Health dashboard panels (Phase 11): which metric each section shows. `agg` is one of
+# total | peak | trough | p50 | p95 (histogram upper bound).
+version = "2026-10-25.1"
+
+[[panel]]
+section = "service"
+title = "HTTP requests"
+metric = "http_requests_total"
+agg = "total"
+
+[[panel]]
+section = "service"
+title = "HTTP 5xx"
+metric = "http_server_errors_total"
+agg = "total"
+
+[[panel]]
+section = "service"
+title = "HTTP p95 latency (ms)"
+metric = "http_request_duration_ms"
+agg = "p95"
+
+[[panel]]
+section = "service"
+title = "Event consumer lag p95 (ms)"
+metric = "event_lag_ms"
+agg = "p95"
+
+[[panel]]
+section = "service"
+title = "Queue backlog (max)"
+metric = "queue_backlog"
+agg = "peak"
+
+[[panel]]
+section = "service"
+title = "DLQ backlog (max)"
+metric = "dlq_backlog"
+agg = "peak"
+
+[[panel]]
+section = "data"
+title = "Oldest source age (s)"
+metric = "data_source_age_s"
+agg = "peak"
+
+[[panel]]
+section = "data"
+title = "Contract failures"
+metric = "data_contract_failures_total"
+agg = "total"
+
+[[panel]]
+section = "model"
+title = "Model inferences"
+metric = "model_inference_total"
+agg = "total"
+
+[[panel]]
+section = "model"
+title = "Inference p95 latency (ms)"
+metric = "model_inference_duration_ms"
+agg = "p95"
+
+[[panel]]
+section = "model"
+title = "Forecast age (h)"
+metric = "forecast_age_hours"
+agg = "peak"
+
+[[panel]]
+section = "model"
+title = "Drift alarm (1 = active)"
+metric = "model_drift_alarm"
+agg = "peak"
+
+[[panel]]
+section = "model"
+title = "80% interval coverage"
+metric = "model_calibration_80"
+agg = "trough"
+
+[[panel]]
+section = "business"
+title = "Pricing decisions"
+metric = "pricing_decisions_total"
+agg = "total"
+
+[[panel]]
+section = "business"
+title = "Frozen decisions"
+metric = "pricing_frozen_decisions_total"
+agg = "total"
+
+[[panel]]
+section = "business"
+title = "Pricing cycle p95 (ms)"
+metric = "pricing_decision_duration_ms"
+agg = "p95"
+
+[[panel]]
+section = "business"
+title = "Share of products re-priced"
+metric = "price_change_fraction"
+agg = "peak"
+
+[[panel]]
+section = "business"
+title = "Largest KPI deviation"
+metric = "business_kpi_deviation"
+agg = "peak"

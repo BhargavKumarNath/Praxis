@@ -30,6 +30,7 @@ from praxis.pricing.inputs import ProblemSource
 from praxis.pricing.optimiser import optimise, unavailable
 from praxis.pricing.problem import Blocked
 from praxis.pricing.store import DecisionStore, Execution, StoreError
+from praxis.telemetry import telemetry
 from praxis.tracing import current_trace_id, trace_context
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,11 @@ class PricingMetrics:
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def record(self, item: CycleItem) -> None:
+        tel = telemetry()
+        tel.inc("pricing_decisions_total", status=item.decision.status.value)
+        if item.decision.status is Status.FROZEN:
+            for reason in item.decision.reason_codes or ("unspecified",):
+                tel.inc("pricing_frozen_decisions_total", reason=reason)
         with self._lock:
             self.counters["pricing_decisions_total"] += 1
             self.counters[f"pricing_decision_status_total:{item.decision.status.value}"] += 1
@@ -139,6 +145,10 @@ class PricingService:
             return self._run(as_of, mode)
 
     def _run(self, as_of: date, mode: Mode) -> CycleResult:
+        with telemetry().span("pricing.cycle", mode=mode.value, policy_version=self.policy.version):
+            return self._run_cycle(as_of, mode)
+
+    def _run_cycle(self, as_of: date, mode: Mode) -> CycleResult:
         started = time.perf_counter()
         problems = self.source.problems(as_of)
         items = []
@@ -149,10 +159,14 @@ class PricingService:
             if isinstance(problem, Blocked):
                 decision = unavailable(problem, as_of, self.policy, mode)
             else:
-                decision = optimise(problem, self.policy, mode)
+                with telemetry().span("optimiser.optimise", product=product):
+                    decision = optimise(problem, self.policy, mode)
             items.append(self._commit(decision, mode))
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         self.metrics.latency.add(elapsed_ms)
+        telemetry().observe("pricing_decision_duration_ms", elapsed_ms)
+        changed = sum(1 for i in items if i.decision.status is Status.CHANGE)
+        telemetry().set("price_change_fraction", changed / max(len(items), 1))
         result = CycleResult(
             cycle_id(self.policy.policy.name, mode, as_of),
             as_of,
@@ -174,7 +188,8 @@ class PricingService:
     def _commit(self, decision: Decision, mode: Mode) -> CycleItem:
         trace_id = current_trace_id()
         try:
-            self.store.record(decision, trace_id=trace_id)
+            with telemetry().span("persistence.record", decision_id=decision.decision_id):
+                self.store.record(decision, trace_id=trace_id)
         except (StoreError, TransientError) as exc:
             item = CycleItem(decision, False, False, audit_error=f"{type(exc).__name__}: {exc}")
             self._log(item, trace_id)

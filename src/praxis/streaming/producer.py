@@ -14,12 +14,15 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any
 
 from praxis.events.codec import ATTR_REPLAY, ATTR_SENT_AT, DecodeError, encode, validate_event
 from praxis.streaming.archive import EventArchive
 from praxis.streaming.transport import Publisher
+from praxis.telemetry import telemetry
+from praxis.tracing import current_trace_id, trace_context
 
 
 class ProducerContractError(ValueError):
@@ -57,6 +60,18 @@ class EventProducer:
                 validate_event(event)
             except DecodeError as exc:
                 raise ProducerContractError(i, exc) from None
+        # Ingestion span: a single-event batch joins that event's trace (a larger batch has
+        # no single trace to join, and gets its own).
+        trace_id = events[0].get("trace_id") if len(events) == 1 else None
+        with (
+            trace_context(trace_id) if trace_id and current_trace_id() is None else nullcontext(),
+            telemetry().span("event.publish", topic=self._topic, events=len(events), replay=replay),
+        ):
+            return self._publish_validated(events, replay)
+
+    def _publish_validated(
+        self, events: Sequence[Mapping[str, Any]], replay: bool
+    ) -> PublishReport:
         archived = 0
         if self._archive is not None and not replay:
             archived = self._archive.append(events).files_written

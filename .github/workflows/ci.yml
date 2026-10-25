@@ -31,7 +31,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: make lint typecheck arch schemas secrets workflow-lint
+      - run: make lint typecheck arch ops-check schemas secrets workflow-lint
 
   backend:
     # Same as local `make test`: Postgres (service) + Pub/Sub emulator (Docker), so the

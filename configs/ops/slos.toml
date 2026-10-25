@@ -1,0 +1,65 @@
+# Praxis SLOs (Phase 11, ADR 0018). PRE-REGISTERED 2026-10-25, before the ops drill ran:
+# a target is never loosened after seeing a result (CLAUDE.md integrity rule). Pinned by
+# tests/ops/test_config.py. Values are local/development targets for the synthetic system.
+version = "2026-10-25.1"
+
+# Ratio SLO: good events / total events >= target over the evaluated window (the process
+# lifetime for the in-process reader). Needs `min_events` before it can be judged.
+[[slo]]
+id = "api_availability"
+category = "service"
+description = "Share of HTTP requests that do not end in a 5xx"
+kind = "ratio"
+total_metric = "http_requests_total"
+bad_metric = "http_server_errors_total"
+target = 0.995
+min_events = 20
+
+[[slo]]
+id = "webhook_processing_success"
+category = "service"
+description = "Share of Stripe webhook deliveries that are durably accepted (accepted / duplicate / ignored)"
+kind = "ratio"
+total_metric = "webhook_events_total"
+good_label = "outcome"
+good_values = ["accepted", "duplicate", "ignored"]
+target = 0.99
+min_events = 20
+
+# Latency SLO: the q-quantile (bucket upper bound, so conservative) must be <= max_ms.
+[[slo]]
+id = "pricing_decision_latency_p95"
+category = "service"
+description = "p95 latency of one pricing cycle (all products, including persistence)"
+kind = "latency"
+metric = "pricing_decision_duration_ms"
+quantile = 0.95
+max_ms = 2500
+min_events = 5
+
+[[slo]]
+id = "event_consumer_lag_p95"
+category = "service"
+description = "p95 publish-to-ack latency of event consumers"
+kind = "latency"
+metric = "event_lag_ms"
+quantile = 0.95
+max_ms = 5000
+min_events = 20
+
+# Gauge SLO: every series of the gauge must be <= max_value.
+[[slo]]
+id = "forecast_freshness"
+category = "model"
+description = "Hours since the freshest feature day behind the served forecast"
+kind = "gauge_max"
+metric = "forecast_age_hours"
+max_value = 48
+
+[[slo]]
+id = "dlq_backlog"
+category = "service"
+description = "Dead-lettered messages awaiting redrive, per subscription"
+kind = "gauge_max"
+metric = "dlq_backlog"
+max_value = 10
