@@ -16,8 +16,9 @@ Checks (configs/mlops/demand.toml ``[validation]``; thresholds pre-registered):
 * ``baseline_comparison``, ``calibration_80``, ``calibration_50``,
   ``segment_regression_vs_baseline``: the named parts of that acceptance, surfaced.
 * ``champion_non_inferiority``: the candidate's backtest skill (vWAPE / seasonal naive) is
-  at most ``max_skill_ratio_vs_champion`` x the champion's (amendment 2026-10-17: the
-  development world showed a misconfigured recipe clearing every absolute check).
+  at most ``max_skill_ratio_vs_champion`` x the skill of the champion's RECIPE on the same
+  rolling origins (amendment 2026-10-17: the development world showed a misconfigured
+  recipe clearing every absolute check; 2026-10-18: same origins, not each version's own).
 * ``latency_budget``: p95 of a full-catalogue prediction <= serving budget.
 * ``memory_budget``: Python heap peak while loading + predicting; artifact size on disk.
 * ``reproducibility``: retraining on the same data / config / code revision reproduces the
@@ -48,7 +49,7 @@ from praxis.forecasting.artifact import (
     load_artifact,
     train_artifact_with_model,
 )
-from praxis.forecasting.backtest import NAIVE, evaluate_acceptance
+from praxis.forecasting.backtest import NAIVE, evaluate_acceptance, run_backtest
 from praxis.forecasting.config import Acceptance
 from praxis.forecasting.features import FEATURE_VERSION, WINDOW, build_features, build_frame
 from praxis.forecasting.panel import DemandPanel
@@ -290,30 +291,55 @@ def backtest_skill(overall: dict[str, Any], name: str) -> float:
 
 def check_champion_skill(
     backtest: dict[str, Any] | None,
+    art: ForecastArtifact,
     champion: ForecastArtifact | None,
+    data: WarehouseData,
     cfg: MlopsConfig,
     gate: Acceptance,
 ) -> dict[str, Any]:
-    """Non-inferiority to the champion offline (amendment 2026-10-17, ADR 0017): absolute
-    acceptance alone let a clearly worse recipe through to shadow."""
+    """Candidate recipe vs the champion's recipe on IDENTICAL rolling origins (ADR 0017).
+
+    Amendment 2026-10-17: absolute acceptance alone let a clearly worse recipe through.
+    Amendment 2026-10-18: each version's skill used to come from ITS OWN backtest window, so
+    a retrain whose window included harder (drifted) weeks looked worse than a champion
+    scored on easier ones. Now the champion's recipe is backtested on the candidate's panel
+    (same folds, same seasonal naive). The same recipe gives the identical backtest
+    (deterministic fits), so it is not re-run. Artifacts are compared in shadow."""
     limit = cfg.validation.max_skill_ratio_vs_champion
-    threshold = f"candidate skill / champion skill <= {limit}"
-    reference = None if champion is None else champion.manifest.get("backtest")
-    if champion is None or reference is None:
-        return check("champion_non_inferiority", True, None, threshold, note="no champion backtest")
+    threshold = f"candidate skill / champion-recipe skill on the same origins <= {limit}"
+    if champion is None:
+        return check("champion_non_inferiority", True, None, threshold, note="no champion")
     if backtest is None:
         required = cfg.validation.require_backtest_acceptance
         return check("champion_non_inferiority", not required, None, threshold)
     name = gate.candidate
     mine = backtest_skill({k: m["overall"] for k, m in backtest["models"].items()}, name)
-    theirs = backtest_skill(reference["overall"], name)
+    method = "same_recipe"
+    theirs = mine
+    if champion.config.config_hash != art.config.config_hash:
+        method = "champion_recipe_rerun"
+        rerun = run_backtest(data.panel, data.plan, champion.config)
+        if (rerun["origins"], rerun["data_version"]) != (
+            backtest["origins"],
+            backtest["data_version"],
+        ):
+            return check(
+                "champion_non_inferiority",
+                False,
+                None,
+                threshold,
+                note="champion recipe could not be scored on the candidate's origins",
+            )
+        theirs = backtest_skill({k: m["overall"] for k, m in rerun["models"].items()}, name)
     return check(
         "champion_non_inferiority",
         mine / theirs <= limit,
         mine / theirs,
         threshold,
+        method=method,
+        origins=len(backtest["origins"]),
         candidate_skill=round(mine, 6),
-        champion_skill=round(theirs, 6),
+        champion_recipe_skill=round(theirs, 6),
         champion=champion.model_version,
     )
 
@@ -438,7 +464,7 @@ def validate_candidate(
             max(art.config.target.horizons),
         ),
         *backtest_checks(art, backtest, cfg, gate.acceptance),
-        check_champion_skill(backtest, champion, cfg, gate.acceptance),
+        check_champion_skill(backtest, art, champion, data, cfg, gate.acceptance),
         check_latency(art, data, cfg),
         check_memory(path, data, cfg),
         *check_reproducibility(art, data, backtest),

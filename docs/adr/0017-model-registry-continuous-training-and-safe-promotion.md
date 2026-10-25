@@ -6,7 +6,10 @@ world `configs/simulator/scenarios/mlops_drift.toml` and the drill acceptance
 `configs/mlops/lifecycle_acceptance.toml`. The policy was amended three times BEFORE any
 simulator world was built or monitored (see "Pre-run amendments") and once AFTER the
 development world, with the owner's approval (see "Post-development amendment"); every
-amendment is written into the file it changed.
+amendment is written into the file it changed. Attempt 1 FAILED on held-out seed 601
+(2026-10-17); attempt 2 (see "Attempt 2", owner-delegated redesign, also pins the steady
+world `configs/simulator/scenarios/mlops_steady.toml`) PASSED 12 / 12 on fresh held-out
+seed 621 (2026-10-25).
 
 Extends ADR 0005 (retraining may be automatic; promotion is a separate, gated action).
 
@@ -137,6 +140,109 @@ Neither the bad recipe nor any drill threshold changed. It is judged once on the
 evaluation seed 601. The other dev failure (`steady_max_decision_alarm_days`, 13 alarm days
 vs 0) was NOT amended: it is reported as a failure (see phase-10 evidence).
 
+## Attempt 2 (2026-10-18): amendments after the attempt-1 FAIL
+Attempt 1 failed its pre-registered drill acceptance on held-out seed 601
+(`steady_max_decision_alarm_days`: 30 alarm days vs a limit of 0); that result stands in the
+evidence. The owner first approved "fix Phase 10 properly" (2026-10-17) and then, on
+2026-10-18, delegated authority to redesign Phase 10 requirements where technically
+justified, without weakening safety. Every change below was designed from DEVELOPMENT data
+only (seeds 1, 611, 612, 613), calibrated there, and pinned before the fresh held-out seed
+621 was built. No threshold was loosened: every number in `[monitoring]`, `[shadow]`,
+`[probation]`, `[validation]` and the drill's `[checks]` is the 2026-10-11 value.
+
+**1. Steady world (cause measured, dev seed 1).** The attempt-1 hypothesis "arrivals stop at
+day 196, so the frozen model decays" was REFUTED: a world identical except for continued
+arrivals decays the same way (active customers 694 -> 614 vs 693 -> 625 from day 196 to 238;
+frozen day-195 champion 1.41 vs 1.43 x its backtest vWAPE by day 252, eu_west 2.43 vs 2.50).
+The population already shrinks before day 196. The cause is the simulator's compounding,
+heterogeneous per-customer growth (N(0.002, 0.004) per day, clipped to [-1%, +1.5%]): a few
+fast-growing customers come to dominate each region (eu_west top-3 share 0.18 -> 0.28, top-10
+0.44 -> 0.52, over days 112..251 with flat volume). That makes forecasting genuinely harder:
+the seasonal naive's error rose 1.38x too. Test: the same world with growth switched off
+(`growth_mean = 0`, `growth_sd = 0.0001`) keeps the frozen champion at 0.81-0.96x overall and
+<= 1.20x on every slice for days 196..252 (no breach at all). Two alternatives that would
+have kept the organic world were measured and REJECTED: monitoring skill (model vWAPE /
+seasonal-naive vWAPE on the same window) stays <= 1.10 on the drift world too, because the
+naive suffers equally on a ramp; and weighted bias separates the late steady rise (eu_west
+bias -0.02 at 2.4x error) but the steady world's eu_central over-forecast (+0.09) is as large
+as the drift world's bias at the deadline. So the steady world of the drill, which must be a
+NULL control, is `configs/simulator/scenarios/mlops_steady.toml` = the pricing shadow world
+with only organic growth switched off (`pricing_shadow.toml` itself is unchanged; Phases 6
+and 9 still use it), and `mlops_drift.toml` is rebased on it (steady and drift differ only
+by the injected changes, which are unchanged). Organic concentration is a real monitoring
+limitation, documented in `docs/mlops.md`; it is not claimed solved.
+
+**2. Persistence-aware alarms** (`[monitoring] persistence_days`). A decision signal over its
+threshold on one day is a BREACH; it is an ALARM (retraining trigger; what the drill counts)
+only when the same signal breached on `persistence_days` consecutive evaluated days of the
+same champion. Consecutive 14-day windows share 13 days, so one extreme day lifts a single
+window. Breaches stay in every report. Detection is counted from the drift onset.
+
+**3. Continuous, safe promotion.** The drill operator approves every version the registry
+reports READY (shadow passed against the CURRENT champion; `promote` re-checks it), in the
+steady and the drift world, always as a named approver; probation applies to each promotion.
+Attempt 1 approved only the first READY version, so champions aged. No automatic champion
+change exists except a probation restore.
+
+**4. Like-for-like recipe comparison** (`champion_non_inferiority`). The candidate's skill is
+compared with the skill of the champion's RECIPE re-run on the candidate's identical rolling
+origins and panel (fail closed if the folds differ). A candidate with the champion's recipe
+is the identical backtest (deterministic fits; a test re-runs an equivalent recipe and gets
+exactly 1.0), so it is not re-run: comparing the trained ARTIFACTS is shadow's job, on
+identical live observations. Attempt 1 compared skills from different windows and rejected 4
+of 8 drift retrains on 601 for having harder (drifted) weeks in their backtests.
+
+**5. Faster drill, same results.** The three worlds run as spawned processes, one registry
+and candidates directory each (LightGBM segfaults when trained from several threads of one
+process, so threads were rejected); `OMP_WAIT_POLICY=PASSIVE` stops idle OpenMP threads
+spinning. Per-world MLflow SQLite files avoid writer contention.
+
+### Calibration (2026-10-24, development seeds 1, 611, 612, 613 only)
+All four dev drills (with the provisional `persistence_days = 3`) passed 12 / 12 checks.
+Evidence: `data/mlops/attempt2/calibration-seeds-1-611-612-613.txt` (local, gitignored) and
+`docs/evidence/phase-10-attempt2-dev-seed*-drill.json`.
+
+| Measurement | 1 | 611 | 612 | 613 |
+| --- | --- | --- | --- | --- |
+| Steady breach days (any decision signal) | 0 | 0 | 0 | 0 |
+| Steady max residual ratio / max slice ratio | 0.97 / 1.20 | 0.98 / 1.21 | 1.01 / 1.39 | 1.00 / 1.48 |
+| Drift first breach (onset 07-27, deadline 08-10) | 08-06 | 08-06 | 08-08 | 08-08 |
+| Drift first alarm, k = 2 / 3 (drill) | 08-07 / 08-08 | 08-07 / 08-08 | 08-09 / **08-10** | 08-09 / **08-10** |
+| Approved promotions steady / drift; probation restores | 2 / 2; 1 | 2 / 2; 1 | 2 / 2; 1 | 2 / 2; 0 |
+| Good retrains passing `champion_non_inferiority` (excl. 3 bootstraps) | 11 / 11 | 11 / 11 | 10 / 10 | 11 / 11 |
+| Bad recipe same-origin ratio (limit 1.02) | 1.057 | 1.154 | 1.095 | 1.110 |
+
+**`persistence_days`.** Chosen by a rule written down before the 612 / 613 results were seen
+(`data/mlops/attempt2/persistence-decision-rule.txt`): maximise min(k - longest steady breach
+run, worst-seed days between first alarm and deadline), both >= 1; tie -> keep 3. With k = 3,
+612 and 613 alarmed ON the deadline (0 days slack): infeasible. k = 2 gives margin 2 on the
+steady side and 1 day of slack: chosen. Because no dev drill had run k = 2 end to end, two full
+dev drills were re-run with k = 2 before pinning (seed 1 per the rule, plus 612, the tightest):
+both PASS 12 / 12 (2026-10-25; first alarm 08-07 on seed 1 and 08-09 on 612, 0 steady alarm
+days on both; reports `data/mlops/attempt2/k2/`, summary
+`data/mlops/attempt2/calibration-k2-confirmation-seeds-1-612.txt`). No threshold was changed. The 1-day slack is thin: the drift detector
+reacts 10-12 days after onset on dev worlds, so a held-out world whose ramp crosses the
+threshold later than 08-09 would fail `drift_detected_within_days`; that is a property of the
+unchanged 1.30 / 1.50 thresholds and the 14-day window, and it is reported, not tuned.
+
+**`champion_non_inferiority`.** A good retrain against a champion of the same recipe is
+exactly 1.0 by construction (42 of 43); the one exception is seed 613's rollback world, where
+the incumbent was the force-promoted bad recipe and the good retrain scored 0.90 against it
+(re-run on identical origins). The bad recipe as candidate scored 1.057-1.154, so the
+unchanged 1.02 margin separates them on every dev seed. Retrain acceptance: every good
+retrain passed validation on every dev world (attempt 1 on 601: 4 of 8 drift retrains
+rejected).
+
+### Held-out result (2026-10-25, seed 621, run once)
+Pinned (hashes re-pinned 2026-10-25) and code frozen after `make check` exit 0; seed 621 was
+built only then. Result: **12 / 12 PASS** (`docs/evidence/phase-10-attempt2-eval-seed621-drill.json`).
+Steady world 0 breach / 0 alarm days; drift first alarm 08-09 (1 day before the deadline);
+bad recipe rejected (`backtest_acceptance`, `champion_non_inferiority` 1.142); forced bad
+champion restored by probation on 08-23 (1.082 > 1.05); 16 versions with complete lineage.
+Three `make check` fixes made before the run (test fixture generalised for k = 2; coverage
+measures spawned processes; dependency security upgrades) changed no threshold or model
+code; they are listed in `docs/evidence/phase-10.md`.
+
 ## Defect found in Phase 4 serving (fixed here)
 `RidgeBaseline.state()` is written with `sort_keys=True`; `from_state` rebuilt the
 categorical one-hot blocks in JSON key order (dow, product, region, segment) instead of fit
@@ -150,7 +256,8 @@ fixture the error was larger (0.26 vs 0.16). The Phase 4 round-trip test compare
 dictionaries (order-blind). Fix: rebuild blocks in `CATEGORICAL` order and refuse unknown
 categories; regression test compares predictions; `serving_parity` now guards every
 candidate. The spent held-out pricing seeds were NOT re-run (that would turn them into a
-tuning set); the owner decides whether Phases 6 / 9 need fresh pre-registered evaluations.
+tuning set). Owner decision 2026-10-25: disclose in the Phase 6 / 9 evidence, do not
+re-evaluate now; a fresh pre-registered evaluation is required before live pricing.
 
 ## Consequences
 * Retraining is automatic; promotion is approved; rollback is automatic only as a restore.

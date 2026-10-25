@@ -9,7 +9,13 @@ Drift (``[monitoring]``, evaluated as of a data date D, actuals known through D-
 * feature / prediction drift: PSI of monitored features (one-step rows at origins in the
   window) and of the scaled point forecast, on bins fixed at registration.
 
-Drift is EVIDENCE: it opens (or joins) a retraining request. It never promotes anything.
+A decision signal over its threshold on one day is a BREACH (reported). It becomes an ALARM
+only when the same signal breached on ``persistence_days`` consecutive evaluated days of the
+same champion (ADR 0017, amendment 2026-10-18): consecutive 14-day windows share 13 days,
+so a single extreme day can lift one window; a real change keeps lifting them.
+
+Drift is EVIDENCE: an alarm (or an investigation signal) opens (or joins) a retraining
+request. It never promotes anything.
 Retraining is also requested on schedule (data age) or when enough new labels exist.
 
 Probation: for ``[probation].days`` after a promotion the replaced champion is scored on the
@@ -18,6 +24,7 @@ same matured observations; a new champion clearly worse than it is rolled back.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from datetime import date, timedelta
 from typing import Any
 
@@ -149,21 +156,38 @@ def _distribution(
     }
 
 
+def persistent(today: Iterable[str], history: Sequence[Iterable[str]], days: int) -> list[str]:
+    """Decision signals breached today AND on each of the previous ``days - 1`` days.
+
+    ``history``: the breaches of the immediately preceding evaluated days, most recent first
+    (a gap or a day without an evaluation ends the run)."""
+    if len(history) < days - 1:
+        return []
+    alarms = set(today) & DECISION_SIGNALS
+    for previous in history[: days - 1]:
+        alarms &= set(previous)
+    return sorted(alarms)
+
+
 def drift_check(
     art: ForecastArtifact,
     reference: dict[str, Any],
     data: WarehouseData,
     as_of: date,
     cfg: MlopsConfig,
+    history: Sequence[Iterable[str]] = (),
 ) -> dict[str, Any]:
-    """Signals for the champion as of ``as_of`` plus the retraining triggers that apply."""
+    """Signals for the champion as of ``as_of`` plus the retraining triggers that apply.
+
+    ``history``: decision breaches of the previous consecutive days (see ``persistent``)."""
     residual = _residual(art, reference, data, as_of, cfg)
     dist = _distribution(art, reference, data, as_of, cfg)
     fired = sorted(set(residual.get("fired", [])) | set(dist["fired"]))
+    alarms = persistent(fired, history, cfg.monitoring.persistence_days)
     age = (as_of - timedelta(days=1) - training_end(art)).days
     labels = int(max(age, 0) * len(art.series))
     rt = cfg.retraining
-    triggers = fired + [
+    routine = [
         k
         for k, hit in (
             ("scheduled", age >= rt.scheduled_every_days),
@@ -171,6 +195,8 @@ def drift_check(
         )
         if hit
     ]
+    # persisted decision alarms + investigation signals (PSI) + schedule / labels
+    triggers = alarms + sorted(set(dist["fired"])) + routine
     return {
         "model_version": art.model_version,
         "as_of": as_of.isoformat(),
@@ -179,6 +205,9 @@ def drift_check(
         "data_age_days": age,
         "new_labels": labels,
         "drift_fired": fired,
+        "breaches": sorted(set(fired) & DECISION_SIGNALS),
+        "alarms": alarms,
+        "persistence_days": cfg.monitoring.persistence_days,
         "retraining_triggers": triggers,
         "policy_version": cfg.policy_version,
     }

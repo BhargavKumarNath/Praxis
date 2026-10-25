@@ -4,23 +4,37 @@
 # any monitor, shadow or rollback ran on a simulator world. tests/mlops/test_config.py pins
 # this hash. The lifecycle policy itself is configs/mlops/demand.toml (pinned too).
 #
+# ATTEMPT 2, AMENDED 2026-10-18 (ADR 0017 "Attempt 2"; owner authority to redesign Phase 10
+# delegated 2026-10-18). Attempt 1 FAILED on held-out seed 601 (steady-world alarms 30 vs 0)
+# and is kept in the evidence. Changes, each calibrated on DEVELOPMENT seeds 1, 611, 612, 613
+# only and pinned BEFORE the fresh held-out seed 621 was built:
+#   * steady world = configs/simulator/scenarios/mlops_steady.toml (the pricing shadow world
+#     without organic per-customer growth; the drift world is rebased on it);
+#   * "alarm" = a decision signal breached on [monitoring].persistence_days consecutive days;
+#     the steady and detection checks count alarms, and detection counts from the onset;
+#   * the drill operator approves EVERY version the registry reports READY, in the steady AND
+#     the drift world (attempt 1: only the first, steady only);
+#   * champion_non_inferiority compares recipes on identical rolling origins (demand.toml).
+# Every threshold below is UNCHANGED from 2026-10-11.
+#
 # The drill runs the REAL subsystem (Postgres registry, validation gate, daily monitor,
 # retraining, shadow, probation) one data day at a time over the eight weeks after the
 # champion's training window, on two worlds of the same seed:
 #
-#   steady = configs/simulator/scenarios/pricing_shadow.toml (no change after day 195)
-#   drift  = configs/simulator/scenarios/mlops_drift.toml   (eu_west ramp from day 203,
-#            us_east api_requests x0.5 from day 210)
+#   steady = configs/simulator/scenarios/mlops_steady.toml (no change after day 195)
+#   drift  = configs/simulator/scenarios/mlops_drift.toml  (= steady + eu_west ramp from
+#            day 203, us_east api_requests x0.5 from day 210)
 #
 # Champion: the Phase 4 recipe (configs/forecast/demand.toml, unchanged) trained on days
 # 0..195 of the world, registered, validated and approved by a named operator (bootstrap).
 # Retraining uses the same recipe. Promotion to champion always needs a named approver: in
-# the drill the approver is the drill operator, acting only after the registry reports the
+# the drill the approver is the drill operator, acting each time the registry reports a
 # version ready (shadow passed against the current champion); that is recorded as such.
 
 [worlds]
-development_seed = 1      # method work happens here
-evaluation_seed = 601     # fresh; built once through every gate and run ONCE after dev
+development_seeds = [1, 611, 612, 613]   # method work and calibration happen here only
+evaluation_seed = 621     # fresh; built only after this file is pinned, run ONCE
+spent_evaluation_seeds = [601]           # attempt 1 (FAIL); never run again
 customers = 1000
 champion_training_end_day = 195
 first_as_of_day = 196     # first day the champion serves (data through day 195)
@@ -34,16 +48,21 @@ bad_candidate_rejected = true          # misconfigured recipe (ridge alpha 1e9, 
 champion_validation_passes = true      # the Phase 4 recipe passes every offline check
 steady_candidate_reaches_ready = true  # steady world: a retrained candidate passes validation,
                                        # enters shadow automatically and passes shadow
-steady_candidate_promoted_by_approver = true
+steady_candidate_promoted_by_approver = true  # every READY version approved by the operator;
+                                              # the final champion is the last one approved
+                                              # (or the version probation restored)
 # Gate "drift alert can create retraining request"
-drift_detected_within_days = 14        # residual or segment drift by onset + 14 days
+drift_detected_within_days = 14        # first decision ALARM on or after the onset, by
+                                       # onset + 14 days
 drift_opens_retraining_request = true
-# Decision-signal false alarms on the steady world (residual, segment, calibration).
-# Feature / prediction PSI are investigation signals: reported, not gated (ADR 0017).
+# Decision ALARMS on the steady world (residual, segment, calibration persisted over
+# [monitoring].persistence_days). Single-day breaches and feature / prediction PSI are
+# reported, not gated (ADR 0017).
 steady_max_decision_alarm_days = 0
 # Gate "production does not blindly promote a replacement"
-no_champion_change_without_approver = true   # every move INTO champion has a named actor
-                                             # (approver, drill operator) or is a rollback
+no_champion_change_without_approver = true   # every move INTO champion: an approval by the
+                                             # named operator, a forced promotion only in the
+                                             # rollback drill, a restore only by probation
 # Gate "rollback restores previous known-good version" (steady world, development env)
 rollback_drill = true      # force-promote the bad candidate; probation must roll it back
                            # within [probation].days; the router must serve the previous

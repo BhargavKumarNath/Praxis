@@ -36,7 +36,7 @@ from praxis.forecasting.artifact import load_artifact
 from praxis.forecasting.config import ForecastConfig, load_forecast_config
 from praxis.logging import configure_logging
 from praxis.mlops.config import load_mlops_config
-from praxis.mlops.drill import DrillEnv, DrillPlan, run_drill
+from praxis.mlops.drill import DrillEnv, DrillPlan, DrillRegistries, run_drill
 from praxis.mlops.lineage import LineageError
 from praxis.mlops.pipeline import DemandLifecycle
 from praxis.mlops.registry import ModelRegistry, PromotionRefused
@@ -176,31 +176,6 @@ def cmd_lifecycle_action(lc: DemandLifecycle, args: argparse.Namespace) -> int:
     return 0
 
 
-def _drill_registry(admin_url: str, name: str, args: argparse.Namespace) -> ModelRegistry:
-    from sqlalchemy import create_engine, text
-    from sqlalchemy.engine import make_url
-
-    db = f"praxis_mlops_drill_{name}_s{args.seed}"
-    admin = create_engine(admin_url, isolation_level="AUTOCOMMIT")
-    with admin.connect() as conn:
-        conn.execute(text(f'DROP DATABASE IF EXISTS "{db}" WITH (FORCE)'))
-        conn.execute(text(f'CREATE DATABASE "{db}"'))
-    admin.dispose()
-    url = make_url(admin_url).set(database=db).render_as_string(hide_password=False)
-    migrate(url)
-    tracker = MlflowTracker(
-        f"sqlite:///{(args.out / 'mlflow.db').resolve()}",
-        args.out / "mlflow-artifacts",
-        experiment=f"praxis-drill-{name}-s{args.seed}",
-    )
-    return ModelRegistry(
-        RegistryStore(make_engine(url)),
-        load_mlops_config(args.config),
-        tracker=tracker,
-        environment=Environment.DEV,
-    )
-
-
 def cmd_drill(args: argparse.Namespace) -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     pinned = load_forecast_config()
@@ -208,12 +183,13 @@ def cmd_drill(args: argparse.Namespace) -> int:
     raw["ridge"]["alpha"] = 1e9  # deliberately misconfigured recipe (rejection / rollback)
     raw["lightgbm"]["num_boost_round"] = 1
     env = DrillEnv(
-        make_registry=lambda name: _drill_registry(args.database_url, name, args),
+        make_registry=DrillRegistries(args.database_url, args.seed, args.out, args.config),
         policy=load_mlops_config(args.config),
         candidates_root=args.out / "models",
         forecast_config=pinned,
         bad_config=ForecastConfig.model_validate(raw),
         code_revision=code_revision(),
+        parallel=True,
     )
     plan = DrillPlan.from_acceptance(args.start_date)
     report = run_drill(plan, args.steady, args.drift, env)

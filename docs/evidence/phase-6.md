@@ -16,6 +16,22 @@ Design: `docs/pricing.md`, ADR 0013 (incl. both amendments). Raw results:
 (development, final method), `phase-6-seed43-elasticity-recovery.json` (Phase 5 recovery on the
 seed-43 experiment world).
 
+## Disclosure added 2026-10-25: Phase 4 artifact loader defect (found in Phase 10)
+
+The results below were measured with a defective Phase 4 demand-artifact loader:
+`RidgeBaseline.from_state` rebuilt the one-hot blocks in sorted JSON key order instead of fit
+order, so every LOADED demand artifact applied its categorical coefficients to the wrong
+columns. The pricing input builder loads that artifact, so this phase's shadow evaluations
+used the affected forecasts. Size on the development world (seed 1, 8-week pricing window):
+loaded-artifact vWAPE 0.1623 with the defect vs 0.1558 fixed; bias -0.3% in both. Fixed in
+Phase 10 (ADR 0017 "Defect found in Phase 4 serving"; regression test, `serving_parity`).
+
+Not measured: whether any held-out pricing decision would differ with the fixed loader. The
+spent held-out seeds were NOT re-run (that would turn them into a tuning set). Owner decision
+2026-10-25: disclose, do not re-evaluate now; the gate below stands AS MEASURED WITH THE
+DEFECT. A fresh pre-registered evaluation on new seeds is required before these results are
+relied on for live pricing.
+
 ## Gate
 
 **PASS**, on the second held-out evaluation (seed 43). The first held-out evaluation (seed 42)
@@ -253,6 +269,9 @@ outputs.
   state (the counterfactual's own effect on capacity and later churn is not fed back).
 * No API endpoint for pricing yet (CLI + service only); execution exists only in tests (no live
   price book consumer). Cross-price effects assumed absent.
+
+* Measured with the defective Phase 4 artifact loader (see "Disclosure added 2026-10-25");
+  needs a fresh pre-registered evaluation before live use.
 
 ## Cloud cost incurred
 

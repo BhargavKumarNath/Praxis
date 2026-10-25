@@ -11,7 +11,13 @@ from typing import Any
 import numpy as np
 import pytest
 
-from praxis.forecasting.artifact import MANIFEST, RIDGE_FILE, _content_checksum, _sha
+from praxis.forecasting.artifact import (
+    MANIFEST,
+    RIDGE_FILE,
+    ForecastArtifact,
+    _content_checksum,
+    _sha,
+)
 from praxis.forecasting.config import load_forecast_config
 from praxis.forecasting.panel import DemandPanel
 from praxis.mlops.config import MlopsConfig
@@ -98,35 +104,75 @@ def _scaled(backtest: dict[str, Any], name: str, factor: float) -> dict[str, Any
     return dict(backtest, models=models)
 
 
-def test_champion_non_inferiority_rejects_a_clearly_worse_candidate(
-    good: Candidate, champion: Candidate, cfg: MlopsConfig
+def _recipe_variant(c: Candidate) -> ForecastArtifact:
+    """``c``'s artifact with a different recipe hash but identical fitted behaviour (the
+    bootstrap sample count only affects the backtest's confidence intervals)."""
+    config = c.artifact.config
+    backtest = config.backtest.model_copy(
+        update={"bootstrap_samples": config.backtest.bootstrap_samples + 1}
+    )
+    return replace(c.artifact, config=config.model_copy(update={"backtest": backtest}))
+
+
+def test_champion_non_inferiority_same_recipe_is_the_identical_backtest(
+    good: Candidate, champion: Candidate, world: World, cfg: MlopsConfig
+) -> None:
+    acc = h.forecast_config().acceptance
+    data = training_data(good.artifact, world.clean)
+    same = check_champion_skill(good.backtest, good.artifact, champion.artifact, data, cfg, acc)
+    assert same["passed"] and same["value"] == 1.0
+    assert same["detail"]["method"] == "same_recipe"
+    assert same["detail"]["champion"] == champion.record.model_version
+    # The shortcut is exact: re-running an equivalent recipe on the same folds reproduces it.
+    rerun = check_champion_skill(
+        good.backtest, good.artifact, _recipe_variant(champion), data, cfg, acc
+    )
+    assert rerun["detail"]["method"] == "champion_recipe_rerun"
+    assert rerun["value"] == pytest.approx(1.0, abs=1e-12)
+    assert rerun["detail"]["origins"] == len(good.backtest["origins"])
+
+
+def test_champion_non_inferiority_rejects_a_worse_recipe_on_the_same_origins(
+    good: Candidate, bad: Candidate, champion: Candidate, world: World, cfg: MlopsConfig
 ) -> None:
     acc = h.forecast_config().acceptance
     limit = cfg.validation.max_skill_ratio_vs_champion
-    same = check_champion_skill(champion.backtest, champion.artifact, cfg, acc)
-    assert same["passed"] and same["value"] == pytest.approx(1.0)
-    assert same["detail"]["champion"] == champion.record.model_version
-    worse = _scaled(champion.backtest, acc.candidate, limit * 1.01)
-    out = check_champion_skill(worse, champion.artifact, cfg, acc)
-    assert not out["passed"] and out["value"] == pytest.approx(limit * 1.01, rel=1e-5)
-    edge = _scaled(champion.backtest, acc.candidate, limit * 0.999)
-    assert check_champion_skill(edge, champion.artifact, cfg, acc)["passed"]
+    data = training_data(bad.artifact, world.clean)
+    out = check_champion_skill(bad.backtest, bad.artifact, champion.artifact, data, cfg, acc)
+    assert out["detail"]["method"] == "champion_recipe_rerun"
+    assert not out["passed"] and out["value"] > limit
+    # the champion's recipe on these origins scores exactly what the good retrain scored
+    good_skill = (
+        good.backtest["models"][acc.candidate]["overall"]["vwape"]
+        / (good.backtest["models"]["seasonal_naive"]["overall"]["vwape"])
+    )
+    assert out["detail"]["champion_recipe_skill"] == pytest.approx(good_skill, abs=1e-6)
+    variant = _recipe_variant(champion)
+    worse = _scaled(good.backtest, acc.candidate, limit * 1.01)
+    edge = _scaled(good.backtest, acc.candidate, limit * 0.999)
+    gdata = training_data(good.artifact, world.clean)
+    assert not check_champion_skill(worse, good.artifact, variant, gdata, cfg, acc)["passed"]
+    assert check_champion_skill(edge, good.artifact, variant, gdata, cfg, acc)["passed"]
 
 
 def test_champion_non_inferiority_without_a_comparison(
-    good: Candidate, champion: Candidate, cfg: MlopsConfig
+    good: Candidate, champion: Candidate, world: World, cfg: MlopsConfig
 ) -> None:
     acc = h.forecast_config().acceptance
-    assert check_champion_skill(good.backtest, None, cfg, acc)["passed"]  # bootstrap
-    bare = replace(champion.artifact, manifest={**champion.artifact.manifest, "backtest": None})
-    assert check_champion_skill(good.backtest, bare, cfg, acc)["detail"]["note"]
-    assert not check_champion_skill(None, champion.artifact, cfg, acc)["passed"]
+    data = training_data(good.artifact, world.clean)
+    art = good.artifact
+    assert check_champion_skill(good.backtest, art, None, data, cfg, acc)["passed"]  # bootstrap
+    assert not check_champion_skill(None, art, champion.artifact, data, cfg, acc)["passed"]
     lenient = cfg.model_copy(
         update={
             "validation": cfg.validation.model_copy(update={"require_backtest_acceptance": False})
         }
     )
-    assert check_champion_skill(None, champion.artifact, lenient, acc)["passed"]
+    assert check_champion_skill(None, art, champion.artifact, data, lenient, acc)["passed"]
+    # a backtest that is not on this panel's folds cannot be compared: fail closed
+    moved = dict(good.backtest, origins=good.backtest["origins"][1:])
+    out = check_champion_skill(moved, art, _recipe_variant(champion), data, cfg, acc)
+    assert not out["passed"] and out["detail"]["note"]
 
 
 def _copy(c: Candidate, tmp: Path) -> Path:

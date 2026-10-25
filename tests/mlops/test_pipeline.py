@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -74,14 +74,15 @@ def test_drift_requests_retraining_and_never_promotes(
     lc = lifecycle(registry, world.drifted, tmp_path)
     bootstrap(lc, champion, world)
     days = run_days(lc, world, FIRST, h.SHIFT_DAY + 10)
-    fired = [
-        d
-        for d in days
-        if d["monitor"] and {"residual_drift", "segment_drift"} & set(d["monitor"]["drift_fired"])
-    ]
+    breached = [d["as_of"] for d in days if d["monitor"] and d["monitor"]["breaches"]]
+    fired = [d for d in days if d["monitor"] and d["monitor"]["alarms"]]
     assert fired, "the injected shift was not detected"
     first_day = fired[0]["as_of"]
     assert first_day <= world.date(h.SHIFT_DAY + 7).isoformat()
+    # the alarm is the k-th consecutive breach of the same champion
+    k = lc.cfg.monitoring.persistence_days
+    first = date.fromisoformat(first_day)
+    assert {(first - timedelta(days=j)).isoformat() for j in range(k)} <= set(breached)
     requests = lc.store.requests(NAME)
     drift_requests = [r for r in requests if {"residual_drift", "segment_drift"} & set(r.triggers)]
     assert drift_requests and drift_requests[0].as_of.isoformat() == first_day

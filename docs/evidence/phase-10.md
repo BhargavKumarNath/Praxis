@@ -2,8 +2,9 @@
 
 ```text
 Phase: 10 - MLOps, Continuous Training, Drift, and Safe Promotion
-Date: 2026-10-11 (build) - 2026-10-17 (drills, final)
-Code revision: 12509c4 + working tree (uncommitted; no commits made by Claude)
+Date: attempt 1 2026-10-11 (build) - 2026-10-17 (FAIL); attempt 2 2026-10-18 - 2026-10-25
+Code revision: attempt 1 12509c4 + working tree; attempt 2 5893d46 + working tree
+             (uncommitted; no commits made by Claude)
 Environment: Linux 7.0, Python 3.12.14, Postgres 17-alpine (local Docker), DuckDB + dbt,
              mlflow-skinny 3.16.1 (local SQLite mirror), Pub/Sub emulator (local Docker)
 All customers, demand, models and drift are SYNTHETIC. No cloud resource was created or used.
@@ -13,10 +14,121 @@ Design: ADR 0017 (`docs/adr/0017-model-registry-continuous-training-and-safe-pro
 `docs/mlops.md`. Pre-registered, hash-pinned: `configs/mlops/demand.toml` (policy),
 `configs/mlops/lifecycle_acceptance.toml` (drill acceptance),
 `configs/simulator/scenarios/mlops_drift.toml` (drift world).
-Raw reports: `phase-10-dev-seed1-drill.json` (development), `phase-10-eval-seed601-drill.json`
-(held-out, run ONCE).
+Raw reports: attempt 1 `phase-10-dev-seed1-drill.json` (development),
+`phase-10-eval-seed601-drill.json` (held-out, run ONCE); attempt 2
+`phase-10-attempt2-dev-seed{1,611,612,613}-k3-drill.json` (calibration, provisional k = 3),
+`phase-10-attempt2-dev-seed{1,612}-k2-drill.json` (confirmation, pinned k = 2),
+`phase-10-attempt2-eval-seed621-drill.json` (held-out, run ONCE).
 
-## Gate: FAIL (1 of 12 pre-registered drill checks, on both worlds)
+# Attempt 2 (2026-10-18 .. 2026-10-25): gate PASS, 12 / 12 on fresh held-out seed 621
+
+Attempt 1 (below, unchanged) FAILED and that result stands. Attempt 2 is a redesign under
+the owner's delegated authority (2026-10-18; ADR 0017 "Attempt 2"), designed and calibrated
+on DEVELOPMENT seeds 1, 611, 612, 613 only, pinned by hash (`tests/mlops/test_config.py`,
+re-pinned 2026-10-25), then judged ONCE on fresh seed 621, built only after `make check`
+exited 0 and the code was frozen (`data/mlops/attempt2/code-freeze-before-621.txt`, local).
+No threshold in `[monitoring]`, `[shadow]`, `[probation]`, `[validation]` or the drill's
+`[checks]` differs from the 2026-10-11 pre-registration; the bad recipe is unchanged.
+Seed 601 was not re-run.
+
+| Pre-registered drill check | Held-out 621 | Dev 1 (k=2) | Dev 612 (k=2) | Dev 1 / 611 / 612 / 613 (k=3) |
+| --- | --- | --- | --- | --- |
+| champion_validation_passes | PASS | PASS | PASS | PASS x4 |
+| bad_candidate_rejected | PASS (`backtest_acceptance`, `champion_non_inferiority` 1.142) | PASS (1.057) | PASS (1.095) | PASS x4 |
+| steady_candidate_reaches_ready | PASS | PASS | PASS | PASS x4 |
+| steady_candidate_promoted_by_approver | PASS (08-10, 08-31) | PASS | PASS | PASS x4 |
+| drift_detected_within_days (onset 07-27, deadline 08-10) | PASS (first alarm **08-09**) | PASS (08-07) | PASS (08-09) | PASS (08-08, 08-08, 08-10, 08-10) |
+| drift_opens_retraining_request | PASS (6 requests; first 08-09 `segment_drift`) | PASS | PASS | PASS x4 |
+| steady_max_decision_alarm_days (limit 0) | PASS (**0** alarm days, 0 breach days) | PASS (0) | PASS (0) | PASS x4 (0) |
+| no_champion_change_without_approver | PASS (10 moves: approver or probation restore only) | PASS | PASS | PASS x4 |
+| rollback_drill | PASS (forced bad champion restored 08-23, ratio 1.082 > 1.05; served the previous version) | PASS | PASS | PASS x4 |
+| lineage_complete_for_every_version | PASS (16 versions) | PASS | PASS | PASS x4 |
+| served_version_equals_registry_champion | PASS | PASS | PASS | PASS x4 |
+| serving_stages_hold_compatible_contracts | PASS | PASS | PASS | PASS x4 |
+
+Every project_plan Phase 10 gate item is met on seed 621: the bad candidate is rejected
+automatically; good candidates progress challenger -> shadow -> READY -> champion by a named
+approver; rollback restores the previous known-good version (router serves it, audit holds
+decision `rollback-57d2456e...`); drift alarms create retraining requests; lineage is complete
+for all 16 versions; the service exposes the champion version.
+
+## Held-out seed 621 detail (SYNTHETIC)
+- Steady world (null control): 0 breach days, max residual ratio 0.967, max slice 1.18
+  (`product=data_transfer_gb`); the attempt-1 failure (30 alarm days on 601) does not recur
+  because the steady world no longer carries organic growth (ADR 0017 attempt 2, item 1).
+- Drift world: first breach 08-08, first alarm 08-09 (onset + 13; deadline 08-10, so **1 day
+  of slack**, the same as the tightest dev seed 612). 38 breach days 08-08 .. 09-14; max
+  residual 1.74, max slice 2.62 (`region=us_east`). Because the steady world has no
+  breaches, the first detection is attributable to the injected drift (the attempt-1
+  attribution caveat is resolved on this world).
+- Retraining: 11 of 11 good-recipe retrains (steady 3, drift 7, rollback 1; excluding the 3
+  bootstraps) passed validation (`champion_non_inferiority` 1.0, same recipe). Bad recipe: 1.142 vs limit 1.02, also failed
+  `backtest_acceptance`.
+- Drift world, 09-13: probation restored f3a1dfd12109 after the approved 08-31 retrain
+  (aed59ea01ed1) was worse than its predecessor on 7 matured origins. Expected behaviour
+  (safety mechanism, actor `mlops-probation`); it also happened on dev seeds 1, 611, 612.
+  The drift world still breaches at the end (09-14 `segment_drift`): retraining on a
+  continuing ramp does not catch up within the window. Reported, not tuned.
+- Wall time: build 59 s, drill 6011 s (~100 min; 3 worlds in parallel processes;
+  attempt 1 ~2.5 h).
+
+## Attempt 2 amendments (all disclosed; details ADR 0017 "Attempt 2" and "Calibration")
+1. Steady world `mlops_steady.toml` = `pricing_shadow.toml` with organic growth off
+   (cause of the attempt-1 steady alarms measured on dev seed 1; `pricing_shadow.toml`
+   unchanged). Organic demand concentration remains a documented monitoring LIMITATION.
+2. Persistence-aware alarms, `persistence_days = 2`, chosen by a rule written before the
+   612 / 613 results were seen (`data/mlops/attempt2/persistence-decision-rule.txt`); k = 3
+   was infeasible (612 / 613 alarmed on the deadline). Confirmed by two full k = 2 dev drills.
+3. Continuous safe promotion: the drill operator approves every READY version (named
+   approver; probation on each).
+4. Like-for-like `champion_non_inferiority` (champion recipe re-run on the candidate's
+   identical origins; same margin 1.02).
+5. Parallel worlds in spawned processes (no result change).
+6. `make check` fixes on 2026-10-25, before seed 621 was built, each at its cause, nothing
+   skipped or loosened:
+   a. `tests/mlops/test_monitoring.py`: the "gap breaks the run" fixture only broke a run for
+      k = 3; generalised to a gap at EVERY position in the k window (stronger test; no
+      monitoring code changed).
+   b. `pyproject.toml` `[tool.coverage.run] patch = ["subprocess"]`: coverage did not measure
+      the drill's spawned worker processes (pytest-cov 7 no longer does), so `drill.py`
+      read 69% < 95%; measured properly it is 99.2%. No floor changed.
+   c. Dependency security upgrades for new external advisories (`make audit`): uv.lock
+      certifi 2026.10.23, filelock 4.2.4, gitpython 3.2.1, opentelemetry-api / -sdk 1.45.1
+      (+ semantic-conventions 0.66b1), setuptools 84.2.1, virtualenv 21.14.13; frontend
+      package-lock next 16.3.8 -> 16.4.3 (critical GHSA-2464-fhr4-w9xw; package.json
+      unchanged). No modelling dependency changed. Old lockfiles kept locally in
+      `data/mlops/attempt2/lock-backups/`.
+
+## Attempt 2 tests executed
+- `make check` (2026-10-25, final, before seed 621): exit 0; 1657 passed, 2 skipped (opt-in
+  live BigQuery / Stripe suites, by design); coverage floors OK (174 files; `mlops/*` 95%);
+  lint, mypy, import-linter, schemas, secrets, pip-audit, npm audit, frontend, terraform,
+  workflow-lint green.
+- `make nightly-science` (dev seed 1): exit 0. Phase 4 forecast acceptance passed (vWAPE / naive 0.775); Phase 5 recovery passed and the contamination world fails by design; Phase 6 / 8 checks as before; only the known Phase 8 failure `champion_truth_recovery`, `new_failures: []`.
+- `make nightly-security`: exit 2 at gitleaks on the SAME known false positive only
+  (`generic-api-key`, `tests/payments/test_ids_and_model.py:44`, commit 105c930, Stripe
+  lookup key literal `praxis_growth_gbp_4900_month`; not a credential; NOT allowlisted,
+  owner decision). pip-audit and npm audit clean; trivy run standalone exit 0.
+
+## Attempt 2 known limitations
+- Detection slack is 1 day on the tightest dev seed (612) and on held-out 621: the unchanged
+  1.30 / 1.50 thresholds on a 14-day window react 11-13 days after onset. A slower ramp
+  would fail `drift_detected_within_days`. Not tuned.
+- The PASS relies on a steady world without organic growth. Under organic concentration the
+  monitor still raises sustained alarms that retraining cannot fix (documented in
+  `docs/mlops.md`); solving it needs a new pre-registration and fresh seeds.
+- One held-out world at 1000 customers; drill runtime (~100 min) is too long for nightly.
+- Phases 6 / 9 used the buggy Phase 4 loader; whether they need fresh pre-registered
+  evaluations is the owner's decision (open). Carry-overs below still apply.
+- Cloud cost: GBP 0.
+
+## Attempt 2 gate
+PASS (12 / 12 pre-registered checks on held-out seed 621, run once; with the amendments
+disclosed above).
+
+# Attempt 1 (2026-10-11 .. 2026-10-17): FAIL (unchanged record)
+
+## Attempt 1 gate: FAIL (1 of 12 pre-registered drill checks, on both worlds)
 
 Every project_plan gate item is demonstrated on the held-out world. The pre-registered drill
 acceptance is not met: `steady_max_decision_alarm_days` (limit 0) failed on the development

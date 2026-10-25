@@ -35,7 +35,8 @@ shadow report against the current champion.
 
 ```bash
 make mlops-data ML_SEED=1                  # steady + drift worlds (1K customers, 252 days)
-make mlops-drill ML_SEED=1                 # the pre-registered lifecycle drill (local Postgres)
+make mlops-drill ML_SEED=1                 # the pre-registered lifecycle drill (local Postgres;
+                                           # 3 worlds in parallel processes, one registry each)
 
 DB=postgresql+psycopg://praxis@127.0.0.1:55432/praxis_mlops
 .venv/bin/python -m praxis.mlops --database-url $DB migrate
@@ -58,15 +59,24 @@ carries `X-Praxis-Model-Version`. MLflow mirror: `PRAXIS_MLFLOW_TRACKING_URI` (e
 `artifact_integrity`, `lineage_complete`, `feature_contract`, `dataset_reference`,
 `leakage_training_window`, `leakage_future_invariance`, `backtest_acceptance` (pinned Phase 4
 acceptance re-evaluated on the report's metrics), `baseline_comparison`, `calibration_80`,
-`calibration_50`, `segment_regression_vs_baseline`, `champion_non_inferiority` (backtest
-skill vs seasonal naive at most 1.02 x the champion's; amendment 2026-10-17, ADR 0017),
-`latency_budget`, `memory_budget`,
+`calibration_50`, `segment_regression_vs_baseline`, `champion_non_inferiority` (the
+candidate's backtest skill, vWAPE / seasonal naive, at most 1.02 x the skill of the
+champion's RECIPE re-run on the candidate's identical rolling origins; the same recipe is
+the same backtest, so it is not re-run: artifacts are compared in shadow; amendments
+2026-10-17 and 2026-10-18, ADR 0017), `latency_budget`, `memory_budget`,
 `reproducibility`, `serving_parity`. A failed integrity check stops the run; every other
 check always runs, so a report lists every reason.
 
 ## Drift signals
 
-| Signal | Kind | Fires when (trailing 14 days of matured out-of-sample forecasts) |
+A decision signal over its threshold on one day is a **breach** (reported). It is an
+**alarm** (a retraining trigger, and what the drill counts) only after 2 consecutive
+evaluated days of the same champion (`persistence_days`, amendment 2026-10-18, calibrated on
+development seeds 1 and 611-613, ADR 0017 "Calibration"): consecutive
+14-day windows share 13 days, so a single extreme day lifts one window, a real change keeps
+lifting them.
+
+| Signal | Kind | Breach when (trailing 14 days of matured out-of-sample forecasts) |
 | --- | --- | --- |
 | residual_drift | decision | pooled vWAPE > 1.30 x the champion's backtest vWAPE |
 | segment_drift | decision | worst region / product / segment slice > 1.50 x its backtest slice |
@@ -80,6 +90,17 @@ still being evaluated; decision signals do not. One live request per model, 7-da
 
 ## Limits (read before relying on it)
 
+* The decision signals compare absolute error with the champion's own backtest. They cannot
+  tell real change from a world in which forecasting simply gets harder: on the pricing
+  shadow world, compounding heterogeneous per-customer growth concentrates demand in a few
+  fast-growing customers and a frozen champion's error rises 1.4x (eu_west 2.4x; the
+  seasonal naive's error rises 1.38x too), so the monitor raises sustained alarms that
+  retraining cannot fix. Normalising by the naive (skill) or by bias was measured and
+  rejected: it also hides the injected ramp (dev seed 1, ADR 0017 attempt 2). The drill's
+  steady world therefore switches organic growth off (`mlops_steady.toml`).
+* Detection is slow on a gradual ramp: on the drill's drift world the unchanged 1.30 / 1.50
+  thresholds on a 14-day window alarm 11-13 days after onset (dev seeds 1, 611-613 and
+  held-out 621), leaving 1 day of slack against the drill's 14-day deadline.
 * Only the demand forecaster is registered. Recovery / customer artifacts and the pricing
   input builder still load fixed directories.
 * Production forecasts are re-scored point in time from the warehouse; no log of served

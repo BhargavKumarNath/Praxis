@@ -17,14 +17,21 @@ ROOT = Path(__file__).resolve().parents[2]
 # Changing either file needs an ADR and the owner's approval (CLAUDE.md s16). Re-pin only then.
 PINNED = {
     "configs/mlops/demand.toml": (
-        # re-pinned 2026-10-17: champion non-inferiority amendment (ADR 0017, owner-approved)
-        "d7dcb87d8e6ad44fae1926791e0f973e8e8b6abfdfba24a81efe30743b75abd3"
+        # re-pinned 2026-10-25: attempt 2 persistence_days = 2, calibrated on dev seeds 1,
+        # 611, 612, 613 only (ADR 0017 "Calibration", owner-delegated authority)
+        "ee272c33c2e784699e8099784c261693c7ec20137d7f7d991688317f11b144bb"
     ),
     "configs/mlops/lifecycle_acceptance.toml": (
-        "355b759f982a83060f9cad0194a370237772ea8344a52b417dd7ff713f6b6010"
+        # re-pinned 2026-10-25: attempt 2 acceptance (ADR 0017 "Attempt 2")
+        "eaa93a837d7227dea973633a4b7bf3856b2e80a78c0533ddaaca6fe1da6bbba4"
     ),
     "configs/simulator/scenarios/mlops_drift.toml": (
-        "705cb7cc769855d4010f4f2cbf48a70daea6836ca09b883fc4e566847aa31214"
+        # re-pinned 2026-10-25: attempt 2 drift world (ADR 0017 "Attempt 2")
+        "3af67d31f90fb1a9e56d262e3cd6bd16488ce77bbec82f8bd0c7c0a2e8ec2195"
+    ),
+    "configs/simulator/scenarios/mlops_steady.toml": (
+        # pinned 2026-10-25: attempt 2 steady world (ADR 0017 "Attempt 2")
+        "3018bfd5f3cb2ef3034413092e109c300258e172a284f0548aa185cbe3952591"
     ),
 }
 
@@ -85,12 +92,28 @@ def test_invalid_coverage_band_is_refused() -> None:
         MlopsConfig.model_validate(raw)
 
 
-def test_drift_world_extends_the_pricing_shadow_world_verbatim() -> None:
-    """Days 0..202 must equal the pricing shadow world: its events are copied unchanged."""
+def _scenario(name: str) -> dict[str, Any]:
     import tomllib
 
-    base = tomllib.loads((ROOT / "configs/simulator/scenarios/pricing_shadow.toml").read_text())
-    drift = tomllib.loads((ROOT / "configs/simulator/scenarios/mlops_drift.toml").read_text())
+    return tomllib.loads((ROOT / f"configs/simulator/scenarios/{name}.toml").read_text())
+
+
+def test_steady_world_is_the_pricing_shadow_world_without_organic_growth() -> None:
+    """Every event of the pricing shadow world, unchanged; only per-customer growth is off."""
+    base, steady = _scenario("pricing_shadow"), _scenario("mlops_steady")
+    assert steady["population"] == {
+        **base["population"],
+        "growth_mean": 0.0,
+        "growth_sd": 0.0001,
+    }
+    assert {k: v for k, v in steady.items() if k != "population"} == {
+        k: v for k, v in base.items() if k != "population"
+    }
+
+
+def test_drift_world_extends_the_steady_world_verbatim() -> None:
+    """Days 0..202 must equal the MLOps steady world: its events are copied unchanged."""
+    base, drift = _scenario("mlops_steady"), _scenario("mlops_drift")
     assert drift["run"] == base["run"] and drift["population"] == base["population"]
     assert drift["pricing"] == base["pricing"]
     assert drift["infrastructure"]["capacity_shocks"] == base["infrastructure"]["capacity_shocks"]

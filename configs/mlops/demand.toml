@@ -63,6 +63,17 @@ max_slice_vwape_ratio_vs_reference = 1.50
 min_slice_rows = 300
 # calibration drift: empirical coverage of the 80% interval outside this band
 coverage_80 = [0.65, 0.95]
+# AMENDMENT 2026-10-18 (ADR 0017, attempt 2): a decision signal over its threshold is a
+# BREACH; it becomes an ALARM (retraining trigger, counted by the drill) only after
+# persistence_days CONSECUTIVE evaluated days of the same champion. Consecutive 14-day
+# windows share 13 days, so one extreme day lifts a single window; real change persists.
+# CALIBRATED 2026-10-24 on development seeds 1, 611, 612, 613 only, by a rule written before
+# the 612 / 613 results were seen (ADR 0017 "Calibration"): steady world 0 breach days on
+# every seed; drift world first breach 08-06 (1, 611) and 08-08 (612, 613), deadline 08-10.
+# k = 3 alarmed ON the deadline on 612 / 613 (0 days slack), so k = 2 (1 day slack, margin
+# 2 over the longest steady breach run of 0). Full k = 2 dev drills (1, 612): 12 / 12 PASS 2026-10-25
+# (first alarm 08-07 / 08-09, 0 steady alarm days).
+persistence_days = 2
 # feature / prediction drift: population stability index vs the last reference_days of the
 # training window (decile bins fixed at registration). Fires only above psi_alert AND above
 # the no-change sampling bound chi2_{1-psi_alpha}(bins-1) * (1/n_ref + 1/n_cur) on effective

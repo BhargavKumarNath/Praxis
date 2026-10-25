@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from praxis.mlops.config import MlopsConfig
-from praxis.mlops.monitoring import drift_check, finite_reference, probation_check
+from praxis.mlops.monitoring import drift_check, finite_reference, persistent, probation_check
 from praxis.mlops.scoring import (
     IncompatibleVersions,
     check_compatible,
@@ -25,11 +25,21 @@ DECISION_SIGNALS = {"residual_drift", "segment_drift", "calibration_drift"}
 
 
 def check_on(
-    champion: Candidate, warehouse: Path, world: World, day: int, cfg: MlopsConfig
+    champion: Candidate,
+    warehouse: Path,
+    world: World,
+    day: int,
+    cfg: MlopsConfig,
+    history: list[list[str]] | None = None,
 ) -> dict[str, Any]:
     data = load_data(warehouse, end=world.date(day - 1))
     return drift_check(
-        champion.artifact, champion.record.reference or {}, data, world.date(day), cfg
+        champion.artifact,
+        champion.record.reference or {},
+        data,
+        world.date(day),
+        cfg,
+        history=history or [],
     )
 
 
@@ -53,7 +63,29 @@ def test_injected_level_shift_fires_residual_and_segment_drift(
     residual = after["residual"]
     assert residual["worst_slice"] == "region=r_east"
     assert residual["vwape_ratio"] > cfg.monitoring.max_vwape_ratio_vs_reference
-    assert {"residual_drift", "segment_drift"} <= set(after["retraining_triggers"])
+    # one day over the threshold is a breach, not yet an alarm (persistence_days > 1)
+    assert cfg.monitoring.persistence_days > 1
+    assert {"residual_drift", "segment_drift"} <= set(after["breaches"])
+    assert after["alarms"] == [] and not DECISION_SIGNALS & set(after["retraining_triggers"])
+    run = [["residual_drift", "segment_drift"]] * (cfg.monitoring.persistence_days - 1)
+    persisted = check_on(champion, world.drifted, world, h.SHIFT_DAY + 7, cfg, history=run)
+    assert persisted["alarms"] == ["residual_drift", "segment_drift"]
+    assert {"residual_drift", "segment_drift"} <= set(persisted["retraining_triggers"])
+    for missing in range(len(run)):  # a gap anywhere inside the window breaks the run
+        broken = [[] if i == missing else day for i, day in enumerate(run)]
+        gap = check_on(champion, world.drifted, world, h.SHIFT_DAY + 7, cfg, history=broken)
+        assert gap["alarms"] == []
+
+
+def test_persistence_rule() -> None:
+    assert persistent(["residual_drift", "feature_drift"], [["residual_drift"]], 2) == [
+        "residual_drift"
+    ]  # investigation signals never become decision alarms
+    assert persistent(["residual_drift"], [], 1) == ["residual_drift"]
+    assert persistent(["residual_drift"], [], 2) == []  # not enough evaluated days yet
+    assert persistent(["residual_drift"], [["segment_drift"]], 2) == []  # another signal
+    assert persistent(["segment_drift"], [["segment_drift"], []], 3) == []  # run broken
+    assert persistent(["segment_drift"], [["segment_drift"]] * 3, 3) == ["segment_drift"]
 
 
 def test_injected_feature_shift_fires_feature_drift(

@@ -99,6 +99,7 @@ class Monitoring(_Cfg):
     max_slice_vwape_ratio_vs_reference: float = Field(gt=1)
     min_slice_rows: int = Field(ge=1)
     coverage_80: tuple[float, float]
+    persistence_days: int = Field(ge=1)
     psi_alert: float = Field(gt=0)
     psi_alpha: float = Field(gt=0, lt=0.5)
     psi_bins: int = Field(ge=4, le=50)

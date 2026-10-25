@@ -453,9 +453,10 @@ stripe-verify: pg-up
 		-m stripe_live -v -p no:cacheprovider --no-cov
 
 # --- Phase 10 MLOps lifecycle (local Postgres + DuckDB + MLflow on SQLite; no cloud) --------
-# Pre-registered drill (configs/mlops/lifecycle_acceptance.toml): a steady world (the pricing
-# shadow scenario) and a drift world (configs/simulator/scenarios/mlops_drift.toml) of one
-# seed. ML_SEED=1 = development; ML_SEED=601 = evaluation (build and run ONCE).
+# Pre-registered drill (configs/mlops/lifecycle_acceptance.toml): a steady world
+# (configs/simulator/scenarios/mlops_steady.toml) and a drift world (mlops_drift.toml = steady +
+# injected changes) of one seed. Development / calibration seeds: 1, 611, 612, 613. Held-out:
+# 601 (attempt 1, spent) and 621 (attempt 2): build and run ONCE.
 ML_SEED ?= 1
 ML_CUSTOMERS ?= 1000
 ML_DIR ?= data/mlops/seed$(ML_SEED)-c$(ML_CUSTOMERS)
@@ -473,12 +474,15 @@ endef
 
 # simulate -> raw load -> dbt marts for both drill worlds (offline)
 mlops-data:
-	$(call ml_world,steady,configs/simulator/scenarios/pricing_shadow.toml)
+	$(call ml_world,steady,configs/simulator/scenarios/mlops_steady.toml)
 	$(call ml_world,drift,configs/simulator/scenarios/mlops_drift.toml)
 
-# the real lifecycle, day by day, on fresh throwaway registry databases (local Postgres)
+# the real lifecycle, day by day, on fresh throwaway registry databases (local Postgres).
+# The three worlds run as parallel processes; idle OpenMP threads sleep instead of spinning
+# (OMP_WAIT_POLICY changes scheduling only: LightGBM runs with deterministic=True).
 mlops-drill: pg-up
-	MLFLOW_DISABLE_AGENT_HINT=1 PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.mlops \
+	OMP_WAIT_POLICY=PASSIVE MLFLOW_DISABLE_AGENT_HINT=1 PRAXIS_LOG_LEVEL=WARNING \
+		.venv/bin/python -m praxis.mlops \
 		--database-url $(PRAXIS_TEST_DATABASE_URL) drill --seed $(ML_SEED) \
 		--steady $(ML_DIR)/steady/warehouse.duckdb --drift $(ML_DIR)/drift/warehouse.duckdb \
 		--out $(ML_DIR)/drill > $(ML_DIR)/drill.log

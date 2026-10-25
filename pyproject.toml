@@ -101,6 +101,8 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["praxis"]
+# measure spawned worker processes too (e.g. the lifecycle drill's parallel worlds)
+patch = ["subprocess"]
 
 [tool.coverage.report]
 fail_under = 85

@@ -2,16 +2,20 @@
 #
 # PRE-REGISTERED 2026-10-11, before any world was built from it or any monitor run on it.
 # Do not edit to flatter a detector (CLAUDE.md s9); tests/mlops/test_config.py pins this hash.
+# REBASED 2026-10-18 (ADR 0017 amendment, attempt 2): the base world is now the MLOps steady
+# world (configs/simulator/scenarios/mlops_steady.toml = the pricing shadow world without
+# organic per-customer growth), so steady and drift differ ONLY by the injected changes
+# below. The injected changes themselves are unchanged from 2026-10-11.
 #
-# = the pricing shadow world (configs/simulator/scenarios/pricing_shadow.toml, copied verbatim
-# below up to the "Phase 10 drift" marker; a test checks the copy) + two UNANNOUNCED,
-# PERSISTENT demand changes after the demand forecaster's training window (days 0..195):
+# = the MLOps steady world (copied verbatim below up to the "Phase 10 drift" marker; a test
+# checks the copy) + two UNANNOUNCED, PERSISTENT demand changes after the demand
+# forecaster's training window (days 0..195):
 #
 # * eu_west, every product: compounding growth of ~15% a week from day 203 (a ramp a
 #   lag-based model chronically under-forecasts);
 # * us_east, api_requests: an abrupt, permanent collapse to 50% from day 210.
 #
-# Days 0..202 are identical to the pricing shadow world of the same seed (arrays replace on
+# Days 0..202 are identical to the MLOps steady world of the same seed (arrays replace on
 # overlay, so the earlier events are repeated; the simulator draws per (seed, stream, day)).
 
 [run]
@@ -19,6 +23,9 @@ days = 252  # 196 days of the forecast world + 8 weekly shadow cycles
 
 [population]
 arrival_horizon_days = 196
+# The only difference from the pricing shadow world: no organic per-customer growth.
+growth_mean = 0.0
+growth_sd = 0.0001  # the config requires sd > 0; 0.0001/day = at most ~2.5% drift in 252 days
 
 [[infrastructure.demand_spikes]]
 region = "eu_west"
@@ -66,7 +73,33 @@ start_day = 184
 end_day = 188
 multiplier = 1.9
 
-# ---- Phase 10 drift (not in the pricing shadow world) ------------------------------------
+[[infrastructure.capacity_shocks]]
+region = "us_east"
+start_day = 130
+end_day = 138
+capacity_multiplier = 0.75
+
+[[pricing.price_changes]]
+product = "cpu_minutes"
+day = 70
+multiplier = 1.10
+
+[[pricing.price_changes]]
+product = "api_requests"
+day = 110
+multiplier = 0.92
+
+[[pricing.price_changes]]
+product = "data_transfer_gb"
+day = 140
+multiplier = 1.15
+
+[[pricing.price_changes]]
+product = "premium_latency"
+day = 160
+multiplier = 1.08
+
+# ---- Phase 10 drift (not in the MLOps steady world) ----------------------------------------
 [[infrastructure.demand_spikes]]
 region = "eu_west"
 start_day = 203
@@ -115,29 +148,3 @@ product = "api_requests"
 start_day = 210
 end_day = 252
 multiplier = 0.5
-
-[[infrastructure.capacity_shocks]]
-region = "us_east"
-start_day = 130
-end_day = 138
-capacity_multiplier = 0.75
-
-[[pricing.price_changes]]
-product = "cpu_minutes"
-day = 70
-multiplier = 1.10
-
-[[pricing.price_changes]]
-product = "api_requests"
-day = 110
-multiplier = 0.92
-
-[[pricing.price_changes]]
-product = "data_transfer_gb"
-day = 140
-multiplier = 1.15
-
-[[pricing.price_changes]]
-product = "premium_latency"
-day = 160
-multiplier = 1.08

@@ -182,13 +182,20 @@ class DemandLifecycle:
         reference = champion.record.reference
         if reference is None or not finite_reference(reference):
             return {"model_version": champion.model_version, "status": "no_reference"}
-        report = drift_check(self.artifact(champion), reference, self.data(as_of), as_of, self.cfg)
+        report = drift_check(
+            self.artifact(champion),
+            reference,
+            self.data(as_of),
+            as_of,
+            self.cfg,
+            history=self._breach_history(champion.model_version, as_of),
+        )
         start = as_of - timedelta(days=self.cfg.monitoring.window_days)
         report_id = self._store_report(
             champion, "drift", as_of, start, bool(report["drift_fired"]), report
         )
         report["report_id"] = report_id
-        decision_drift = bool(DECISION_SIGNALS & set(report["drift_fired"]))
+        decision_drift = bool(report["alarms"])
         blocked = (
             "no new labels since the champion's training data"
             if report["new_labels"] <= 0
@@ -212,6 +219,24 @@ class DemandLifecycle:
             )
             report["retraining_request"] = {"request_id": request.request_id, "created": created}
         return report
+
+    def _breach_history(self, model_version: str, as_of: date) -> list[list[str]]:
+        """Decision breaches of this champion on the consecutive days before ``as_of``, most
+        recent first; stops at the first day without an evaluated report."""
+        by_day = {
+            r.as_of: r.signals
+            for r in self.store.monitoring_reports(model_version, "drift")
+            if r.as_of < as_of
+        }
+        history: list[list[str]] = []
+        day = as_of - timedelta(days=1)
+        while len(history) < self.cfg.monitoring.persistence_days - 1:
+            signals = by_day.get(day)
+            if signals is None or (signals.get("residual") or {}).get("status") != "evaluated":
+                break
+            history.append(sorted(DECISION_SIGNALS & set(signals.get("drift_fired", []))))
+            day -= timedelta(days=1)
+        return history
 
     def _retraining_blocked(self, as_of: date, *, decision_drift: bool) -> str | None:
         """Why a new request must wait (None = it may be opened).

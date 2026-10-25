@@ -1,4 +1,146 @@
-# Phase 10 checkpoint: resume here (written 2026-10-17)
+# Phase 10 checkpoint: resume here (written 2026-10-17; ATTEMPT 2 state added 2026-10-19)
+
+## 0. ATTEMPT 2 STATE AT PAUSE (2026-10-19 ~02:00) -- READ THIS FIRST
+
+The owner (2026-10-18) delegated authority to redesign Phase 10 requirements where
+technically justified (no weakened safety, no faked results), decide independently, then
+complete Phase 10, verify and report. Never commit or push. Seed 621 is evaluated ONCE.
+
+### Done (all uncommitted in the working tree; `git status` = data/mlops/attempt2/git-status-at-pause.txt)
+1. **Diagnosis (dev seed 1).** Arrivals-stop hypothesis REFUTED (continued arrivals decay
+   identically). Cause CONFIRMED: compounding heterogeneous per-customer growth -> demand
+   concentration (frozen champion 1.41x / eu_west 2.43x; naive also 1.38x). With growth off
+   the frozen champion stays 0.81-0.96x, slices <= 1.20x, zero breaches. Skill-normalised and
+   bias-based signals measured and REJECTED (both hide the drift ramp). Evidence files:
+   `data/mlops/attempt2/diag-*.txt`. Full write-up: ADR 0017 section "Attempt 2".
+2. **Steady world** `configs/simulator/scenarios/mlops_steady.toml` (NEW) = pricing_shadow +
+   `growth_mean = 0.0`, `growth_sd = 0.0001`. `mlops_drift.toml` rebased on it (verified:
+   identical to the committed drift world except `[population]`). pricing_shadow untouched.
+   Makefile `mlops-data` uses mlops_steady. Tests in tests/mlops/test_config.py check both copies.
+3. **Persistence:** `[monitoring] persistence_days` (currently 3 = PROVISIONAL, see below);
+   `monitoring.persistent()`, `drift_check(history=...)` reports `breaches` and `alarms`;
+   triggers use alarms; `pipeline._breach_history` reads the champion's consecutive reports.
+4. **Repeated promotion:** `drill._operate` / `_approve_ready`: operator approves every
+   READY version in steady AND drift worlds; new checks helpers `_moves_are_authorised`,
+   `_final_champion_is_approved`; detection = first alarm on/after onset.
+5. **Same-origin comparison:** `validation.check_champion_skill(backtest, art, champion,
+   data, cfg, gate)`: same recipe hash -> 1.0 (identical backtest), else re-run champion
+   recipe on candidate's panel; fail closed if folds differ.
+6. **Speed:** worlds in spawned processes (`DrillRegistries` picklable factory in drill.py;
+   threads segfault LightGBM), per-world candidates dirs + MLflow files,
+   `OMP_WAIT_POLICY=PASSIVE` in `make mlops-drill`. ~1h53m per seed with 2 seeds at once.
+7. Docs partly updated: ADR 0017 "Attempt 2" section, docs/mlops.md, lifecycle_acceptance.toml
+   text (worlds: dev [1,611,612,613], eval 621; thresholds UNCHANGED).
+8. `tests/mlops`: 124 pass; only the 3 hash-pin/copy tests failed then (copy test now fixed;
+   pins MUST be updated at step B). lint, mypy (353 files), import-linter all clean.
+
+### Dev calibration so far (data/mlops/attempt2/calibration-seeds-1-611.txt)
+- Seeds 1 and 611: 12/12 checks PASS. Steady: 0 breach days, max residual 0.97, max slice
+  1.21; 2 approved promotions each, no rollback. Drift: first breach 08-06, alarm (k=3)
+  08-08, deadline 08-10 (k=2 -> 08-07, k=4 -> 08-09). Bad recipe same-origin ratio 1.057
+  (seed 1), 1.154 (611) vs limit 1.02 -> rejected; all 20 good retrains exactly 1.0.
+  Drift world: probation auto-restored the previous champion on 09-13 on both seeds (the
+  08-31 promotion was 1.09x / 1.06x worse in the accelerating ramp) -- safety net worked;
+  the continuing ramp keeps alarms on to the end (documented, not gated).
+- Seeds 612, 613: worlds BUILT (`data/mlops/seed61{2,3}-c1000/{steady,drift}`, new scenarios);
+  drills were STOPPED at the pause (incomplete; rerun from scratch).
+
+### UPDATE 2026-10-24 (resumed session)
+- Step A DONE: 612 and 613 drills 12/12 PASS (k=3). Summary of all four:
+  `data/mlops/attempt2/calibration-seeds-1-611-612-613.txt`; k=3 reports archived in
+  `data/mlops/attempt2/k3/`.
+- Step B decision DONE by the pre-written rule `data/mlops/attempt2/persistence-decision-rule.txt`:
+  k=3 alarmed ON the deadline (08-10) on 612/613 -> infeasible; `persistence_days = 2` set in
+  demand.toml (NOT yet re-pinned). ADR 0017 "Calibration" subsection written; placeholder
+  CONFIRMATION_RESULT awaits the k=2 confirmation drills of seeds 1 and 612 (running).
+- PAUSED 2026-10-24 (owner shut down the PC): the k=2 confirmation drills (seeds 1, 612)
+  were STOPPED incomplete; their drill dirs are partial, so rerun both from scratch:
+  `make pg-up`, then
+  `sh data/mlops/attempt2/scripts/drill_dev.sh 1 & sh data/mlops/attempt2/scripts/drill_dev.sh 612 &`
+  (~2 h; seed 1's k=3 report is safe in `data/mlops/attempt2/k3/` and
+  `data/mlops/attempt2/dev-seed1-drill.json`).
+- Then: `.venv/bin/python data/mlops/attempt2/scripts/calib.py 1 612` and apply the 12 checks.
+  If both pass: fill CONFIRMATION_RESULT in ADR 0017, change "PENDING" in the demand.toml
+  comment to the result, re-pin hashes in tests/mlops/test_config.py PINNED (demand.toml,
+  lifecycle_acceptance.toml, mlops_drift.toml, ADD mlops_steady.toml), then steps C-E.
+  If either fails: STOP, no held-out run, report.
+- Verified this session: `tests/mlops` 124 pass (3 hash-pin tests deselected, expected to
+  fail until re-pinned). Seeds 611-613 / 621 used by no other phase. Seed 621 NOT built.
+
+### UPDATE 2026-10-25
+- k=2 confirmation drills seeds 1 and 612 rerun from scratch: both 12/12 PASS (first alarm
+  08-07 / 08-09; 0 steady alarm days). Reports `data/mlops/attempt2/k2/`, summary
+  `data/mlops/attempt2/calibration-k2-confirmation-seeds-1-612.txt`. (Top-level
+  `data/mlops/attempt2/dev-seed*-drill.json` are the k=3 runs, identical to `k3/`.)
+- CONFIRMATION_RESULT filled in ADR 0017; demand.toml comment updated; PINNED re-pinned
+  (4 files incl. mlops_steady.toml). Step C (`make check`) started; log
+  `data/mlops/attempt2/make-check.log`. Seed 621 NOT built yet.
+- `make check` attempts (each failure fixed at its cause; nothing skipped or loosened). All
+  three fixes are DISCLOSED AMENDMENTS for docs/evidence/phase-10.md:
+  1. exit 2, 1 test failed: `tests/mlops/test_monitoring.py::test_injected_level_shift...`
+     "gap" fixture `[[r,s], []]` (history is most-recent-first) only breaks a run for k=3.
+     Generalised: a gap at EVERY position inside the k window must give no alarm (stronger).
+     No monitoring code changed. `tests/mlops` 128 pass.
+  2. exit 2, coverage-gate: `src/praxis/mlops/drill.py` 69% < 95% because attempt 2's
+     parallel worlds run in spawned processes coverage did not measure. Added
+     `patch = ["subprocess"]` to `[tool.coverage.run]` in pyproject.toml (pytest-cov 7 dropped
+     subprocess measurement). drill.py -> 99.2%; then "coverage floors OK (174 files)",
+     1657 passed.
+  3. exit 2, `audit`: new external advisories. `uv lock --upgrade-package` certifi,
+     opentelemetry-api (+sdk, semconv lockstep 1.45.1), filelock 4.2.4, gitpython 3.2.1,
+     setuptools 84.2.1, virtualenv 21.14.13; `uv sync --locked`; pip-audit clean.
+     frontend `npm audit fix`: next 16.3.8 -> 16.4.3 (critical RCE GHSA-2464-fhr4-w9xw; in
+     ^16.3.8 range; only package-lock.json changed); npm audit 0 vulns. Old lockfiles in
+     `data/mlops/attempt2/lock-backups/`. No modelling dependency changed.
+  4. 4th run STOPPED incomplete 2026-10-25 (owner left). NEXT: `make pg-up`, `make check`
+     (~20 min) -> must exit 0 (lint/typecheck/frontend/terraform not yet re-verified after the
+     upgrades). Then step D (seed 621 ONCE), step E. State snapshot:
+     `data/mlops/attempt2/git-status-at-pause3.txt`, `config-hashes-at-pause3.txt`.
+  5. 5th run 2026-10-25 17:09-17:29: **exit 0** (1657 passed, 2 skipped opt-in live suites;
+     coverage floors OK 174 files; pip-audit / npm audit clean; lint, mypy, arch, frontend,
+     terraform, workflow-lint green). Log `data/mlops/attempt2/make-check-run5.log`. Code
+     frozen: `data/mlops/attempt2/code-freeze-before-621.txt` (hashes of src, configs,
+     Makefile, pyproject, uv.lock).
+- STEP D STARTED 2026-10-25 ~17:30: `make mlops-data ML_SEED=621` + `make mlops-drill
+  ML_SEED=621` (logs `data/mlops/seed621_build.log`, `seed621_drill_make.log`, status lines
+  in `data/mlops/drill_v2.status`). **Seed 621 is now SPENT. Never run it again**, even if
+  this run was interrupted: an interrupted held-out run is reported as such, not re-rolled.
+- nightly-security 2026-10-25: exit 2 at gitleaks, the SAME known false positive only
+  (`generic-api-key`, `tests/payments/test_ids_and_model.py:44`, commit 105c930, Stripe
+  lookup key literal; not allowlisted); pip-audit + npm audit clean; trivy standalone exit 0.
+- Done: CLAUDE.md seed list (601, 621 held-out; 611-613 dev), docs/mlops.md k = 2, dev
+  reports copied to `docs/evidence/phase-10-attempt2-dev-seed*-{k2,k3}-drill.json`.
+- **HELD-OUT SEED 621 (run once, 2026-10-25, build 59 s, drill 6011 s): 12 / 12 PASS.**
+  Steady 0 breach / 0 alarm days; drift first alarm 08-09 (1 day slack); bad recipe rejected
+  (1.142); rollback 08-23 (1.082); lineage 16. Report
+  `docs/evidence/phase-10-attempt2-eval-seed621-drill.json`; summary
+  `data/mlops/attempt2/heldout-seed621-summary.txt`.
+- nightly-science 2026-10-25: exit 0 (only known Phase 8 `champion_truth_recovery`).
+- STEP E DONE: docs/evidence/phase-10.md (attempt 2 PASS on top, attempt 1 FAIL kept),
+  ADR 0017 (held-out result), docs/mlops.md, project_progress.md. **Phase 10 attempt 2
+  COMPLETE; nothing committed.** Open owner decisions: Phases 6 / 9 re-evaluation after the
+  Phase 4 loader fix; gitleaks false-positive allowlist. Do not start Phase 11 unasked.
+- 2026-10-25 owner chose option A: Phase 4 loader defect disclosed in Phase 6 / 9 evidence,
+  no re-evaluation. Remaining open: gitleaks allowlist.
+
+### Remaining steps (in order)
+A. Rerun dev drills 612 and 613 (both at once, ~2 h):
+   `sh data/mlops/attempt2/scripts/drill_dev.sh 612 & sh data/mlops/attempt2/scripts/drill_dev.sh 613 &`
+   (needs `make pg-up`; status lines go to data/mlops/drill_v2.status), then
+   `.venv/bin/python data/mlops/attempt2/scripts/calib.py 1 611 612 613`.
+B. Decide persistence_days from all four dev seeds (leaning k=2 unless 612/613 show
+   single-day steady breaches: k=3 leaves only 2 days of detection slack). Write the
+   calibration table into ADR 0017 ("Attempt 2" -> add "Calibration" subsection) and the
+   demand.toml comment; re-pin hashes in tests/mlops/test_config.py PINNED (demand.toml,
+   lifecycle_acceptance.toml, mlops_drift.toml, ADD mlops_steady.toml).
+C. `make check` must exit 0 BEFORE the held-out run (code frozen after this).
+D. `make mlops-data ML_SEED=621` then `make mlops-drill ML_SEED=621` ONCE; report as measured.
+   Copy dev + eval drill.json to docs/evidence/phase-10-attempt2-*.json.
+E. `make nightly-science`, `make nightly-security`. Add 621 (and dev 611-613) to the CLAUDE.md
+   held-out list. Update docs/evidence/phase-10.md (keep attempt-1 FAIL; add attempt 2 per
+   required_test.md s23; disclose every amendment), docs/mlops.md, ADR 0017,
+   project_progress.md, this checkpoint. Final report to owner incl. open decisions
+   (Phases 6/9 re-evaluation after the loader fix; gitleaks false-positive allowlist).
 
 Status: Phase 10 attempt 1 is CLOSED with gate **FAIL** (evidence: `docs/evidence/phase-10.md`).
 Owner decision 2026-10-17: **fix Phase 10 properly before Phase 11** (do not start Phase 11).

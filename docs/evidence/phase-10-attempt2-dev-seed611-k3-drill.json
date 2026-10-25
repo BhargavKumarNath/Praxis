@@ -1,0 +1,3890 @@
+{
+  "champion": "demand-hybrid-a30d242c711d",
+  "champion_data_version": "panel-8110093780ff51c8",
+  "checks": [
+    {
+      "check": "champion_validation_passes",
+      "failed": [],
+      "passed": true
+    },
+    {
+      "check": "bad_candidate_rejected",
+      "failed": [
+        "backtest_acceptance",
+        "champion_non_inferiority"
+      ],
+      "passed": true,
+      "stage": "rejected",
+      "version": "demand-hybrid-a4fd1c875b42"
+    },
+    {
+      "check": "steady_candidate_reaches_ready",
+      "passed": true,
+      "promotions": [
+        {
+          "as_of": "2026-08-10",
+          "version": "demand-hybrid-bd2e6037dca3"
+        },
+        {
+          "as_of": "2026-08-31",
+          "version": "demand-hybrid-0bdfa598a768"
+        }
+      ]
+    },
+    {
+      "champion": "demand-hybrid-0bdfa598a768",
+      "check": "steady_candidate_promoted_by_approver",
+      "passed": true
+    },
+    {
+      "check": "drift_detected_within_days",
+      "deadline": "2026-08-10",
+      "first_alarm": "2026-08-08",
+      "first_detection": "2026-08-08",
+      "passed": true
+    },
+    {
+      "check": "drift_opens_retraining_request",
+      "passed": true,
+      "requests": [
+        {
+          "as_of": "2026-08-08",
+          "status": "completed",
+          "triggers": [
+            "feature_drift",
+            "segment_drift"
+          ]
+        },
+        {
+          "as_of": "2026-08-15",
+          "status": "completed",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "segment_drift"
+          ]
+        },
+        {
+          "as_of": "2026-08-22",
+          "status": "completed",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ]
+        },
+        {
+          "as_of": "2026-08-29",
+          "status": "completed",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ]
+        },
+        {
+          "as_of": "2026-09-05",
+          "status": "completed",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ]
+        },
+        {
+          "as_of": "2026-09-12",
+          "status": "completed",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ]
+        }
+      ]
+    },
+    {
+      "alarm_days": [],
+      "check": "steady_max_decision_alarm_days",
+      "limit": 0,
+      "passed": true
+    },
+    {
+      "check": "no_champion_change_without_approver",
+      "moves": [
+        {
+          "actor": "drill-operator",
+          "registry": "steady",
+          "trigger": "promote.bootstrap",
+          "version": "demand-hybrid-a30d242c711d"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "steady",
+          "trigger": "promote",
+          "version": "demand-hybrid-bd2e6037dca3"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "steady",
+          "trigger": "promote",
+          "version": "demand-hybrid-0bdfa598a768"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "drift",
+          "trigger": "promote.bootstrap",
+          "version": "demand-hybrid-a30d242c711d"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "drift",
+          "trigger": "promote",
+          "version": "demand-hybrid-bd2e6037dca3"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "drift",
+          "trigger": "promote",
+          "version": "demand-hybrid-396c0bb93212"
+        },
+        {
+          "actor": "mlops-probation",
+          "registry": "drift",
+          "trigger": "restore",
+          "version": "demand-hybrid-bd2e6037dca3"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "rollback",
+          "trigger": "promote.bootstrap",
+          "version": "demand-hybrid-a30d242c711d"
+        },
+        {
+          "actor": "drill-operator",
+          "registry": "rollback",
+          "trigger": "promote.forced",
+          "version": "demand-hybrid-e5c29c0f450e"
+        },
+        {
+          "actor": "mlops-probation",
+          "registry": "rollback",
+          "trigger": "restore",
+          "version": "demand-hybrid-a30d242c711d"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "check": "rollback_drill",
+      "passed": true,
+      "rollback": {
+        "as_of": "2026-08-23",
+        "decision_id": "rollback-0c304730a5214ba588fcb206a086eb4a",
+        "report": {
+          "active": true,
+          "as_of": "2026-08-23",
+          "champion": "demand-hybrid-e5c29c0f450e",
+          "fired": true,
+          "origins": 7,
+          "previous": "demand-hybrid-a30d242c711d",
+          "previous_vwape": 0.103484,
+          "promoted_as_of": "2026-08-10",
+          "report_id": "probation-25f193f2d3b108d7e879",
+          "rolled_back": "rollback-0c304730a5214ba588fcb206a086eb4a",
+          "rows": 3528,
+          "status": "evaluated",
+          "threshold": 1.05,
+          "vwape": 0.11278,
+          "vwape_ratio": 1.089832
+        }
+      },
+      "served_after": "demand-hybrid-a30d242c711d"
+    },
+    {
+      "check": "lineage_complete_for_every_version",
+      "passed": true,
+      "versions": 16
+    },
+    {
+      "check": "served_version_equals_registry_champion",
+      "passed": true
+    },
+    {
+      "check": "serving_stages_hold_compatible_contracts",
+      "passed": true
+    }
+  ],
+  "drift": {
+    "champion": "demand-hybrid-bd2e6037dca3",
+    "days": [
+      {
+        "alarms": [],
+        "as_of": "2026-07-20",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [
+          "prediction_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": "no new labels since the champion's training data",
+        "triggers": [
+          "prediction_drift"
+        ],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-21",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": null,
+        "request": {
+          "created": true,
+          "request_id": "rt-2bc9cee15cbbc92c526c"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-bd2e6037dca3",
+          "failed_checks": [],
+          "stage": "shadow",
+          "triggers": [
+            "feature_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [
+          "feature_drift"
+        ],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-22",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-23",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-24",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-25",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.832407,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.834732,
+        "worst_slice": "segment=starter",
+        "worst_slice_ratio": 0.978464
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-26",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.839286,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.864927,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 1.117655
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-27",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.841766,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.837256,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 1.064044
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-28",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.83373,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.83822,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 0.998846
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-29",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.817791,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.869297,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.042789
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-30",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.808107,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.881694,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.032141
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-31",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.802827,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.891743,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.04888
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-01",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.802028,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.91603,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.244981
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-02",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.802381,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.921044,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.248482
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-03",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.804113,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.967335,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.353646
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-04",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.799197,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 1.032707,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.445648
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-05",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.792456,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 1.085771,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.482579
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-06",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.786232,
+        "drift_fired": [
+          "segment_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 1.142665,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.551582
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-07",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.780994,
+        "drift_fired": [
+          "segment_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 1.189894,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.588089
+      },
+      {
+        "alarms": [
+          "segment_drift"
+        ],
+        "as_of": "2026-08-08",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.769759,
+        "drift_fired": [
+          "feature_drift",
+          "segment_drift"
+        ],
+        "probation": null,
+        "request": {
+          "created": true,
+          "request_id": "rt-9d01270e86c0eb261d4b"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-396c0bb93212",
+          "failed_checks": [],
+          "stage": "challenger",
+          "triggers": [
+            "feature_drift",
+            "segment_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [
+          "segment_drift",
+          "feature_drift"
+        ],
+        "vwape_ratio": 1.255319,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.663889
+      },
+      {
+        "alarms": [
+          "segment_drift"
+        ],
+        "as_of": "2026-08-09",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.761054,
+        "drift_fired": [
+          "feature_drift",
+          "segment_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "segment_drift",
+          "feature_drift"
+        ],
+        "vwape_ratio": 1.289748,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.721196
+      },
+      {
+        "alarms": [
+          "segment_drift"
+        ],
+        "as_of": "2026-08-10",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.750567,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": true,
+        "shadow_status": "evaluated",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.369013,
+        "worst_slice": "product=api_requests",
+        "worst_slice_ratio": 1.795981
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-11",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.739512,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": "started",
+        "suppressed": "demand-hybrid-396c0bb93212 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.436184,
+        "worst_slice": "product=api_requests",
+        "worst_slice_ratio": 1.904435
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-12",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.7286,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-396c0bb93212 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.485874,
+        "worst_slice": "product=api_requests",
+        "worst_slice_ratio": 2.010182
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-13",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.720805,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.539106,
+        "worst_slice": "product=api_requests",
+        "worst_slice_ratio": 2.091566
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-14",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.717262,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.595155,
+        "worst_slice": "region=us_east",
+        "worst_slice_ratio": 2.237724
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-15",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.714002,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-b3d70371bbe140464931"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-a759f73814c8",
+          "failed_checks": [],
+          "stage": "challenger",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "segment_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.628017,
+        "worst_slice": "region=us_east",
+        "worst_slice_ratio": 2.399719
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-16",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.707625,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.681817,
+        "worst_slice": "region=us_east",
+        "worst_slice_ratio": 2.503794
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-17",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.704649,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.669973,
+        "worst_slice": "region=us_east",
+        "worst_slice_ratio": 2.525623
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-18",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.699405,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.649279,
+        "worst_slice": "region=us_east",
+        "worst_slice_ratio": 2.390721
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-19",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.700539,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.615378,
+        "worst_slice": "region=us_east",
+        "worst_slice_ratio": 2.289227
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-20",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.697279,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.606408,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.221179
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-21",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.703798,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.57522,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.215285
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-22",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.701956,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-504cc93357bde572127e"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-6fb6a38dc207",
+          "failed_checks": [],
+          "stage": "challenger",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.547245,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.224687
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-23",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.700964,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999606
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.55195,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.247128
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-24",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.699405,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999552
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.521275,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.242332
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-25",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.709042,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999458
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.506901,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.282143
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-26",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.715703,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999408
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.485871,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.217463
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-27",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.713719,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999327
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.459083,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.149999
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-28",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.713435,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999225
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.424776,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.122701
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-29",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.707058,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999151
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-866c0248651609564171"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-fbf29eea4f51",
+          "failed_checks": [],
+          "stage": "challenger",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.432509,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.144397
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-30",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.713577,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999057
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.387588,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.08826
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-08-31",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.718254,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.998991
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-396c0bb93212",
+        "shadow_failed": [],
+        "shadow_passed": true,
+        "shadow_status": "evaluated",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.391496,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.110772
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-01",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.752834,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": "started",
+        "suppressed": "demand-hybrid-a759f73814c8 is still challenger",
+        "triggers": [
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.354696,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.916972
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-02",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.750142,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-a759f73814c8 is still challenger",
+        "triggers": [
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.389732,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.013502
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-03",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.749291,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.372413,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.983009
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-04",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.746882,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.375852,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 1.990922
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-05",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.748441,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-8fd616244d09b71e09a9"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-bdb75931b595",
+          "failed_checks": [],
+          "stage": "challenger",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.361509,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.000668
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-06",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.752409,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.357488,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.011238
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-07",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.755102,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.37317,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.059101
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-08",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.748724,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.383362,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.045613
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-09",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.753685,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.402785,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.122991
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-10",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.767715,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.417851,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.163015
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-11",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.772676,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "cooldown: previous request within 7 days",
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.42436,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.167596
+      },
+      {
+        "alarms": [
+          "residual_drift",
+          "segment_drift"
+        ],
+        "as_of": "2026-09-12",
+        "champion": "demand-hybrid-396c0bb93212",
+        "coverage_80": 0.782313,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-6fcd6d7decb4c4584d74"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-2779dfeb2d90",
+          "failed_checks": [],
+          "stage": "challenger",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "residual_drift",
+            "scheduled",
+            "segment_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [
+          "residual_drift",
+          "segment_drift",
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.427862,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.171611
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-13",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.760913,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": {
+          "fired": true,
+          "status": "evaluated",
+          "vwape_ratio": 1.064186
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-a759f73814c8 is still challenger",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.346664,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.052561
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-14",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.755527,
+        "drift_fired": [
+          "feature_drift",
+          "residual_drift",
+          "segment_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-fbf29eea4f51",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-a759f73814c8 is still challenger",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 1.370831,
+        "worst_slice": "region=eu_west",
+        "worst_slice_ratio": 2.104624
+      }
+    ],
+    "prefix_data_version": "panel-8110093780ff51c8",
+    "promotions": [
+      {
+        "as_of": "2026-08-10",
+        "version": "demand-hybrid-bd2e6037dca3"
+      },
+      {
+        "as_of": "2026-08-31",
+        "version": "demand-hybrid-396c0bb93212"
+      }
+    ],
+    "rollbacks": [
+      {
+        "actor": "mlops-probation",
+        "as_of": "2026-09-13",
+        "version": "demand-hybrid-bd2e6037dca3"
+      }
+    ],
+    "served": "demand-hybrid-bd2e6037dca3"
+  },
+  "drift_prefix_data_version": "panel-8110093780ff51c8",
+  "is_synthetic": true,
+  "lineage": {
+    "drift": {
+      "demand-hybrid-2779dfeb2d90": {
+        "missing": [],
+        "stage": "challenger",
+        "tracking_run_id": "db195c2fd3be46009400a2f13923ce24"
+      },
+      "demand-hybrid-396c0bb93212": {
+        "missing": [],
+        "stage": "rolled_back",
+        "tracking_run_id": "8bcc04dfb1074c55816582ea80c18dc5"
+      },
+      "demand-hybrid-6fb6a38dc207": {
+        "missing": [],
+        "stage": "challenger",
+        "tracking_run_id": "ea11d547f58b4a709ec8348469e61da4"
+      },
+      "demand-hybrid-a30d242c711d": {
+        "missing": [],
+        "stage": "retired",
+        "tracking_run_id": "f9c31babced64a43bd4d122fadb29fc4"
+      },
+      "demand-hybrid-a759f73814c8": {
+        "missing": [],
+        "stage": "challenger",
+        "tracking_run_id": "fa0b858f87434655a5432fc058330310"
+      },
+      "demand-hybrid-bd2e6037dca3": {
+        "missing": [],
+        "stage": "champion",
+        "tracking_run_id": "9ce3bdc409284a2aa6994a4a7ff4a460"
+      },
+      "demand-hybrid-bdb75931b595": {
+        "missing": [],
+        "stage": "challenger",
+        "tracking_run_id": "f2452224a95e489a950b098f36174847"
+      },
+      "demand-hybrid-fbf29eea4f51": {
+        "missing": [],
+        "stage": "shadow",
+        "tracking_run_id": "b458af8a9d6448678037bf4b8b57e5ce"
+      }
+    },
+    "rollback": {
+      "demand-hybrid-902b64c76636": {
+        "missing": [],
+        "stage": "shadow",
+        "tracking_run_id": "5f8b779c414f4742b606ac6f4898bfb4"
+      },
+      "demand-hybrid-a30d242c711d": {
+        "missing": [],
+        "stage": "champion",
+        "tracking_run_id": "c5b4c2c57ffd4315874cdaec746b694a"
+      },
+      "demand-hybrid-a4fd1c875b42": {
+        "missing": [],
+        "stage": "rejected",
+        "tracking_run_id": "96fbf64273d04c279d1d22760b5a8684"
+      },
+      "demand-hybrid-e5c29c0f450e": {
+        "missing": [],
+        "stage": "rolled_back",
+        "tracking_run_id": "9897f6689c6547be82dd4df87f51c4ce"
+      }
+    },
+    "steady": {
+      "demand-hybrid-0bdfa598a768": {
+        "missing": [],
+        "stage": "champion",
+        "tracking_run_id": "21d62bdb757447ca9e6b061d771394e7"
+      },
+      "demand-hybrid-3f1d53910966": {
+        "missing": [],
+        "stage": "shadow",
+        "tracking_run_id": "12d8ec6aa2e44c5197d10665347ca80a"
+      },
+      "demand-hybrid-a30d242c711d": {
+        "missing": [],
+        "stage": "retired",
+        "tracking_run_id": "ead59303d06b4879a3649b0758b2503d"
+      },
+      "demand-hybrid-bd2e6037dca3": {
+        "missing": [],
+        "stage": "retired",
+        "tracking_run_id": "9fc92b30135f410e8e03cca399d5c8d4"
+      }
+    }
+  },
+  "passed": true,
+  "policy_version": "mlops-6bffdd86152c",
+  "rollback": {
+    "audit": [
+      {
+        "actor": "mlops-probation",
+        "to": "rolled_back",
+        "trigger": "rollback",
+        "version": "demand-hybrid-e5c29c0f450e"
+      },
+      {
+        "actor": "mlops-probation",
+        "to": "champion",
+        "trigger": "restore",
+        "version": "demand-hybrid-a30d242c711d"
+      }
+    ],
+    "champion": "demand-hybrid-a30d242c711d",
+    "days": [
+      {
+        "alarms": [],
+        "as_of": "2026-08-11",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.828175,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.878889,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.030465
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-12",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.82705,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.859198,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 0.937633
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-13",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.824263,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.855704,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.069249
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-14",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.825893,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.888704,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.03927
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-15",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.831349,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.863499,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.000304
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-16",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.823611,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.885797,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.020408
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-17",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.822511,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.893143,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.018251
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-18",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.823126,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.88805,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.043498
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-19",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.826231,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.882814,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.050931
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-20",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.81869,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.876053,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.085032
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-21",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.822076,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.861784,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.042162
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-22",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "coverage_80": 0.82646,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.860585,
+        "worst_slice": "product=cpu_minutes",
+        "worst_slice_ratio": 1.011071
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-23",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.823413,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": true,
+          "status": "evaluated",
+          "vwape_ratio": 1.089832
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-fd98b2c9f886de0f3969"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-902b64c76636",
+          "failed_checks": [],
+          "stage": "shadow",
+          "triggers": [
+            "feature_drift",
+            "new_labels",
+            "scheduled"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-902b64c76636",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.913761,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.129646
+      }
+    ],
+    "forced": "demand-hybrid-e5c29c0f450e",
+    "rejected": {
+      "failed": [
+        "backtest_acceptance",
+        "champion_non_inferiority"
+      ],
+      "stage": "rejected",
+      "version": "demand-hybrid-a4fd1c875b42"
+    },
+    "rollback": {
+      "as_of": "2026-08-23",
+      "decision_id": "rollback-0c304730a5214ba588fcb206a086eb4a",
+      "report": {
+        "active": true,
+        "as_of": "2026-08-23",
+        "champion": "demand-hybrid-e5c29c0f450e",
+        "fired": true,
+        "origins": 7,
+        "previous": "demand-hybrid-a30d242c711d",
+        "previous_vwape": 0.103484,
+        "promoted_as_of": "2026-08-10",
+        "report_id": "probation-25f193f2d3b108d7e879",
+        "rolled_back": "rollback-0c304730a5214ba588fcb206a086eb4a",
+        "rows": 3528,
+        "status": "evaluated",
+        "threshold": 1.05,
+        "vwape": 0.11278,
+        "vwape_ratio": 1.089832
+      }
+    },
+    "served_after": "demand-hybrid-a30d242c711d",
+    "served_while_forced": "demand-hybrid-e5c29c0f450e"
+  },
+  "seed": 611,
+  "steady": {
+    "champion": "demand-hybrid-0bdfa598a768",
+    "days": [
+      {
+        "alarms": [],
+        "as_of": "2026-07-20",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [
+          "prediction_drift"
+        ],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": null,
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": "no new labels since the champion's training data",
+        "triggers": [
+          "prediction_drift"
+        ],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-21",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": null,
+        "request": {
+          "created": true,
+          "request_id": "rt-2bc9cee15cbbc92c526c"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-bd2e6037dca3",
+          "failed_checks": [],
+          "stage": "shadow",
+          "triggers": [
+            "feature_drift"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [
+          "feature_drift"
+        ],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-22",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-23",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-24",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": null,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": null,
+        "worst_slice": null,
+        "worst_slice_ratio": null
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-25",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.832407,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.834732,
+        "worst_slice": "segment=starter",
+        "worst_slice_ratio": 0.978464
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-26",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.839286,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.864927,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 1.117655
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-27",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.841766,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.837256,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 1.064044
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-28",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.832937,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.792244,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 0.961848
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-29",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.834987,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.799755,
+        "worst_slice": "segment=starter",
+        "worst_slice_ratio": 0.958992
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-30",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.831633,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.818494,
+        "worst_slice": "segment=starter",
+        "worst_slice_ratio": 0.959563
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-07-31",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.829365,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.824778,
+        "worst_slice": "segment=starter",
+        "worst_slice_ratio": 0.955269
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-01",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.827381,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.832619,
+        "worst_slice": "segment=starter",
+        "worst_slice_ratio": 0.985306
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-02",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.830159,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.840788,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.020985
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-03",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.832612,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.874667,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.067038
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-04",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.832329,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.865119,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.103896
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-05",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.833965,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.868642,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.066675
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-06",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.837107,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.85412,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.05166
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-07",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.838596,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.843846,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.041886
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-08",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.832761,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.849068,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 0.995733
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-09",
+        "champion": "demand-hybrid-a30d242c711d",
+        "coverage_80": 0.828656,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": null,
+        "triggers": [],
+        "vwape_ratio": 0.841588,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 0.970906
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-10",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.82568,
+        "drift_fired": [],
+        "probation": null,
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-bd2e6037dca3",
+        "shadow_failed": [],
+        "shadow_passed": true,
+        "shadow_status": "evaluated",
+        "suppressed": "demand-hybrid-bd2e6037dca3 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.865576,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 0.995456
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-11",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.831349,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-5ae7e57c0e994b06c0a1"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-0bdfa598a768",
+          "failed_checks": [],
+          "stage": "shadow",
+          "triggers": [
+            "new_labels"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.885605,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.021453
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-12",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.829082,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.884446,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.069605
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-13",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.830074,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.865547,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.080725
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-14",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.832058,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.872887,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.040847
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-15",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.833333,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.868387,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.088857
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-16",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.830357,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.878733,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.11626
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-17",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.828515,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.864709,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.104479
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-18",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.829223,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.865653,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.112125
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-19",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.827523,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.872661,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.112651
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-20",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.823838,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.894099,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.105692
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-21",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.827948,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.898336,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.133283
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-22",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.832483,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.895872,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.158291
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-23",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.827239,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000516
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.914053,
+        "worst_slice": "region=us_west",
+        "worst_slice_ratio": 1.128405
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-24",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.821712,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000485
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.914283,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.078721
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-25",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.818027,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000394
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.912051,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.088499
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-26",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.816468,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000318
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.929325,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.096574
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-27",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.810374,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000269
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.942184,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.160483
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-28",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.807823,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000249
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.939611,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.142567
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-29",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.802012,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000238
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.967764,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.197052
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-30",
+        "champion": "demand-hybrid-bd2e6037dca3",
+        "coverage_80": 0.80513,
+        "drift_fired": [
+          "feature_drift"
+        ],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000188
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "feature_drift",
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.955797,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.159804
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-08-31",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.809524,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000183
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-0bdfa598a768",
+        "shadow_failed": [],
+        "shadow_passed": true,
+        "shadow_status": "evaluated",
+        "suppressed": "demand-hybrid-0bdfa598a768 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.945278,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.128634
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-01",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.77055,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": {
+          "created": true,
+          "request_id": "rt-be353f643b9039ea26c8"
+        },
+        "retrained": {
+          "candidate": "demand-hybrid-3f1d53910966",
+          "failed_checks": [],
+          "stage": "shadow",
+          "triggers": [
+            "new_labels"
+          ],
+          "validation_passed": true
+        },
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": null,
+        "shadow_status": null,
+        "suppressed": null,
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.971588,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.136528
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-02",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.770125,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.95265,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.180342
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-03",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.768849,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.963394,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.166159
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-04",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.767715,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.976882,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.206948
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-05",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.765731,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.963849,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.151563
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-06",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.769983,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.946478,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.073675
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-07",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.77381,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "new_labels"
+        ],
+        "vwape_ratio": 0.941667,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.107448
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-08",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.769983,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.952419,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.088029
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-09",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.768991,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.949478,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.071552
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-10",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.775652,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.959274,
+        "worst_slice": "product=data_transfer_gb",
+        "worst_slice_ratio": 1.050787
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-11",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.777778,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.962795,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.032707
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-12",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.784439,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "insufficient_data",
+          "vwape_ratio": null
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.956056,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.020938
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-13",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.784014,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 0.999849
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.965429,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.091719
+      },
+      {
+        "alarms": [],
+        "as_of": "2026-09-14",
+        "champion": "demand-hybrid-0bdfa598a768",
+        "coverage_80": 0.776927,
+        "drift_fired": [],
+        "probation": {
+          "fired": false,
+          "status": "evaluated",
+          "vwape_ratio": 1.000185
+        },
+        "request": null,
+        "retrained": null,
+        "shadow": "demand-hybrid-3f1d53910966",
+        "shadow_failed": [],
+        "shadow_passed": false,
+        "shadow_status": "pending",
+        "suppressed": "demand-hybrid-3f1d53910966 is still shadow",
+        "triggers": [
+          "scheduled",
+          "new_labels"
+        ],
+        "vwape_ratio": 0.965215,
+        "worst_slice": "region=eu_central",
+        "worst_slice_ratio": 1.116432
+      }
+    ],
+    "promotions": [
+      {
+        "as_of": "2026-08-10",
+        "version": "demand-hybrid-bd2e6037dca3"
+      },
+      {
+        "as_of": "2026-08-31",
+        "version": "demand-hybrid-0bdfa598a768"
+      }
+    ],
+    "rollbacks": [],
+    "served": "demand-hybrid-0bdfa598a768"
+  }
+}
