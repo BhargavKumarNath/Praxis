@@ -23,6 +23,10 @@ Model: `model_inference_total`, `model_inference_duration_ms`, `model_version_in
 `forecast_age_hours`, `model_drift_alarm`, `model_calibration_80`.
 Decisions / business: `pricing_decisions_total`, `pricing_frozen_decisions_total`,
 `pricing_decision_duration_ms`, `price_change_fraction`, `business_kpi_deviation`.
+AI operator (Phase 12, ADR 0019): `agent_tool_calls_total{tool, tier, status}` (`tool` is a
+declared tool name or `undeclared`, so hostile names cannot grow cardinality) and
+`agent_investigations_total{provider, outcome}`. Neither is in an SLO or alert rule (the agent
+is off the decision path); agent failure is detected from the run outcome and its audit trail.
 
 Adding a metric = a `_spec(...)` line in the catalogue; using an undeclared name or label raises.
 
@@ -45,10 +49,12 @@ notification, auto-resolve after two clear ticks, manual acknowledge / resolve. 
 
 ## Runbooks
 `pubsub-backlog`, `external-source-outage`, `stripe-webhook-surge`, `stale-model`,
-`broken-candidate-deployment`, `database-outage`, `severe-forecast-error`, `agent-failure`
-(applies from Phase 12), `business-kpi-shock`. `make ops-check` fails if an alert's runbook is
-missing or incomplete. The `pubsub-backlog` procedure is executed end to end in
-`tests/ops/test_runbook_drill.py`.
+`broken-candidate-deployment`, `database-outage`, `severe-forecast-error`, `agent-failure`,
+`business-kpi-shock`. `make ops-check` fails if an alert's runbook is missing or incomplete.
+Two procedures are executed end to end in tests: `pubsub-backlog`
+(`tests/ops/test_runbook_drill.py`) and `agent-failure`
+(`tests/agent/test_runbook_agent_failure.py`); the others are structure-checked only, and the
+agent's `get_runbook` tool says so.
 
 ## Limits
 See ADR 0018 "Consequences / limitations".

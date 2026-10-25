@@ -1,0 +1,23 @@
+# AI Revenue Operator policy (Phase 12, ADR 0019). PRE-REGISTERED 2026-10-25 before the
+# incident benchmark ran. Pinned by tests/agent/test_config.py; a change needs an ADR
+# amendment and owner approval.
+#
+# Permissions are enforced by praxis.agent.executor from THIS file, never from the prompt,
+# the task text or a tool output.
+version = "2026-10-25.1"
+
+[agent]
+actor = "praxis-agent"     # identity stamped on every audit row and request; can never approve
+enabled = true             # false = the operator refuses to run (runbook agent-failure, Mitigate 1)
+max_tier = 2               # Tier 2 tools only CREATE pending requests; a named human completes them
+max_steps = 16             # provider turns per investigation
+max_actions = 2            # Tier >= 1 calls per investigation (a runaway loop cannot spam actions)
+max_tool_errors = 4        # stop the investigation after this many failed tool calls
+provider = "deterministic-triage"   # no live LLM provider is configured (owner decision pending)
+fallback = "deterministic-triage"   # used when the provider raises ProviderUnavailable
+
+[triage]
+# Deterministic investigator thresholds (the fallback and the benchmark reference).
+recovery_min_resolved = 20       # resolved dunning cases needed in each window to compare
+recovery_collapse_ratio = 0.5    # current resolved-recovery rate < 0.5 x previous window
+recovery_window_days = 7

@@ -384,3 +384,55 @@ def history_from_events(customer_id: str, rows: Sequence[Sequence[Any]]) -> Cust
         created_at=created_at,
         invoices=tuple(sorted(records, key=lambda i: (i.created_at, i.invoice_id))),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class RecoveryWindow:
+    """Dunning cases OPENED in [start, end): how many recovered, closed or are still open.
+
+    ``resolved_recovery_rate`` = recovered / (recovered + closed). Cases still open are
+    excluded rather than counted as failures, so a recent window is not penalised for
+    right-censoring; it can still look worse than an older one while cases mature.
+    """
+
+    start: datetime
+    end: datetime
+    opened: int
+    recovered: int
+    closed: int
+    still_open: int
+    opened_amount_minor: int
+    recovered_amount_minor: int
+
+    @property
+    def resolved(self) -> int:
+        return self.recovered + self.closed
+
+    @property
+    def resolved_recovery_rate(self) -> float | None:
+        return self.recovered / self.resolved if self.resolved else None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "start": self.start.isoformat(), "end": self.end.isoformat(), "opened": self.opened,
+            "recovered": self.recovered, "closed": self.closed, "still_open": self.still_open,
+            "opened_amount_minor": self.opened_amount_minor,
+            "recovered_amount_minor": self.recovered_amount_minor,
+            "resolved_recovery_rate": self.resolved_recovery_rate,
+        }  # fmt: skip
+
+
+def recovery_window(conn: Connection, start: datetime, end: datetime) -> RecoveryWindow:
+    """Fixed, read-only aggregate over ``dunning_cases`` (one indexed scan, no caller SQL)."""
+    row = conn.execute(
+        text(
+            "SELECT count(*), count(*) FILTER (WHERE state = 'recovered'), "
+            "count(*) FILTER (WHERE state = 'closed'), "
+            "count(*) FILTER (WHERE state NOT IN ('recovered', 'closed')), "
+            "coalesce(sum(amount_minor), 0), "
+            "coalesce(sum(amount_minor) FILTER (WHERE state = 'recovered'), 0) "
+            "FROM dunning_cases WHERE opened_at >= :s AND opened_at < :e"
+        ),
+        {"s": start, "e": end},
+    ).one()
+    return RecoveryWindow(start, end, *(int(v) for v in row))

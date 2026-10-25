@@ -66,3 +66,9 @@
 | Churn slope | Change in 28-day churn probability per unit log price, from randomised tests; partially pooled. |
 | Shadow evaluation | Scoring recorded shadow decisions against the simulator's counterfactual truth. |
 | Oracle (feasible) | The truly best candidate the decision considered; the reference for missed value. |
+| AI operator / agent | The Phase 12 investigator (ADR 0019): observes, explains and requests through typed tools; never decides or executes. |
+| Tool tier | 0 read-only, 1 low-risk action, 2 guarded request; the session ceiling comes from `configs/agent/policy.toml`. |
+| Guarded request | A pending Tier 2 action (freeze, rollback, promotion) that only a named human, never the requester, can approve. |
+| Price freeze | An approved block on price EXECUTION for one product or all (`*`); decisions are still recorded. |
+| Grounded answer | An agent conclusion that cites only call ids of successful tool calls in the same session. |
+| Deterministic triage | Rule-based investigator behind the provider interface (not an LLM): the fallback and benchmark reference. |

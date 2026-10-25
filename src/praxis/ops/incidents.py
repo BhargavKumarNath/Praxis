@@ -290,6 +290,23 @@ class IncidentManager:
             tuple(opened), tuple(touched), tuple(i for i in resolved if i is not None)
         )
 
+    def open(self, alert: Alert, now: datetime | None = None) -> tuple[Incident, bool]:
+        """Open (or touch) the incident for ONE alert raised by hand or by the AI operator.
+
+        Unlike ``process`` this is not an evaluation tick: other live incidents are not
+        stepped towards auto-resolution. Returns (incident, created)."""
+        now = now or datetime.now(UTC)
+        for _ in range(2):  # a concurrent opener can win the insert; then touch theirs
+            current = next(
+                (i for i in self.store.live() if i.fingerprint == alert.fingerprint), None
+            )
+            if current is not None:
+                return self._touch(current, alert, now), False
+            created = self._open(alert, now)
+            if created is not None:
+                return created, True
+        raise IncidentError(f"could not open or find an incident for {alert.fingerprint}")
+
     def _open(self, alert: Alert, now: datetime) -> Incident | None:
         incident = Incident(
             incident_id(alert.fingerprint, now), alert.fingerprint, alert.rule_id,

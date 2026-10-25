@@ -120,7 +120,7 @@ include_external_packages = true
 name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
-    "praxis.api | praxis.science",
+    "praxis.api | praxis.science | praxis.agent",
     "praxis.dunning",
     "praxis.pricing | praxis.payments | praxis.mlops",
     "praxis.streaming | praxis.forecasting | praxis.elasticity | praxis.recovery | praxis.customer | praxis.ops",
@@ -135,7 +135,7 @@ name = "Models never import the simulator (ground truth stays out of reach)"
 type = "forbidden"
 source_modules = [
     "praxis.forecasting", "praxis.elasticity", "praxis.pricing", "praxis.recovery",
-    "praxis.dunning", "praxis.customer", "praxis.mlops", "praxis.ops",
+    "praxis.dunning", "praxis.customer", "praxis.mlops", "praxis.ops", "praxis.agent",
 ]
 # praxis.science is the only place that joins model output with ground truth (ADR 0012).
 forbidden_modules = ["praxis.simulator", "praxis.science"]
@@ -155,9 +155,27 @@ source_modules = [
     "praxis.control", "praxis.data", "praxis.domain", "praxis.events", "praxis.forecasting",
     "praxis.simulator", "praxis.streaming", "praxis.elasticity", "praxis.science",
     "praxis.pricing", "praxis.payments", "praxis.recovery", "praxis.dunning", "praxis.customer",
-    "praxis.glm", "praxis.mlops", "praxis.ops",
+    "praxis.glm", "praxis.mlops", "praxis.ops", "praxis.agent",
 ]
 forbidden_modules = ["fastapi", "starlette", "uvicorn"]
+
+# The AI operator observes and requests; it never decides or executes (ADR 0004, ADR 0019).
+# No optimiser, pricing cycle or price execution path, no payment execution, no dunning
+# executor or retry scheduling, no event publishing, no shell / subprocess. Guarded actions go
+# through praxis.agent.requests (pending request -> named human -> existing approval path).
+[[tool.importlinter.contracts]]
+name = "The AI operator cannot reach the optimiser, payment execution or a shell"
+type = "forbidden"
+source_modules = ["praxis.agent"]
+forbidden_modules = [
+    "praxis.pricing.optimiser", "praxis.pricing.service", "praxis.pricing.objective",
+    "praxis.pricing.constraints", "praxis.pricing.__main__",
+    "praxis.payments.gateway", "praxis.payments.processor", "praxis.payments.service",
+    "praxis.payments.stripe_gateway", "praxis.payments.stripe_client", "praxis.payments.synthetic",
+    "praxis.dunning.executor", "praxis.dunning.service", "praxis.dunning.tasks",
+    "praxis.mlops.pipeline", "praxis.mlops.training", "praxis.mlops.drill",
+    "praxis.streaming", "praxis.api", "subprocess",
+]
 
 # Payments sees no simulator ground truth and no pricing internals: Stripe and the synthetic
 # provider only exchange provider-neutral snapshots and internal event contracts (ADR 0014).
@@ -199,6 +217,8 @@ forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "pr
 "src/praxis/mlops/*" = 95                  # promotion / rollback, validation gate (s5, Phase 10)
 "src/praxis/ops/__main__.py" = 85          # CLI wiring; evaluators, incidents and runbooks are >= 95
 "src/praxis/ops/*" = 95                    # SLO / alert evaluators, incident flow (Phase 11)
+"src/praxis/agent/__main__.py" = 85        # CLI wiring; executor, tools, requests are >= 95
+"src/praxis/agent/*" = 95                  # permission layer, tool validation, audit (s5, Phase 12)
 "src/praxis/telemetry.py" = 95             # metric catalogue, spans, MetricsView
 "src/praxis/glm.py" = 95                   # shared Poisson solver (hazard + churn response)
 "src/praxis/api/*" = 95

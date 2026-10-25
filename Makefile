@@ -1,4 +1,4 @@
-.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch ops-check test test-fast pytest-cov \
+.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch ops-check agent-bench test test-fast pytest-cov \
 	coverage-gate schemas sim-smoke secrets audit tf-check frontend-check workflow-lint check run \
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
 	forecast-data forecast-signals forecast-backtest forecast-train \
@@ -71,6 +71,12 @@ arch:
 # Phase 11: SLO / alert / dashboard config loads, and every alert has a complete runbook.
 ops-check:
 	.venv/bin/python -m praxis.ops validate
+
+# Phase 12: fixed incident benchmark for the AI operator (pre-registered in configs/agent/
+# benchmark.toml; also part of `make test`). No LLM call. Writes the evidence report.
+agent-bench: pg-up
+	PRAXIS_AGENT_BENCH_OUT=docs/evidence/phase-12-benchmark.json \
+		.venv/bin/pytest -q tests/agent/test_benchmark.py -p no:cacheprovider
 
 schemas:
 	.venv/bin/python scripts/export_payload_schemas.py --check

@@ -13,6 +13,7 @@ from praxis.control.db import make_engine
 from praxis.ops.config import load_ops_config
 from praxis.ops.evaluate import Alert
 from praxis.ops.incidents import (
+    Incident,
     IncidentError,
     IncidentManager,
     IncidentStatus,
@@ -154,3 +155,25 @@ def test_log_notifier_emits_a_structured_record(caplog: pytest.LogCaptureFixture
 def test_clear_after_must_be_positive() -> None:
     with pytest.raises(ValueError, match="clear_after"):
         IncidentManager(MemoryIncidentStore(), RecordingNotifier(), clear_after=0)
+
+
+def test_manual_open_creates_or_touches_without_clearing_others(store: IncidentStore) -> None:
+    mgr, sent = manager(store)
+    mgr.process([alert("dlq_backlog_high")], T0)
+    first, created = mgr.open(alert(), T0)
+    again, created_again = mgr.open(alert(), T0 + timedelta(minutes=1))
+    assert created and not created_again and again.incident_id == first.incident_id
+    assert again.occurrences == 2
+    other = next(i for i in store.live() if i.rule_id == "dlq_backlog_high")
+    assert other.clear_streak == 0  # a manual open is not an evaluation tick
+    assert [e for e, _ in sent.sent] == ["opened", "opened"]
+
+
+def test_manual_open_gives_up_when_the_store_never_admits_it() -> None:
+    class Stubborn(MemoryIncidentStore):
+        def create(self, incident: Incident) -> bool:
+            return False  # a racing opener "won", yet its incident is not visible
+
+    mgr = IncidentManager(Stubborn(), RecordingNotifier())
+    with pytest.raises(IncidentError, match="could not open"):
+        mgr.open(alert(), T0)

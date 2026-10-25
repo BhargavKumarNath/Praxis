@@ -25,6 +25,7 @@ from sqlalchemy import Connection, Engine, exc, text
 from praxis.control.db import transient_errors
 from praxis.pricing.config import Mode
 from praxis.pricing.decision import Decision, Status
+from praxis.pricing.freeze import FreezeStore
 
 
 class StoreError(RuntimeError):
@@ -97,7 +98,8 @@ def _check_approvable(record: dict[str, Any] | None, decision_id: str, approver:
 
 # ------------------------------------------------------------------------- memory
 class MemoryDecisionStore:
-    def __init__(self) -> None:
+    def __init__(self, freezes: FreezeStore | None = None) -> None:
+        self.freezes = freezes  # Postgres enforces freezes with a trigger (migration 0007)
         self._records: dict[str, dict[str, Any]] = {}
         self._by_cycle: dict[tuple[str, str], str] = {}
         self._approvals: dict[str, str] = {}
@@ -142,6 +144,8 @@ class MemoryDecisionStore:
             rec = check_executable(
                 self._records.get(decision_id), decision_id in self._approvals, decision_id
             )
+            if self.freezes is not None and self.freezes.is_frozen(rec["product"]):
+                raise NotExecutable(f"pricing is frozen for {rec['product']}")
             ex = Execution(
                 decision_id,
                 rec["product"],

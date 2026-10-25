@@ -65,7 +65,9 @@ src/praxis/        Python package: api, config, logging, tracing, events (envelo
                    store), payments (Phase 7 PaymentGateway: Stripe Sandbox + synthetic, webhook
                    inbox, processor), recovery + dunning (Phase 8), customer + glm (Phase 9),
                    mlops (Phase 10 registry, validation gate, drift, shadow, probation, serving
-                   router), science (the only package joining model output with ground truth)
+                   router), ops (Phase 11 SLOs, alerts, incidents), agent (Phase 12 AI operator:
+                   typed tools, permission layer, audit, guarded requests), science (the only
+                   package joining model output with ground truth)
 tests/             unit, contract, simulator, data, streaming, control, integration (emulator),
                    payments (contract suite on both gateways; live Stripe only via stripe-verify)
 schemas/events/    Versioned JSON Schemas: envelope and per-event payloads (payloads/)
@@ -91,6 +93,12 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
   Praxis trace id; SLOs and alert rules are pinned config evaluated by pure functions; firing
   alerts become deduplicated incidents that link a runbook. None of it is on the decision
   path: if telemetry or ops fail, pricing, payments and MLOps are unaffected.
+* The AI operator (ADR 0019, `docs/agent.md`) sits at the top layer and nothing imports it.
+  It reaches the system only through typed, tiered, audited tools; it cannot import the
+  optimiser, the pricing cycle, payment execution or a shell (import contract). Guarded
+  actions (freeze, rollback, promotion) are pending requests that a named human completes
+  through the existing approval paths; a price freeze blocks execution in the store and by a
+  Postgres trigger.
 * Large-scale tests use the synthetic gateway only (ADR 0006).
 * Consumers are idempotent and order-independent; state changes only via transition tables,
   enforced again in Postgres (ADR 0009, `docs/event-backbone.md`).

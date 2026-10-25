@@ -88,6 +88,9 @@ METRICS: dict[str, MetricSpec] = dict(
         _spec("pricing_decision_duration_ms", "histogram", "Pricing cycle latency"),
         _spec("price_change_fraction", "gauge", "Share of products whose price changed"),
         _spec("business_kpi_deviation", "gauge", "Relative deviation from baseline", "kpi"),
+        # AI operator (Phase 12): tool is a declared tool name or "undeclared" (bounded)
+        _spec("agent_tool_calls_total", "counter", "Agent tool calls", "tool", "tier", "status"),
+        _spec("agent_investigations_total", "counter", "Agent runs", "provider", "outcome"),
     ]
 )
 
