@@ -120,6 +120,7 @@ include_external_packages = true
 name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
+    "praxis.console",
     "praxis.api | praxis.science | praxis.agent",
     "praxis.dunning",
     "praxis.pricing | praxis.payments | praxis.mlops",
@@ -177,6 +178,26 @@ forbidden_modules = [
     "praxis.streaming", "praxis.api", "subprocess",
 ]
 
+# The decision console reads and asks the existing approval paths; it never decides or
+# executes (Phase 13, ADR 0021). No optimiser, pricing cycle or CLI, no payment execution, no
+# dunning executor / scheduling, no MLOps training, no event bus, no simulator ground truth,
+# no shell. Guarded actions go through praxis.agent.requests.ApprovalDesk and FreezeStore.
+[[tool.importlinter.contracts]]
+name = "The decision console cannot set prices, execute payments or reach ground truth"
+type = "forbidden"
+source_modules = ["praxis.console"]
+forbidden_modules = [
+    "praxis.pricing.optimiser", "praxis.pricing.service", "praxis.pricing.objective",
+    "praxis.pricing.constraints", "praxis.pricing.__main__",
+    "praxis.payments.gateway", "praxis.payments.processor", "praxis.payments.service",
+    "praxis.payments.stripe_gateway", "praxis.payments.stripe_client", "praxis.payments.synthetic",
+    "praxis.dunning.executor", "praxis.dunning.service", "praxis.dunning.tasks",
+    "praxis.dunning.consumer", "praxis.dunning.wiring",
+    "praxis.mlops.pipeline", "praxis.mlops.training", "praxis.mlops.drill",
+    "praxis.streaming", "praxis.simulator", "praxis.science", "praxis.api.app",
+    "praxis.api.tasks", "praxis.api.webhooks", "praxis.api.forecast", "subprocess",
+]
+
 # Payments sees no simulator ground truth and no pricing internals: Stripe and the synthetic
 # provider only exchange provider-neutral snapshots and internal event contracts (ADR 0014).
 [[tool.importlinter.contracts]]
@@ -222,4 +243,5 @@ forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "pr
 "src/praxis/telemetry.py" = 95             # metric catalogue, spans, MetricsView
 "src/praxis/glm.py" = 95                   # shared Poisson solver (hazard + churn response)
 "src/praxis/api/*" = 95
+"src/praxis/console/*" = 95              # admin authorization boundary, read API (Phase 13)
 "src/praxis/*" = 85

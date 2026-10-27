@@ -123,6 +123,46 @@ jobs:
         working-directory: frontend
       - run: make frontend-check
 
+  # Phase 13: the one end-to-end journey (Playwright) on a fresh Postgres: alert -> incident
+  # -> investigation trace -> pending request -> refused token -> authorized approval.
+  e2e:
+    name: console end-to-end journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: praxis
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U praxis" --health-interval 2s --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: make e2e-browsers
+      - run: make e2e
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: e2e-traces
+          path: frontend/test-results/
+          if-no-files-found: ignore
+
   terraform:
     name: terraform fmt + validate
     runs-on: ubuntu-latest

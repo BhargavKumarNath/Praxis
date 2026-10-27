@@ -1,20 +1,18 @@
-"""FastAPI application: health, demand forecasts, Stripe webhooks, correlation-ID middleware."""
+"""FastAPI application: health, demand forecasts, Stripe webhooks, ops endpoints.
+
+Correlation ids, request telemetry and safe error bodies come from ``praxis.api.middleware``
+(shared with the decision console)."""
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import logging
-import time
-from collections.abc import AsyncIterator, Awaitable, Callable
 
-from fastapi import FastAPI, Request, Response
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 from praxis import __version__
 from praxis.api.forecast import ForecastProvider, build_forecast_service, forecast_router
+from praxis.api.middleware import ErrorResponse, install_middleware, publisher_lifespan
 from praxis.api.ops import ops_router
 from praxis.api.tasks import RetryHandler, tasks_router
 from praxis.api.webhooks import webhook_router
@@ -27,16 +25,9 @@ from praxis.ops.incidents import IncidentStore, PostgresIncidentStore
 from praxis.ops.system import SystemReader, build_reader
 from praxis.payments.store import PostgresInbox
 from praxis.payments.webhook import WebhookReceiver
-from praxis.telemetry import telemetry
-from praxis.tracing import (
-    CORRELATION_HEADER,
-    current_correlation_id,
-    is_valid_correlation_id,
-    new_correlation_id,
-    trace_context,
-)
 
 logger = logging.getLogger(__name__)
+__all__ = ["ErrorResponse", "HealthResponse", "create_app"]
 
 
 class HealthResponse(BaseModel):
@@ -44,12 +35,6 @@ class HealthResponse(BaseModel):
     service: str
     version: str
     environment: str
-
-
-class ErrorResponse(BaseModel):
-    error: str
-    correlation_id: str
-    detail: str | None = None
 
 
 def build_webhook_receiver(settings: Settings) -> WebhookReceiver | None:
@@ -72,16 +57,6 @@ def build_retry_handler(settings: Settings) -> RetryHandler | None:
     return executor.execute if executor is not None else None
 
 
-def _record_request(request: Request, status: int, started: float) -> None:
-    """Request count, 5xx count and latency, labelled by route TEMPLATE (bounded cardinality)."""
-    route = getattr(request.scope.get("route"), "path", None) or "unmatched"
-    tel = telemetry()
-    tel.inc("http_requests_total", route=route, method=request.method, status=status)
-    if status >= 500:
-        tel.inc("http_server_errors_total", route=route)
-    tel.observe("http_request_duration_ms", (time.perf_counter() - started) * 1000.0, route=route)
-
-
 def build_incident_store(settings: Settings) -> IncidentStore | None:
     if settings.database_url is None:
         return None
@@ -99,31 +74,6 @@ def build_system_view(settings: Settings) -> tuple[SystemReader, SnapshotPublish
     return reader, publisher
 
 
-def _lifespan(
-    publisher: SnapshotPublisher | None,
-) -> Callable[[FastAPI], contextlib.AbstractAsyncContextManager[None]]:
-    @contextlib.asynccontextmanager
-    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        task = None
-        if publisher is not None:
-
-            async def publish_loop() -> None:
-                while True:  # never raises on a database failure (SnapshotPublisher)
-                    await asyncio.to_thread(publisher.publish)
-                    await asyncio.sleep(publisher.interval.total_seconds())
-
-            task = asyncio.create_task(publish_loop())
-        try:
-            yield
-        finally:
-            if task is not None:
-                task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await task
-
-    return lifespan
-
-
 def create_app(
     settings: Settings | None = None,
     forecast_service: ForecastProvider | None = None,
@@ -135,7 +85,7 @@ def create_app(
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level.value)
     reader, publisher = system_view or build_system_view(settings) or (None, None)
-    app = FastAPI(title="Praxis", version=__version__, lifespan=_lifespan(publisher))
+    app = FastAPI(title="Praxis", version=__version__, lifespan=publisher_lifespan(publisher))
     app.include_router(forecast_router(forecast_service or build_forecast_service(settings)))
     app.include_router(webhook_router(webhook_receiver or build_webhook_receiver(settings)))
     app.include_router(
@@ -144,42 +94,7 @@ def create_app(
     token = settings.tasks_token.get_secret_value() if settings.tasks_token else None
     app.include_router(tasks_router(retry_handler or build_retry_handler(settings), token))
 
-    @app.exception_handler(RequestValidationError)
-    async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
-        # Field locations and messages only: never echo internals or the raw input back.
-        detail = "; ".join(
-            f"{'.'.join(str(p) for p in err.get('loc', ()))}: {err.get('msg', 'invalid')}"
-            for err in exc.errors()[:10]
-        )
-        return JSONResponse(
-            status_code=422,
-            content=ErrorResponse(
-                error="invalid_request",
-                correlation_id=current_correlation_id() or new_correlation_id(),
-                detail=detail,
-            ).model_dump(),
-        )
-
-    @app.middleware("http")
-    async def correlation_middleware(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        inbound = request.headers.get(CORRELATION_HEADER)
-        correlation_id = inbound if inbound and is_valid_correlation_id(inbound) else None
-        correlation_id = correlation_id or new_correlation_id()
-        started = time.perf_counter()
-        with trace_context(correlation_id=correlation_id) as (_trace_id, cid):
-            try:
-                response = await call_next(request)
-            except Exception:
-                logger.exception("unhandled error", extra={"path": request.url.path})
-                response = JSONResponse(
-                    status_code=500,
-                    content=ErrorResponse(error="internal_error", correlation_id=cid).model_dump(),
-                )
-            response.headers[CORRELATION_HEADER] = cid
-            _record_request(request, response.status_code, started)
-            return response
+    install_middleware(app)
 
     @app.get("/healthz", response_model=HealthResponse)
     async def healthz() -> HealthResponse:

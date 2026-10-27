@@ -1,0 +1,51 @@
+# Cloud cost ESTIMATE shown on the console's System view (Phase 13, ADR 0021).
+#
+# There is no cost metric in Praxis: nothing reads a billing export. This file is a manual
+# estimate with its sources, and the console labels it as such. Update it (and `as_of`)
+# whenever a resource is provisioned or a phase records a cost; never present it as metered.
+version = "2026-10-27.1"
+as_of = "2026-10-27"
+kind = "estimate"           # never "metered": no billing data is read
+currency = "GBP"
+budget_note = "Target about GBP 0 to 5 per month (CLAUDE.md s14). Budget alerts are notifications, not caps."
+sources = [
+    "docs/cost-guard.md (provisioning state per resource)",
+    "docs/evidence/phase-*.md, section 'Cloud cost incurred' (GBP 0 recorded for every phase)",
+]
+
+# Monthly estimate per resource at the current state. `monthly_gbp` is null when it has not
+# been estimated; the console then shows the reason instead of a number.
+[[item]]
+resource = "Postgres control plane"
+state = "local Docker container (make pg-up)"
+monthly_gbp = 0
+basis = "runs on the developer machine; no cloud database is provisioned"
+
+[[item]]
+resource = "Pub/Sub topics and subscriptions"
+state = "declared in Terraform, never applied; local emulator only"
+monthly_gbp = 0
+basis = "nothing provisioned"
+
+[[item]]
+resource = "Cloud Run services and the ops monitor job"
+state = "not provisioned"
+monthly_gbp = 0
+basis = "nothing provisioned"
+
+[[item]]
+resource = "BigQuery sandbox project"
+state = "sandbox, billing disabled (verified in Phase 2)"
+monthly_gbp = 0
+basis = "Google caps a sandbox project at zero spend"
+
+[[item]]
+resource = "GitHub Actions (CI and nightly)"
+state = "running"
+monthly_gbp = 0
+basis = "public repository on standard GitHub-hosted runners"
+
+[[item]]
+resource = "Cost if the Terraform stack were applied"
+state = "not estimated"
+basis = "needs current GCP pricing (CLAUDE.md s21) and is an owner decision before provisioning"

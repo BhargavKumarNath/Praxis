@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     model_refresh_interval_s: float = Field(default=30.0, ge=1.0, le=3600.0)
     mlflow_tracking_uri: str | None = None
 
+    # Decision console (Phase 13, ADR 0021): named approvers and their bearer tokens,
+    # "name=token,name2=token2". Unset = the console's admin actions answer 503 (read-only).
+    console_approvers: SecretStr | None = None
+
     @model_validator(mode="after")
     def _require_cloud_identity_outside_local(self) -> Self:
         if self.environment is not Environment.LOCAL and not self.gcp_project_id:

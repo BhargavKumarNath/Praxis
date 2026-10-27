@@ -6,7 +6,7 @@
 	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
 	stripe-verify recovery-data recovery-train recovery-evaluate \
 	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive \
-	mlops-data mlops-drill
+	mlops-data mlops-drill console-api console-web console-demo e2e e2e-browsers
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -122,7 +122,7 @@ tf-check:
 	cd infra/terraform && $(TF) -chdir=envs/dev validate
 
 frontend-check:
-	cd frontend && npm run typecheck && npm run lint
+	cd frontend && npm run typecheck && npm run lint && npm run test
 
 # Everything CI runs on a push / PR, in one command.
 check: lint typecheck arch ops-check test coverage-gate events-check schemas secrets audit \
@@ -496,3 +496,64 @@ mlops-drill: pg-up
 		--database-url $(PRAXIS_TEST_DATABASE_URL) drill --seed $(ML_SEED) \
 		--steady $(ML_DIR)/steady/warehouse.duckdb --drift $(ML_DIR)/drift/warehouse.duckdb \
 		--out $(ML_DIR)/drill > $(ML_DIR)/drill.log
+
+# --- Phase 13 decision console (local only; ADR 0021) ---------------------------------------
+# The console API is its own process (praxis.console) on loopback; the Next app proxies
+# /api/console/* to it. Approvers come from PRAXIS_CONSOLE_APPROVERS (name=token,...); without
+# it the console is read-only.
+CONSOLE_PORT ?= 8001
+WEB_PORT ?= 3000
+DEMO_DB = postgresql+psycopg://praxis@127.0.0.1:$(PG_PORT)/praxis_console_demo
+DEMO_PX = data/pricing/seed1-c1000
+DEMO_AS_OF ?= 2026-07-20 2026-07-27 2026-08-03 2026-08-10 2026-08-17 2026-08-24 2026-08-31 2026-09-07
+
+console-api:
+	.venv/bin/uvicorn --factory praxis.console.app:create_console_app --host 127.0.0.1 \
+		--port $(CONSOLE_PORT)
+
+console-web:
+	cd frontend && PRAXIS_CONSOLE_API_URL=http://127.0.0.1:$(CONSOLE_PORT) npm run dev -- \
+		--hostname 127.0.0.1 --port $(WEB_PORT)
+
+# A throwaway local demo database built through real paths, DEVELOPMENT seed 1 only:
+# 1. the STAGED alert -> incident -> triage journey on a clean control plane (as in the E2E
+#    test; later data would change the triage's diagnosis, by its pre-registered priority),
+# 2. the event pipeline (run-local chaos run: entities, ledger, dead letters), then 42
+#    dunning journeys on the SyntheticPaymentGateway (tests/e2e/seed_dunning.py),
+# 3. the 8 seed-1 shadow pricing cycles,
+# 4. the seed-1 forecaster registered and validated, then FORCE-promoted (audited override,
+#    actor console-demo): the demo has no weeks of shadow days.
+# Then: PRAXIS_DATABASE_URL=$(DEMO_DB) make console-api
+DEMO_MLOPS = PRAXIS_LOG_LEVEL=WARNING MLFLOW_DISABLE_AGENT_HINT=1 .venv/bin/python -m praxis.mlops \
+	--database-url $(DEMO_DB) --warehouse $(DEMO_PX)/warehouse.duckdb --actor console-demo \
+	--reason "console demo: seed-1 development artifact, not shadow-validated"
+DEMO_FC = demand-hybrid-24c8b0b1de4d
+console-demo: pg-up
+	@.venv/bin/python -c "from sqlalchemy import create_engine, text; \
+	e = create_engine('$(PRAXIS_TEST_DATABASE_URL)', isolation_level='AUTOCOMMIT'); c = e.connect(); \
+	c.execute(text('DROP DATABASE IF EXISTS praxis_console_demo WITH (FORCE)')); \
+	c.execute(text('CREATE DATABASE praxis_console_demo'))"
+	.venv/bin/python -m tests.e2e.seed_journey --database-url $(DEMO_DB)
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(DEMO_DB) run-local \
+		--customers 300 --days 28 --seed 1 >/dev/null
+	.venv/bin/python -m tests.e2e.seed_dunning --database-url $(DEMO_DB)
+	for d in $(DEMO_AS_OF); do PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.pricing decide \
+		--db $(DEMO_PX)/warehouse.duckdb --forecast-model data/models/demand/$(DEMO_FC) \
+		--elasticity-model data/models/elasticity/elasticity-hier-0ff479a54320 \
+		--elasticity-report data/elasticity/eval-seed1-c8000/analysis/report.json \
+		--churn-response data/elasticity/eval-seed1-c8000/analysis/churn_response.json \
+		--customer-model data/models/customer/churn-table-a4bad0accb0a \
+		--as-of $$d --mode shadow --database-url $(DEMO_DB) >/dev/null || exit 1; done
+	$(DEMO_MLOPS) register --artifact data/models/demand/$(DEMO_FC) \
+		--backtest data/forecast/seed1-c1000/backtest.json >/dev/null
+	$(DEMO_MLOPS) validate --version $(DEMO_FC) --as-of 2026-07-20 >/dev/null
+	$(DEMO_MLOPS) force-promote --version $(DEMO_FC) --as-of 2026-07-20 >/dev/null
+
+# The one end-to-end journey (Playwright): a fresh database, the seeded alert, the console API
+# and the Next app on loopback, ending in an authorized approval.
+e2e: pg-up
+	cd frontend && npx playwright test
+
+# CI only: the pinned Playwright's Chromium plus its system libraries (needs apt).
+e2e-browsers:
+	cd frontend && npx playwright install --with-deps chromium

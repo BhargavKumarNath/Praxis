@@ -76,3 +76,8 @@
 | Fleet view | The merge of every unexpired snapshot, the pull collectors and the reader's own metrics; expired inputs are listed as stale, never used. |
 | Pull collector | An ops function that derives a metric from a store of record at read time (source age, contract failures, DLQ backlog, revenue KPI). |
 | Ops monitor | `python -m praxis.ops run`: the scheduler that turns the fleet view's alerts into incidents every interval. |
+| Decision console | The Phase 13 dashboard (ADR 0021): `praxis.console` API plus the Next app in `frontend/`. Reads real state; its only writes are approvals, rejections and lifting a freeze. |
+| Panel | One unit of a console view: `{status, source, synthetic, reason, data}`. `no_data` / `unavailable` always say why. |
+| No data | A panel or figure whose input does not exist or did not answer. Shown with its reason, never as 0. A measured zero is 0. |
+| Stale (console) | A view whose last good read is older than two refresh intervals, or whose refresh failed; or a source / process past its limit. Shown with its age. |
+| Approver token | A bearer token in `PRAXIS_CONSOLE_APPROVERS` that names one person. The server checks it and records that name on the decision. |
