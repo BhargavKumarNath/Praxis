@@ -23,5 +23,6 @@
 | [0019](0019-constrained-ai-operator.md) | Constrained AI Revenue Operator: typed tools, permission tiers, guarded requests, price freeze |
 | [0020](0020-cross-process-metrics-and-ops-monitor.md) | Cross-process metric snapshots, pull collectors, the ops monitor process |
 | [0021](0021-decision-console-and-admin-boundary.md) | Decision console: separate process, panel read model, server-side approver boundary |
+| [0022](0022-scale-protocol-sharded-consumers-and-batching.md) | Scale protocol (archive + sharded replay + oracle), consumer shards, sink micro-batching, counter aggregation |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

@@ -63,6 +63,7 @@ from praxis.streaming.pubsub import (
 )
 from praxis.streaming.redrive import redrive_dead_letters
 from praxis.streaming.runtime import Consumer, ConsumerWorker, DeadLetterRouter
+from praxis.streaming.scale_cli import add_scale_commands
 from praxis.streaming.topology import (
     DLQ_INSPECT,
     MONITORING,
@@ -136,6 +137,7 @@ def cmd_run_local(args: argparse.Namespace) -> int:
             ),
             crash_plans={OPERATIONAL: crash, WAREHOUSE: crash} if args.crash_rate else {},
             batch_size=args.batch_size,
+            batch_wait_s=args.batch_wait,
         )
         started = time.perf_counter()
         published = pipeline.run(events_list, chunk=args.chunk)
@@ -157,6 +159,7 @@ def cmd_run_local(args: argparse.Namespace) -> int:
             "seed": args.seed,
             "faults": vars(pipeline.faults),
             "crash_rate": args.crash_rate,
+            "batch_wait_s": args.batch_wait,
             "events_published": published,
             "elapsed_s": round(elapsed, 3),
             "events_per_s": round(published / elapsed, 1),
@@ -368,6 +371,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - complexity-de
     local.add_argument("--crash-rate", type=float, default=0.005)
     local.add_argument("--chunk", type=int, default=5000)
     local.add_argument("--batch-size", type=int, default=100)
+    local.add_argument(
+        "--batch-wait", type=float, default=1.0,
+        help="micro-batch window of batch consumers, virtual seconds (ADR 0022; 0 = off)",
+    )  # fmt: skip
     local.add_argument("--duckdb", type=Path, default=None, help="default: in-memory")
     local.add_argument("--archive", type=Path, default=None)
     local.add_argument("--report", type=Path, default=None)
@@ -414,6 +421,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - complexity-de
     dlq.add_argument("--reason", default=None)
     dlq.add_argument("--project", default="praxis-local")
     dlq.set_defaults(fn=cmd_dlq)
+    add_scale_commands(sub)
 
     args = ap.parse_args(argv)
     settings = get_settings()

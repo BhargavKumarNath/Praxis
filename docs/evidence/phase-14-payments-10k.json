@@ -1,0 +1,46 @@
+{
+  "correct": true,
+  "customers": 10000,
+  "customers_failing": 981,
+  "elapsed_s": 361.961,
+  "enrol_latency": {
+    "count": 10000,
+    "max_ms": 86.072,
+    "p50_ms": 9.953,
+    "p95_ms": 13.695,
+    "p99_ms": 33.783
+  },
+  "enrolments_per_s": 27.6,
+  "events_applied": 59019,
+  "fail_share": 0.1,
+  "gateway_paid_invoices": 9019,
+  "gateway_paid_total_minor": 44193100,
+  "inbox_rows_from_redelivery": 0,
+  "inbox_rows_new": 40000,
+  "invoices_projected": 10000,
+  "is_synthetic": true,
+  "ledger_entries": 9019,
+  "ledger_total_minor": 44193100,
+  "notifications": 40000,
+  "notifications_per_s": 110.5,
+  "peak_rss_mb": 114.1,
+  "processor": {
+    "claimed": 40000,
+    "events_published": 39019,
+    "failed": 0,
+    "ignored": 0,
+    "objects": 20000,
+    "processed": 40000,
+    "retried": 0,
+    "skipped": {
+      "not_activated": 981
+    }
+  },
+  "seed": 701,
+  "slo": {
+    "enrol_p99_ms": 33.783,
+    "max_enrol_p99_ms": 100,
+    "passed": true
+  },
+  "workload": "W4 SyntheticPaymentGateway enrol + charge -> inbox (x2) -> processor"
+}

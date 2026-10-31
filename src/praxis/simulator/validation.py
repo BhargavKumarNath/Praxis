@@ -42,6 +42,9 @@ class _Invoice:
 class StreamValidator:
     max_attempts: int
     schema_every: int = 1
+    # False drops the duplicate-id and dangling-causation checks, whose id set is ~100 B per
+    # event (~10 GB at 1M customers x 28 days). Phase 14 W1 at 1M only (ADR 0022).
+    track_ids: bool = True
     counts: Counter[str] = field(default_factory=Counter)
     _seen_ids: set[str] = field(default_factory=set)
     _entity_last: dict[str, str] = field(default_factory=dict)
@@ -74,12 +77,13 @@ class StreamValidator:
 
     def _check_envelope(self, e: dict[str, Any]) -> None:
         eid, when, entity = e["event_id"], e["occurred_at"], e["entity_id"]
-        if eid in self._seen_ids:
-            raise StreamViolation(f"duplicate event_id {eid}")
-        cause = e["causation_id"]
-        if cause is not None and cause not in self._seen_ids:
-            raise StreamViolation(f"dangling causation_id on {e['event_type']}")
-        self._seen_ids.add(eid)
+        if self.track_ids:
+            if eid in self._seen_ids:
+                raise StreamViolation(f"duplicate event_id {eid}")
+            cause = e["causation_id"]
+            if cause is not None and cause not in self._seen_ids:
+                raise StreamViolation(f"dangling causation_id on {e['event_type']}")
+            self._seen_ids.add(eid)
         if when < self._last_ts:
             raise StreamViolation("global stream time moved backwards")
         self._last_ts = when

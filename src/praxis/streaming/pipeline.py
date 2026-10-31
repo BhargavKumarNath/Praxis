@@ -50,6 +50,8 @@ class LocalPipeline:
     faults: FaultPlan = field(default_factory=FaultPlan)
     crash_plans: Mapping[str, CrashPlan] = field(default_factory=dict)
     batch_size: int = 100
+    # Micro-batch window of batch consumers, in virtual seconds (``memory.drain``).
+    batch_wait_s: float = 0.0
     metrics: StreamMetrics = field(default_factory=StreamMetrics)
     # Additional consumers by role (e.g. Phase 8 ``dunning``), built by higher layers.
     extra_consumers: Mapping[str, Callable[[], Consumer]] = field(default_factory=dict)
@@ -115,6 +117,7 @@ class LocalPipeline:
                 self.subscription(role),
                 self.worker_factory(role),
                 batch_size=self.batch_size,
+                batch_wait_s=self.batch_wait_s,
             )
             total = self.reports.setdefault(role, DrainReport())
             for name in ("deliveries", "acks", "nacks", "crashes", "rounds"):
@@ -148,6 +151,11 @@ def expected_state(events: Iterable[Mapping[str, Any]], max_attempts: int) -> di
     validator = StreamValidator(max_attempts, schema_every=1_000_000)
     for event in sorted(events, key=lambda e: str(e["occurred_at"])):  # stable sort
         validator.feed(dict(event))
+    return oracle_state(validator)
+
+
+def oracle_state(validator: StreamValidator) -> dict[str, Any]:
+    """The oracle's final business state from a validator fed in time order."""
     customers = validator.customer_states()
     invoices = validator.invoice_states()
     paid = [amt for _, amt, st, _ in invoices.values() if st is InvoiceState.PAID]

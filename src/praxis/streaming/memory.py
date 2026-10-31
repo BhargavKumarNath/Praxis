@@ -268,6 +268,7 @@ def drain(
     *,
     batch_size: int = 100,
     max_rounds: int = 10_000_000,
+    batch_wait_s: float = 0.0,
 ) -> DrainReport:
     """Deliver until the subscription is empty, advancing virtual time when idle.
 
@@ -278,7 +279,15 @@ def drain(
     ``ConsumerCrashed`` models process death: un-acked in-flight messages are neither acked
     nor nacked (their leases expire, their delivery attempt counts grow) and the worker is
     rebuilt from the factory, losing in-memory state, like a restarted container.
+
+    ``batch_wait_s`` is the micro-batch window of batch workers (ADR 0022): when nothing is
+    ready, the virtual clock moves to the next wake-up plus this window, like a sink that
+    buffers for a bounded time before writing. Without it a batch worker whose messages
+    arrive spread out in time writes them one at a time (processing takes no virtual
+    time). Non-batch workers ignore it; the default 0 keeps the original schedule.
     """
+    if batch_wait_s < 0:
+        raise ValueError("batch_wait_s must be >= 0")
     report = DrainReport()
     worker = worker_factory()
     while report.rounds < max_rounds:
@@ -288,7 +297,7 @@ def drain(
             wake = broker.next_wakeup(subscription)
             if wake is None:
                 return report
-            broker.clock.advance_to(wake)
+            broker.clock.advance_to(wake + (batch_wait_s if worker.batches else 0.0))
             continue
         report.deliveries += len(deliveries)
         groups = [deliveries] if worker.batches else [[d] for d in deliveries]

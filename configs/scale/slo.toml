@@ -1,0 +1,113 @@
+# Phase 14 scale protocol and SLOs (ADR 0022). PRE-REGISTERED: the 100k / 1m SLOs below
+# were fixed before any 100K run and are hash-pinned by tests/scale/test_config.py.
+# Changing anything here needs an ADR and the owner's approval (CLAUDE.md integrity rule).
+# All data is SYNTHETIC. Seeds: development simulator seed 1, fresh fault seed 701 (never
+# a held-out seed from CLAUDE.md s24).
+
+[workload]
+days = 28
+sim_seed = 1
+fault_seed = 701
+chunk = 5000            # events published per drain cycle, per shard
+batch_size = 100        # max messages per pull
+batch_wait_s = 1.0      # warehouse micro-batch window (virtual s); 20% of the 5 s lag SLO
+duplicate_rate = 0.1    # Phase 3 chaos defaults: duplicates, 600 s delay, reorder, crashes
+max_delay_s = 600.0
+reorder = true
+crash_rate = 0.005
+pg_pool_size = 2        # connections per shard process
+duckdb_memory_limit_mb = 512  # per shard: ~8 GB free host memory / 8 shards, half for cache
+
+# Development ladder steps (no SLO: they calibrate, they do not gate).
+[scales.smoke]
+customers = 60
+days = 7
+shards = 2
+
+[scales.1k]
+customers = 1000
+shards = 1
+
+[scales.10k]
+customers = 10000
+shards = 1
+
+[scales.10k-sharded]
+customers = 10000
+shards = 8
+
+# Development check of the 1M change "duckdb_threads = 1" (measured after 100K passed).
+[scales.10k-sharded-t1]
+customers = 10000
+shards = 8
+duckdb_threads = 1
+
+# --- Gated ladder steps. SLOs written 2026-10-31 BEFORE any 100K run, from operational
+# requirements, with the 10K calibration (8 shards: 8,340-8,507 ev/s, operational
+# processing p99 16.6 ms, shard RSS <= 496 MB, host memory peak 8.7 GB) as a sanity check
+# only. Correctness criteria (oracle, ledger, subscription consistency, no open dead letter,
+# no Postgres deadlock) are always applied by `evaluate_slo` and cannot be configured away.
+#
+# min_events_per_s: rebuild the whole 28-day history from the archive (disaster recovery /
+#   full replay) within max_wall_s: 100K ~9.7M events in 1 h -> 2,700 ev/s; 1M ~97M events
+#   in 6 h -> 4,500 ev/s. Live traffic is far lower (100K customers ~ 4 ev/s on average).
+# max_operational_processing_p99_ms: one control-plane apply (Postgres transaction) must stay
+#   a small fraction of the 5 s consumer-lag SLO (configs/ops/slos.toml): 50 ms.
+# max_shard_rss_mb / max_host_mem_used_mb: the host has 14.4 GB and no swap budget for a
+#   run; a shard may use 1.5 GB and the whole host (desktop included) 13 GB.
+# End-to-end latency is NOT gated here: in this batch replay it measures in-chunk queueing,
+# not live latency (live latency is the emulator benchmark, Phase 3).
+[scales.100k]
+customers = 100000
+shards = 8
+
+[scales.100k.slo]
+min_events_per_s = 2700
+max_wall_s = 3600
+max_operational_processing_p99_ms = 50
+max_shard_rss_mb = 1500
+max_host_mem_used_mb = 13000
+max_error_rate = 0.0
+
+[scales.1m]
+customers = 1000000
+shards = 8   # may change after 100K only as a recorded, justified "change since 100K"
+# Changes since 100K (each measured on a development step, see phase-14 evidence):
+duckdb_threads = 1   # 10k-sharded-t1: 8,340-8,507 -> 10,916 ev/s, load1 11.4 -> 7.8
+oracle_lean = true   # 100k-oracle-lean: W1 peak 1,757 -> 790 MB, identical oracle checksum
+# NOT RUN (2026-10-31): the per-shard DuckDB event_id primary-key index needs ~180 MB per
+# million rows (~17 GB at 97M events); measured OOM at 4.9-6.1M rows with a 512 MB cap.
+# Running 1M needs an owner decision on the warehouse design (docs/evidence/phase-14.md).
+
+[scales.1m.slo]
+min_events_per_s = 4500
+max_wall_s = 21600
+max_operational_processing_p99_ms = 50
+max_shard_rss_mb = 1500
+max_host_mem_used_mb = 13000
+max_error_rate = 0.0
+
+# --- W3 HTTP (k6, benchmarks/k6/http.js) against the 100K database: interactive read
+# surfaces (core API health, decision console views) at a fixed 50 req/s per surface for
+# 60 s. Targets: interactive p95 <= 250 ms, p99 <= 1 s, failures <= 0.1%.
+# (10K calibration: p95 53 ms, p99 114 ms, 0 failures.)
+[http.100k]
+rate_per_surface = 50
+duration = "60s"
+max_p95_ms = 250
+max_p99_ms = 1000
+max_failed_rate = 0.001
+
+# --- W4 payments (python -m praxis.payments load): SyntheticPaymentGateway only. Gated on
+# correctness (inbox redelivery adds nothing, ledger == gateway paid invoices, no failed
+# notification); throughput is reported, not gated (single writer, commit-bound, ADR 0022).
+[payments.10k]
+customers = 10000
+seed = 701
+max_enrol_p99_ms = 100
+
+# Development check of the 1M change "oracle_lean = true" (W1 memory, after 100K).
+[scales.100k-oracle-lean]
+customers = 100000
+shards = 8
+oracle_lean = true

@@ -1,0 +1,84 @@
+{
+  "is_synthetic": true,
+  "runs": {
+    "telemetry_after_1": {
+      "control_plane_checksum": "c8928ca973365d1aef26237ca3349e7bd6a3ea44d1a862a7e308938704f552d9",
+      "customers": 1000,
+      "elapsed_s": 51.712,
+      "events_per_s": 1933.4,
+      "events_published": 99979,
+      "matches_oracle": true,
+      "peak_rss_mb": 584.6
+    },
+    "telemetry_after_2": {
+      "control_plane_checksum": "c8928ca973365d1aef26237ca3349e7bd6a3ea44d1a862a7e308938704f552d9",
+      "customers": 1000,
+      "elapsed_s": 51.592,
+      "events_per_s": 1937.9,
+      "events_published": 99979,
+      "matches_oracle": true,
+      "peak_rss_mb": 593.3
+    },
+    "telemetry_before_1": {
+      "control_plane_checksum": "c8928ca973365d1aef26237ca3349e7bd6a3ea44d1a862a7e308938704f552d9",
+      "customers": 1000,
+      "elapsed_s": 58.697,
+      "events_per_s": 1703.3,
+      "events_published": 99979,
+      "matches_oracle": true,
+      "peak_rss_mb": 584.6
+    },
+    "telemetry_before_2": {
+      "control_plane_checksum": "c8928ca973365d1aef26237ca3349e7bd6a3ea44d1a862a7e308938704f552d9",
+      "customers": 1000,
+      "elapsed_s": 58.072,
+      "events_per_s": 1721.6,
+      "events_published": 99979,
+      "matches_oracle": true,
+      "peak_rss_mb": 589.0
+    },
+    "window_0": {
+      "control_plane_checksum": "08788be926f031afffc3a039308abdd85fcbba8004ffb1efa7a5958755dbee8e",
+      "customers": 3000,
+      "days": 28,
+      "dead_letters_after_redrive": {},
+      "elapsed_s": 827.951,
+      "events_per_s": 356.9,
+      "events_published": 295496,
+      "ledger_total_minor": 148944102,
+      "matches_oracle": true,
+      "peak_rss_mb": 909.3,
+      "seed": 42,
+      "subscription_inconsistencies": 0,
+      "warehouse_drain": {
+        "acks": 325074,
+        "crashes": 2928,
+        "deliveries": 468648,
+        "nacks": 0,
+        "rounds": 328439
+      }
+    },
+    "window_1s": {
+      "control_plane_checksum": "08788be926f031afffc3a039308abdd85fcbba8004ffb1efa7a5958755dbee8e",
+      "customers": 3000,
+      "days": 28,
+      "dead_letters_after_redrive": {},
+      "elapsed_s": 224.447,
+      "events_per_s": 1316.6,
+      "events_published": 295496,
+      "ledger_total_minor": 148944102,
+      "matches_oracle": true,
+      "peak_rss_mb": 914.4,
+      "seed": 42,
+      "subscription_inconsistencies": 0,
+      "warehouse_drain": {
+        "acks": 325241,
+        "crashes": 2928,
+        "deliveries": 486495,
+        "nacks": 0,
+        "rounds": 35550
+      }
+    }
+  },
+  "workload": "run-local paired before/after with the run-local DEFAULT seed 42 (simulator and faults; Phase 3 chaos / nightly-perf workload). Outside the Phase 14 seed protocol (seed 1 / fault seeds >= 701); superseded by the seed-1 re-measurement in phase-14-optimisations-seed1.json. No model or held-out evaluation used these runs."
+}

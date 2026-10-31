@@ -35,11 +35,14 @@ def redrive_dead_letters(
     reason: str | None = None,
     limit: int = 1000,
     clock: Callable[[], float] = time.time,
+    source_prefix: str | None = None,
 ) -> RedriveReport:
     republished: list[str] = []
     skipped = 0
     messages = []
-    for key, data in store.dead_letters_for_redrive(reason=reason, limit=limit):
+    for key, data in store.dead_letters_for_redrive(
+        reason=reason, limit=limit, source_prefix=source_prefix
+    ):
         try:
             event = decode(data)
         except DecodeError:

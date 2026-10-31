@@ -17,11 +17,15 @@ import sys
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
+
+from sqlalchemy import Engine
 
 from praxis.config import Settings, get_settings
 from praxis.control.db import make_engine
 from praxis.logging import configure_logging
 from praxis.payments.gateway import SnapshotSource
+from praxis.payments.load import PaymentLoad, run_payment_load
 from praxis.payments.processor import EventPublisher, NotificationProcessor, ProcessReport
 from praxis.payments.store import PostgresInbox, PostgresRefStore, RefStore
 from praxis.payments.stripe_client import StripeClient
@@ -65,6 +69,15 @@ def _print(payload: object) -> None:
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n")
 
 
+def _load(engine: Engine, args: argparse.Namespace) -> int:
+    result = run_payment_load(engine, PaymentLoad(customers=args.customers, seed=args.seed))
+    if args.report is not None:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+    _print(result)
+    return 0 if result["correct"] else 1
+
+
 def main(
     argv: list[str] | None = None,
     *,
@@ -81,6 +94,10 @@ def main(
     process.add_argument("--max-rounds", type=int, default=1000)
     sub.add_parser("inbox")
     sub.add_parser("requeue")
+    load = sub.add_parser("load", help="Phase 14 W4: synthetic-gateway payment load (never Stripe)")
+    load.add_argument("--customers", type=int, required=True)
+    load.add_argument("--seed", type=int, default=701)
+    load.add_argument("--report", type=Path, default=None)
     args = ap.parse_args(argv)
 
     settings = get_settings()
@@ -94,6 +111,8 @@ def main(
         if args.cmd == "requeue":
             _print({"requeued": inbox.requeue_failed(datetime.now(UTC))})
             return 0
+        if args.cmd == "load":
+            return _load(engine, args)
         source = gateway_factory(settings, PostgresRefStore(engine))
         processor = NotificationProcessor(inbox, {source.provider: source}, publisher_factory(args))
         report: ProcessReport = processor.drain(limit=args.limit, max_rounds=args.max_rounds)

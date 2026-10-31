@@ -1,0 +1,201 @@
+{
+  "control_plane_checksum": "da27a79f8c15d08eed11aefc8137c40fcb74cd4a26a554986acd947a5092e59a",
+  "counters": {
+    "monitoring": {
+      "deliveries": 1071228,
+      "duplicate_deliveries": 97094,
+      "status_duplicate": 97094,
+      "status_observed": 974134,
+      "type_churn.observed": 337,
+      "type_conversion.observed": 1532,
+      "type_customer.created": 10001,
+      "type_invoice.created": 7532,
+      "type_payment.attempted": 8316,
+      "type_payment.failed": 955,
+      "type_payment.succeeded": 7357,
+      "type_price.exposed": 33503,
+      "type_request.completed": 187305,
+      "type_service.metric_observed": 3360,
+      "type_subscription.changed": 994,
+      "type_subscription.started": 9366,
+      "type_usage.observed": 703576,
+      "unique_events_observed": 974134
+    },
+    "operational": {
+      "deliveries": 51452,
+      "redeliveries": 433,
+      "status_applied": 46158,
+      "status_duplicate": 4861
+    },
+    "warehouse": {
+      "batches": 79846,
+      "deliveries": 1307900,
+      "redeliveries": 236188,
+      "status_applied": 1071602
+    }
+  },
+  "cpu_cores_used_avg": 1.77,
+  "cpu_s_total": 1675.9,
+  "customers_projected": 10000,
+  "dead_letters_open": {},
+  "dead_letters_redriven": 110,
+  "drain": {
+    "dlq-inspect": {
+      "acks": 119,
+      "crashes": 0,
+      "deliveries": 119,
+      "nacks": 0,
+      "rounds": 426
+    },
+    "monitoring": {
+      "acks": 1071228,
+      "crashes": 0,
+      "deliveries": 1071228,
+      "nacks": 0,
+      "rounds": 10999
+    },
+    "operational": {
+      "acks": 51019,
+      "crashes": 433,
+      "deliveries": 51452,
+      "nacks": 0,
+      "rounds": 103534
+    },
+    "warehouse": {
+      "acks": 1071602,
+      "crashes": 9328,
+      "deliveries": 1307900,
+      "nacks": 0,
+      "rounds": 175633
+    }
+  },
+  "events_in_archive": 974034,
+  "events_per_s": 1030.8,
+  "events_published": 974034,
+  "invoices_projected": 7526,
+  "is_synthetic": true,
+  "latency": {
+    "monitoring": {
+      "end_to_end": {
+        "count": 1071228,
+        "max_ms": 18504.164,
+        "p50_ms": 4185.606,
+        "p95_ms": 5233.438,
+        "p99_ms": 14116.789
+      },
+      "processing": {
+        "count": 1071228,
+        "max_ms": 14.417,
+        "p50_ms": 0.063,
+        "p95_ms": 0.079,
+        "p99_ms": 0.122
+      }
+    },
+    "operational": {
+      "end_to_end": {
+        "count": 51019,
+        "max_ms": 17249.035,
+        "p50_ms": 2278.807,
+        "p95_ms": 11800.746,
+        "p99_ms": 15777.099
+      },
+      "processing": {
+        "count": 51019,
+        "max_ms": 224.68,
+        "p50_ms": 2.669,
+        "p95_ms": 4.031,
+        "p99_ms": 5.771
+      }
+    },
+    "warehouse": {
+      "end_to_end": {
+        "count": 1071602,
+        "max_ms": 17998.413,
+        "p50_ms": 2372.184,
+        "p95_ms": 4493.439,
+        "p99_ms": 13424.868
+      },
+      "processing": {
+        "count": 1071602,
+        "max_ms": 44.929,
+        "p50_ms": 0.479,
+        "p95_ms": 0.941,
+        "p99_ms": 1.305
+      }
+    }
+  },
+  "ledger_entries": 7355,
+  "ledger_matches_oracle": true,
+  "ledger_total_minor": 481423288,
+  "matches_oracle": true,
+  "mismatched_entities": {
+    "customers": 0,
+    "invoices": 0
+  },
+  "observed_checksum": "8a3d03ade33b545396630961ba44bf49896b57e8e37f7b3a76cc5b52ca18d9c0",
+  "oracle_checksum": "8a3d03ade33b545396630961ba44bf49896b57e8e37f7b3a76cc5b52ca18d9c0",
+  "pending": {
+    "customer_orphans": 0,
+    "customer_pending": 0,
+    "invoice_orphans": 0,
+    "invoice_pending": 0
+  },
+  "postgres": {
+    "blks_hit": 2063568,
+    "blks_read": 43,
+    "db_size_bytes_after": 61142707,
+    "db_size_bytes_before": 9172659,
+    "deadlocks": 0,
+    "temp_bytes": 0,
+    "tup_deleted": 195,
+    "tup_fetched": 172815,
+    "tup_inserted": 184492,
+    "tup_updated": 22587,
+    "xact_commit": 103088,
+    "xact_rollback": 194
+  },
+  "resources": {
+    "host_mem_used_baseline_mb": 6153.2,
+    "host_mem_used_peak_mb": 6560.1,
+    "load1_max": 8.7236328125,
+    "pg_connections_max": 2.0,
+    "pg_lock_waits_max": 0.0,
+    "samples": 190
+  },
+  "run": {
+    "batch_size": 100,
+    "batch_wait_s": 1.0,
+    "chunk": 5000,
+    "crash_rate": 0.005,
+    "customers": 10000,
+    "days": 28,
+    "duplicate_rate": 0.1,
+    "fault_seed": 701,
+    "max_delay_s": 600.0,
+    "pg_pool_size": 2,
+    "reorder": true,
+    "shards": 1,
+    "sim_seed": 1
+  },
+  "scale": "10k",
+  "shard_elapsed_s_max": 942.861,
+  "shard_peak_rss_mb_max": 747.7,
+  "shard_peak_rss_mb_sum": 747.7,
+  "shards": [
+    {
+      "cpu_s": 1675.932,
+      "dead_letters_redriven": 110,
+      "elapsed_s": 942.861,
+      "elapsed_with_redrive_s": 942.957,
+      "events_published": 974034,
+      "peak_rss_mb": 747.7,
+      "shard": 0,
+      "warehouse_rows": 974034
+    }
+  ],
+  "slo": null,
+  "subscription_inconsistencies": 0,
+  "wall_s": 944.943,
+  "warehouse_rows": 974034,
+  "workload": "W2 sharded replay through the production consumers (memory transport)"
+}

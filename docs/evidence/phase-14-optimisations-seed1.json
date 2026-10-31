@@ -1,0 +1,100 @@
+{
+  "is_synthetic": true,
+  "runs": {
+    "batch_window_0s": {
+      "batch_wait_s": 0.0,
+      "control_plane_checksum": "41d330a65f7560fadbac10b2bf518c29c55c2f80e5a276585db124c735a257ac",
+      "customers": 3000,
+      "days": 28,
+      "elapsed_s": 772.392,
+      "events_per_s": 386.2,
+      "events_published": 298260,
+      "ledger_total_minor": 155100223,
+      "matches_oracle": true,
+      "peak_rss_mb": 918.2,
+      "seed": 1,
+      "subscription_inconsistencies": 0,
+      "warehouse_drain": {
+        "acks": 328176,
+        "crashes": 2846,
+        "deliveries": 474431,
+        "nacks": 0,
+        "rounds": 317178
+      }
+    },
+    "batch_window_1s": {
+      "batch_wait_s": 1.0,
+      "control_plane_checksum": "41d330a65f7560fadbac10b2bf518c29c55c2f80e5a276585db124c735a257ac",
+      "customers": 3000,
+      "days": 28,
+      "elapsed_s": 193.511,
+      "events_per_s": 1541.3,
+      "events_published": 298260,
+      "ledger_total_minor": 155100223,
+      "matches_oracle": true,
+      "peak_rss_mb": 930.7,
+      "seed": 1,
+      "subscription_inconsistencies": 0,
+      "warehouse_drain": {
+        "acks": 328071,
+        "crashes": 2846,
+        "deliveries": 490039,
+        "nacks": 0,
+        "rounds": 34304
+      }
+    },
+    "telemetry_after-1": {
+      "batch_wait_s": 0.0,
+      "control_plane_checksum": "cfde70220ec027fa3cbadedd0ad11e66a8e3fffc0d3fd821639979038ffc69ea",
+      "customers": 1000,
+      "days": 28,
+      "elapsed_s": 51.4,
+      "events_per_s": 1962.3,
+      "events_published": 100862,
+      "matches_oracle": true,
+      "peak_rss_mb": 590.9,
+      "seed": 1,
+      "subscription_inconsistencies": 0
+    },
+    "telemetry_after-2": {
+      "batch_wait_s": 0.0,
+      "control_plane_checksum": "cfde70220ec027fa3cbadedd0ad11e66a8e3fffc0d3fd821639979038ffc69ea",
+      "customers": 1000,
+      "days": 28,
+      "elapsed_s": 52.074,
+      "events_per_s": 1936.9,
+      "events_published": 100862,
+      "matches_oracle": true,
+      "peak_rss_mb": 593.4,
+      "seed": 1,
+      "subscription_inconsistencies": 0
+    },
+    "telemetry_before-1": {
+      "batch_wait_s": null,
+      "control_plane_checksum": "cfde70220ec027fa3cbadedd0ad11e66a8e3fffc0d3fd821639979038ffc69ea",
+      "customers": 1000,
+      "days": 28,
+      "elapsed_s": 59.368,
+      "events_per_s": 1698.9,
+      "events_published": 100862,
+      "matches_oracle": true,
+      "peak_rss_mb": 585.9,
+      "seed": 1,
+      "subscription_inconsistencies": 0
+    },
+    "telemetry_before-2": {
+      "batch_wait_s": null,
+      "control_plane_checksum": "cfde70220ec027fa3cbadedd0ad11e66a8e3fffc0d3fd821639979038ffc69ea",
+      "customers": 1000,
+      "days": 28,
+      "elapsed_s": 59.452,
+      "events_per_s": 1696.5,
+      "events_published": 100862,
+      "matches_oracle": true,
+      "peak_rss_mb": 589.8,
+      "seed": 1,
+      "subscription_inconsistencies": 0
+    }
+  },
+  "workload": "run-local, development seed 1 (simulator and faults), Phase 3 chaos defaults. 'before' telemetry = HEAD e09cbb1 code (window 0); 'after' = Phase 14 code with --batch-wait 0, so only the counter aggregation differs. Batch window pair: Phase 14 code, 3K customers, window 0 vs 1 s."
+}

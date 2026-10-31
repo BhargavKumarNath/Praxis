@@ -6,7 +6,8 @@
 	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
 	stripe-verify recovery-data recovery-train recovery-evaluate \
 	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive \
-	mlops-data mlops-drill console-api console-web console-demo e2e e2e-browsers
+	mlops-data mlops-drill console-api console-web console-demo e2e e2e-browsers \
+	scale-archive scale-run scale-http scale-payments
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -557,3 +558,50 @@ e2e: pg-up
 # CI only: the pinned Playwright's Chromium plus its system libraries (needs apt).
 e2e-browsers:
 	cd frontend && npx playwright install --with-deps chromium
+
+# --- Phase 14 scale ladder (ADR 0022). Workloads and SLOs: configs/scale/slo.toml (pinned).
+# Local only, GBP 0, SYNTHETIC. `make scale-archive scale-run SCALE=10k-sharded`; 100k needs
+# ~10 GB RAM and ~30 min, 1m only after 100k passes. Each run gets a fresh database.
+SCALE ?= smoke
+SCALE_DIR = data/scale/$(SCALE)
+SCALE_DB_NAME = praxis_scale_$(subst -,_,$(SCALE))
+SCALE_DB = postgresql+psycopg://praxis@127.0.0.1:$(PG_PORT)/$(SCALE_DB_NAME)
+K6_IMAGE = grafana/k6@sha256:3ddc8b1a33a2c3d8edc6e99b6a762ae36cba08788463458f5e6a7703e14eb77d # v1.3.0
+API_PORT ?= 8000
+HTTP_RATE ?= 50
+HTTP_DURATION ?= 60s
+
+scale-archive:
+	rm -rf $(SCALE_DIR)/archive
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming scale-archive --scale $(SCALE) \
+		--out $(SCALE_DIR)/archive --report $(SCALE_DIR)/w1.json >/dev/null
+
+_scale-db: pg-up
+	@.venv/bin/python -c "from sqlalchemy import create_engine, text; \
+	e = create_engine('$(PRAXIS_TEST_DATABASE_URL)', isolation_level='AUTOCOMMIT'); c = e.connect(); \
+	c.execute(text('DROP DATABASE IF EXISTS $(SCALE_DB_NAME) WITH (FORCE)')); \
+	c.execute(text('CREATE DATABASE $(SCALE_DB_NAME)'))"
+	.venv/bin/python -m praxis.streaming --database-url $(SCALE_DB) migrate
+
+# Exit 1 if the oracle does not match or a pre-registered SLO fails.
+scale-run: _scale-db
+	rm -rf $(SCALE_DIR)/wh
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(SCALE_DB) \
+		scale-run --scale $(SCALE) --archive $(SCALE_DIR)/archive --warehouse-dir $(SCALE_DIR)/wh \
+		--report $(SCALE_DIR)/w2.json >/dev/null
+
+# W3: k6 (pinned image) against the core API (:$(API_PORT)) and console (:$(CONSOLE_PORT)),
+# both started on $(SCALE_DB) beforehand (`make run`-style uvicorn, `make console-api`).
+scale-http:
+	docker run --rm --network host -u $$(id -u):$$(id -g) -v $(CURDIR)/benchmarks/k6:/scripts:ro \
+		-v $(CURDIR)/$(SCALE_DIR):/out -e RATE=$(HTTP_RATE) -e DURATION=$(HTTP_DURATION) \
+		-e API_URL=http://127.0.0.1:$(API_PORT) -e CONSOLE_URL=http://127.0.0.1:$(CONSOLE_PORT) \
+		$(K6_IMAGE) run --quiet --summary-export /out/k6.json /scripts/http.js
+	.venv/bin/python -m praxis.streaming scale-http-check --summary $(SCALE_DIR)/k6.json --scale $(SCALE)
+
+# W4: SyntheticPaymentGateway load (never Stripe) on its own fresh database.
+PAY_CUSTOMERS ?= 10000
+scale-payments: SCALE_DB_NAME = praxis_scale_payments
+scale-payments: _scale-db
+	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.payments --database-url $(SCALE_DB) load \
+		--customers $(PAY_CUSTOMERS) --seed 701 --report data/scale/payments-$(PAY_CUSTOMERS).json >/dev/null

@@ -96,6 +96,10 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
   to the control plane and the ops monitor / health API read the merged, staleness-checked
   fleet view (ADR 0020). None of it is on the decision path: if telemetry or ops fail,
   pricing, payments and MLOps are unaffected (a failed publish is logged and skipped).
+* Scale (ADR 0022, `docs/evidence/phase-14.md`): consumers scale out as independent shard
+  processes over one Postgres (no shared in-process state, no ordering assumption), batch
+  sinks micro-batch with a bounded window, and large event history lives in the archive and
+  the warehouse, never Postgres. Scale claims exist only where a run measured them.
 * The AI operator (ADR 0019, `docs/agent.md`) sits at the top layer and nothing imports it.
   It reaches the system only through typed, tiered, audited tools; it cannot import the
   optimiser, the pricing cycle, payment execution or a shell (import contract). Guarded

@@ -3,6 +3,10 @@
 Deliberately dependency-free; Phase 11 exports these through OpenTelemetry. Counters
 count *deliveries and outcomes*, which include broker duplicates by design. Business
 counts (unique events, money) come from the idempotent sinks, never from here.
+
+Counter increments are aggregated locally and pushed to OpenTelemetry in bulk (every
+``FLUSH_EVERY`` increments, and before every ``Telemetry.snapshot``), because one OTel
+``add`` per delivery cost about a third of consumer throughput (ADR 0022).
 """
 
 from __future__ import annotations
@@ -13,7 +17,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from praxis.observability import LatencySample
-from praxis.telemetry import telemetry
+from praxis.telemetry import Telemetry, telemetry
+
+FLUSH_EVERY = 1024
 
 
 @dataclass
@@ -21,11 +27,37 @@ class StreamMetrics:
     counters: dict[str, Counter[str]] = field(default_factory=lambda: defaultdict(Counter))
     latency: dict[str, dict[str, LatencySample]] = field(default_factory=lambda: defaultdict(dict))
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _pending: Counter[tuple[str, str]] = field(default_factory=Counter, repr=False)
+    _pending_ops: int = field(default=0, repr=False)
+    _sink: Telemetry | None = field(default=None, repr=False)
 
     def inc(self, subscription: str, name: str, n: int = 1) -> None:
+        sink = telemetry()
         with self._lock:
             self.counters[subscription][name] += n
-        telemetry().inc("events_consumed_total", n, subscription=subscription, outcome=name)
+            if sink is not self._sink:  # first use, or the instance was swapped (tests)
+                self._flush_locked()
+                self._sink = sink
+                sink.register_pre_collect(self.flush)
+            self._pending[(subscription, name)] += n
+            self._pending_ops += 1
+            if self._pending_ops >= FLUSH_EVERY:
+                self._flush_locked()
+
+    def flush(self) -> None:
+        """Push aggregated counter deltas to OpenTelemetry (``events_consumed_total``)."""
+        with self._lock:
+            self._flush_locked()
+
+    def __del__(self) -> None:  # an instance going away must not lose its buffered counts
+        self._flush_locked()
+
+    def _flush_locked(self) -> None:
+        if self._sink is not None:
+            for (subscription, name), n in self._pending.items():
+                self._sink.inc("events_consumed_total", n, subscription=subscription, outcome=name)
+        self._pending.clear()
+        self._pending_ops = 0
 
     def observe(self, subscription: str, name: str, value_ms: float) -> None:
         if name == "end_to_end":

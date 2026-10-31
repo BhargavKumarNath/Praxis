@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import secrets
 import threading
+import weakref
 from collections import deque
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -181,6 +182,23 @@ class Telemetry:
         self._tracer = provider.get_tracer("praxis")
         self._instruments: dict[str, Any] = {}
         self._lock = threading.Lock()
+        # Hot-path emitters that aggregate locally (``StreamMetrics``) register a flush here;
+        # ``snapshot`` runs every live one first, so a reader never sees a stale count.
+        self._pre_collect: list[weakref.WeakMethod[Callable[[], None]]] = []
+
+    def register_pre_collect(self, flush: Callable[[], None]) -> None:
+        """Run ``flush`` (a bound method, held weakly) before every metric collection."""
+        with self._lock:
+            self._pre_collect.append(weakref.WeakMethod(flush))
+
+    def flush_pending(self) -> None:
+        """Push locally aggregated measurements into the meter (called by ``snapshot``)."""
+        with self._lock:
+            self._pre_collect = [ref for ref in self._pre_collect if ref() is not None]
+            flushes = [ref() for ref in self._pre_collect]
+        for flush in flushes:
+            if flush is not None:
+                flush()
 
     def _instrument(self, spec: MetricSpec) -> Any:
         with self._lock:
@@ -243,6 +261,7 @@ class Telemetry:
         return self._exporter.snapshot()
 
     def snapshot(self) -> MetricsView:
+        self.flush_pending()
         data = self._reader.get_metrics_data()
         points: list[Point] = []
         for rm in data.resource_metrics if data else ():

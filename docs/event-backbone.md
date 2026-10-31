@@ -72,6 +72,7 @@ make pubsub-verify              # producer + consumers over the emulator
 make events-check               # chaos smoke vs oracle (used by make check / CI)
 make events-local               # 1K x 28d chaos run -> data/events/run_local.json
 make events-bench               # live latency on the emulator -> data/events/emulator_bench.json
+make scale-archive scale-run SCALE=10k-sharded   # Phase 14 scale ladder (ADR 0022)
 
 python -m praxis.streaming --database-url URL migrate
 python -m praxis.streaming --database-url URL dlq                        # open dead letters
@@ -86,11 +87,27 @@ python -m praxis.streaming replay --archive data/events/archive          # emula
 samples. `processing` is handler time. `end_to_end` is producer send time
 (`praxis_sent_at` attribute) to processed. The DLQ inspector counts `reason_<reason>`.
 Phase 11 exports these through OpenTelemetry and adds alerts (DLQ > 0, crash loops,
-`pending` older than a threshold).
+`pending` older than a threshold). Counter increments are aggregated in `StreamMetrics` and
+pushed to OpenTelemetry in bulk (every 1,024 increments and before every snapshot, ADR 0022).
+
+## Scale (Phase 14, ADR 0022, `docs/evidence/phase-14.md`)
+
+* **Consumer concurrency** is K shard processes against one Postgres, each with its own
+  broker, consumers and DuckDB file; messages go to shards by `event_id` hash, so one
+  aggregate's events are applied concurrently and the idempotency / advisory-lock design is
+  exercised under contention. Final state equals the single-process oracle (measured).
+* **Sink micro-batching**: batch consumers (warehouse) wait up to `batch_wait_s` (1 s) for a
+  batch to fill when nothing is ready; without it, spread-out arrivals were written one row
+  per DuckDB insert (3.7x slower at 3K). In Pub/Sub this is streaming-pull flow control.
+* **Postgres**: one transaction per stateful event (~5% of events); a single writer is
+  commit-latency-bound, so throughput comes from more writers (shards), not bigger batches.
+* **Memory**: replay streams from the archive in chunks (`chunk` events per drain); each
+  shard caps DuckDB at `duckdb_memory_limit_mb`.
 
 ## Known limitations
 
 * `processed_events` has no retention job yet (must exceed the redelivery and replay window).
+* `run-local` keeps every event in memory (oracle included); use `scale-run` above ~10K.
 * The warehouse consumer writes DuckDB (single writer). BigQuery streaming is deliberately
   not used (cost); the cloud path is GCS archive plus batch loads (ADR 0008).
 * Cross-aggregate rules (invoice only for an active customer) are analytical checks (dbt),

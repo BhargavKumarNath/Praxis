@@ -197,3 +197,43 @@ def test_drain_gives_up_after_max_rounds() -> None:
 
     with pytest.raises(RuntimeError, match="did not finish"):
         drain(b, WH, Never, max_rounds=2)
+
+
+class _Recorder:
+    def __init__(self, batches: bool) -> None:
+        self.batches = batches
+        self.sizes: list[int] = []
+
+    def process(self, deliveries: Sequence[Delivery]) -> list[Disposition]:
+        self.sizes.append(len(deliveries))
+        return [Disposition.ACK] * len(deliveries)
+
+
+def _spread_broker() -> MemoryBroker:
+    b = _broker(seed=7, max_delay_s=600.0, reorder=True)
+    for i in range(400):
+        b.publish(EVENTS, str(i).encode(), {})
+    return b
+
+
+def test_batch_window_fills_micro_batches_without_losing_messages() -> None:
+    """ADR 0022: spread-out arrivals reach a batch worker one at a time unless it waits."""
+    plain, windowed = _Recorder(batches=True), _Recorder(batches=True)
+    r0 = drain(_spread_broker(), WH, lambda: plain, batch_size=100)
+    r1 = drain(_spread_broker(), WH, lambda: windowed, batch_size=100, batch_wait_s=5.0)
+    assert r0.acks == r1.acks == 400 and sum(windowed.sizes) == 400
+    assert max(plain.sizes) <= 2  # the trickle the window removes
+    assert len(windowed.sizes) < len(plain.sizes) / 3
+    assert max(windowed.sizes) <= 100
+
+
+def test_batch_window_is_ignored_by_non_batch_workers() -> None:
+    a, b = _Recorder(batches=False), _Recorder(batches=False)
+    r0 = drain(_spread_broker(), WH, lambda: a, batch_size=100)
+    r1 = drain(_spread_broker(), WH, lambda: b, batch_size=100, batch_wait_s=5.0)
+    assert a.sizes == b.sizes and r0.rounds == r1.rounds
+
+
+def test_negative_batch_window_is_rejected() -> None:
+    with pytest.raises(ValueError, match="batch_wait_s"):
+        drain(_broker(), WH, lambda: _Recorder(batches=True), batch_wait_s=-1.0)

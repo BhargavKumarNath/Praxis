@@ -329,17 +329,23 @@ class ControlPlaneStore:
         return row is not None
 
     def dead_letters_for_redrive(
-        self, *, reason: str | None = None, limit: int = 1000
+        self, *, reason: str | None = None, limit: int = 1000, source_prefix: str | None = None
     ) -> list[tuple[str, bytes]]:
-        """(key, original bytes) of stored, not-yet-redriven dead letters."""
+        """(key, original bytes) of stored, not-yet-redriven dead letters.
+
+        ``source_prefix`` keeps only dead letters whose source subscription starts with it
+        (one environment, e.g. one shard of a scale run).
+        """
         with transient_errors(), self.engine.connect() as conn:
             rows = conn.execute(
                 text(
                     "SELECT dead_letter_key, data FROM dead_letters WHERE redriven_at IS NULL "
                     "AND data IS NOT NULL AND (CAST(:reason AS TEXT) IS NULL OR reason = :reason) "
+                    "AND (CAST(:prefix AS TEXT) IS NULL "
+                    "OR starts_with(source_subscription, CAST(:prefix AS TEXT))) "
                     "ORDER BY first_seen_at, dead_letter_key LIMIT :limit"
                 ),
-                {"reason": reason, "limit": limit},
+                {"reason": reason, "limit": limit, "prefix": source_prefix},
             )
             return [(str(r[0]), bytes(r[1])) for r in rows]
 
