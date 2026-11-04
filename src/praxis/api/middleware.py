@@ -13,12 +13,14 @@ import contextlib
 import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import NamedTuple
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from praxis.config import Environment, Settings
 from praxis.control.metric_snapshots import SnapshotPublisher
 from praxis.telemetry import telemetry
 from praxis.tracing import (
@@ -36,6 +38,20 @@ class ErrorResponse(BaseModel):
     error: str
     correlation_id: str
     detail: str | None = None
+
+
+class DocsRoutes(NamedTuple):
+    docs_url: str | None
+    redoc_url: str | None
+    openapi_url: str | None
+
+
+def docs_routes(settings: Settings) -> DocsRoutes:
+    """FastAPI docs / schema routes: served only locally (Phase 15 security review). In
+    dev / prod a public service must not publish its full route and model schema."""
+    if settings.environment is Environment.LOCAL:
+        return DocsRoutes("/docs", "/redoc", "/openapi.json")
+    return DocsRoutes(None, None, None)
 
 
 def record_request(request: Request, status: int, started: float) -> None:

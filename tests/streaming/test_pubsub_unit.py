@@ -54,6 +54,7 @@ class FakeSubscriberClient:
         self.acked: list[str] = []
         self.nacked: list[str] = []
         self.closed = False
+        self.sizes: list[int] = []
 
     def subscription_path(self, project: str, sub: str) -> str:
         return f"projects/{project}/subscriptions/{sub}"
@@ -61,6 +62,7 @@ class FakeSubscriberClient:
     def pull(self, request: dict[str, Any], timeout: float) -> Any:
         if self.deadline:
             raise gexc.DeadlineExceeded("idle")  # type: ignore[no-untyped-call]
+        self.sizes.append(request["max_messages"])
         return SimpleNamespace(received_messages=self.batches.pop(0) if self.batches else [])
 
     def acknowledge(self, request: dict[str, Any]) -> None:
@@ -144,3 +146,12 @@ def test_pull_loop_stops_on_crash_and_respects_cap() -> None:
         max_deliveries=1,
     )
     assert capped.deliveries == 1
+
+
+def test_pull_loop_window_starts_at_one_and_drops_after_a_repeated_redelivery() -> None:
+    client = FakeSubscriberClient(
+        [[_rm(1)], [_rm(3), _rm(4)], [_rm(5, attempt=2)], [_rm(6, attempt=3)], [_rm(7)]]
+    )
+    run_pull_loop(PubSubPuller("p", "s", client), ScriptedWorker(True), idle_timeout_s=0.0,
+                  max_deliveries=6)  # fmt: skip
+    assert client.sizes == [1, 2, 4, 8, 1]

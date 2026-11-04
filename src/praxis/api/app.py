@@ -12,7 +12,12 @@ from pydantic import BaseModel
 
 from praxis import __version__
 from praxis.api.forecast import ForecastProvider, build_forecast_service, forecast_router
-from praxis.api.middleware import ErrorResponse, install_middleware, publisher_lifespan
+from praxis.api.middleware import (
+    ErrorResponse,
+    docs_routes,
+    install_middleware,
+    publisher_lifespan,
+)
 from praxis.api.ops import ops_router
 from praxis.api.tasks import RetryHandler, tasks_router
 from praxis.api.webhooks import webhook_router
@@ -85,7 +90,11 @@ def create_app(
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level.value)
     reader, publisher = system_view or build_system_view(settings) or (None, None)
-    app = FastAPI(title="Praxis", version=__version__, lifespan=publisher_lifespan(publisher))
+    docs = docs_routes(settings)
+    app = FastAPI(
+        title="Praxis", version=__version__, lifespan=publisher_lifespan(publisher),
+        docs_url=docs.docs_url, redoc_url=docs.redoc_url, openapi_url=docs.openapi_url,
+    )  # fmt: skip
     app.include_router(forecast_router(forecast_service or build_forecast_service(settings)))
     app.include_router(webhook_router(webhook_receiver or build_webhook_receiver(settings)))
     app.include_router(

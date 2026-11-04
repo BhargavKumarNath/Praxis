@@ -36,7 +36,7 @@ from praxis.streaming.topology import (
     Topology,
     build_topology,
 )
-from praxis.streaming.transport import Worker
+from praxis.streaming.transport import FlowControl, Worker
 
 ROLES = (OPERATIONAL, WAREHOUSE, MONITORING)
 
@@ -66,6 +66,8 @@ class LocalPipeline:
         self.producer = EventProducer(self.broker, self.topology.events_topic, self.archive)
         self.dead_letters = DeadLetterRouter(self.broker, self.topology.dead_letter_topic)
         self._workers: dict[str, Worker] = {}
+        # One lease window per running worker; drain restarts it when the worker crashes.
+        self._flows = {role: FlowControl(self.batch_size) for role in (*self.roles, DLQ_INSPECT)}
         self.reports: dict[str, DrainReport] = {}
         # The monitoring consumer's state is in-process; a restart loses it (by design).
         self._consumers: dict[str, Callable[[], Consumer]] = {
@@ -118,6 +120,7 @@ class LocalPipeline:
                 self.worker_factory(role),
                 batch_size=self.batch_size,
                 batch_wait_s=self.batch_wait_s,
+                flow=self._flows[role],
             )
             total = self.reports.setdefault(role, DrainReport())
             for name in ("deliveries", "acks", "nacks", "crashes", "rounds"):

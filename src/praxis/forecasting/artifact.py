@@ -12,7 +12,6 @@ import hashlib
 import json
 import os
 import shutil
-import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -162,21 +161,31 @@ def _backtest_summary(report: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def save_artifact(manifest: dict[str, Any], files: dict[str, str], root: Path) -> Path:
-    """Write atomically to ``root/<model_version>``; an existing identical version is kept."""
+    """Write ``root/<model_version>``; an existing complete identical version is kept.
+
+    The manifest is the publish point: every file is written (each by file rename) before
+    the manifest is renamed into place, and ``load_artifact`` refuses a directory without
+    one. This needs no directory rename, which object storage (the live volume, Cloud
+    Storage FUSE; ADR 0027) cannot do atomically. A directory without a manifest is an
+    interrupted write and is rewritten."""
     root.mkdir(parents=True, exist_ok=True)
     target = root / str(manifest["model_version"])
-    if target.exists():
+    if (target / MANIFEST).is_file():
         load_artifact(target)  # raises if the existing copy is corrupt
         return target
-    tmp = Path(tempfile.mkdtemp(prefix=".tmp-", dir=root))
-    try:
-        for name, text in files.items():
-            (tmp / name).write_text(text, encoding="utf-8")
-        (tmp / MANIFEST).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-        os.replace(tmp, target)
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
+    if target.exists():
+        shutil.rmtree(target)  # interrupted write: never published (no manifest)
+    target.mkdir()
+    for name, text in files.items():
+        _write_replace(target / name, text)
+    _write_replace(target / MANIFEST, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     return target
+
+
+def _write_replace(path: Path, text: str) -> None:
+    partial = path.with_name(f".{path.name}.partial")
+    partial.write_text(text, encoding="utf-8")
+    os.replace(partial, path)
 
 
 def load_artifact(path: Path) -> ForecastArtifact:

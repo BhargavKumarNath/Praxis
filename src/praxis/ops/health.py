@@ -101,9 +101,12 @@ def build_health(
     now: datetime | None = None,
     data_origin: str = "synthetic",
     inputs: dict[str, Any] | None = None,
+    recent: MetricsView | None = None,
 ) -> HealthReport:
-    slo_statuses = evaluate_slos(cfg.slos, view)
-    alerts = evaluate_alerts(cfg.rules, slo_statuses, view)
+    """``recent`` = the increase since the caller's previous evaluation (ops monitor ticks);
+    see ``ops.evaluate`` for the two-window rule."""
+    slo_statuses = evaluate_slos(cfg.slos, view, recent)
+    alerts = evaluate_alerts(cfg.rules, slo_statuses, view, recent)
     sections = []
     for name in SECTIONS:
         panels = tuple(

@@ -7,6 +7,7 @@ Nothing here touches the network at import time.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
@@ -86,9 +87,19 @@ class Settings(BaseSettings):
     model_refresh_interval_s: float = Field(default=30.0, ge=1.0, le=3600.0)
     mlflow_tracking_uri: str | None = None
 
+    # Live loop (ADR 0027): the persistent directory the daily tick writes (warehouse, model
+    # artifacts, tick reports, state) and every reader mounts; the GCS volume in the cloud.
+    live_root: Path | None = None
+
     # Decision console (Phase 13, ADR 0021): named approvers and their bearer tokens,
     # "name=token,name2=token2". Unset = the console's admin actions answer 503 (read-only).
     console_approvers: SecretStr | None = None
+
+    # Spend guard (deployment, ADR 0026): the budget's actual gross cost (GBP) at which the
+    # guard unlinks billing from the project, and the one budget whose notifications count.
+    # Unset = the guard only reports (never acts).
+    spend_guard_kill_at_gbp: Decimal | None = Field(default=None, gt=0, le=10)
+    spend_guard_budget_name: str | None = None
 
     @model_validator(mode="after")
     def _require_cloud_identity_outside_local(self) -> Self:

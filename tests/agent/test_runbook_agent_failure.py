@@ -2,7 +2,7 @@
 
 Fault: the LLM provider is down (no fallback configured for the drill).
 Diagnose 1: the run's audit trail shows the outage and the failed run.
-Diagnose 2: ``GET /v1/ops/health`` does not show the agent outage as degraded service.
+Diagnose 2: ``GET /v1/ops/health`` does not show one agent outage as degraded service.
 Mitigate 1: disable the agent (``[agent] enabled = false``); operate through the CLIs.
 Mitigate 2: a price only moves through ``pricing approve`` / ``execute`` with a named human.
 Mitigate 3: a failed guarded call's audit record is inspected before anything is retried.
@@ -38,7 +38,9 @@ def _executor(world: World, policy: AgentPolicy) -> ToolExecutor:
 
 def test_agent_failure_runbook_procedure(memory_world: World, policy: AgentPolicy) -> None:
     text = (RUNBOOK_DIR / "agent-failure.md").read_text()
-    assert alerts_of(text) == []  # no alert rule: detection is the failed run + its audit
+    # Phase 15 (ADR 0023) added agent_provider_degraded; its firing and clearing are measured
+    # in tests/resilience/test_agent_unavailable.py. One failed run is below its minimum.
+    assert alerts_of(text) == ["agent_provider_degraded"]
 
     # Trigger: provider outage
     run = Operator(_executor(memory_world, policy), DownProvider(), fallback=None).investigate(

@@ -63,3 +63,29 @@ Grafana / Datadog), the core system must work with none of this running.
 * SLO windows are the process lifetime; there is no multi-window burn-rate alerting yet.
 * Alert thresholds are engineering defaults for the synthetic system, not tuned to any
   observed distribution.
+
+## Amendment 1 (2026-11-01, Phase 15 remediation, owner-approved): forecast_freshness 24 h
+
+`forecast_freshness` is tightened from 48 h to 24 h (`configs/ops/slos.toml` version
+2026-11-01.1; no other target changed). The original 48 h had no recorded rationale here or
+in the Phase 11 evidence. The service's contract has one:
+
+* `forecast_age_hours` = feature lag in days × 24. Healthy is lag 1 (yesterday is the newest
+  complete day), which gives 24.
+* ADR 0010 (Phase 4, validated by the pre-registered backtest) serves the model only up to
+  lag 1. From lag 2 the seasonal fallback serves, and after 7 days nothing does.
+* Pricing refuses every non-fresh forecast (`require_fresh_forecast = true`), so at lag 2
+  every price move is held (`forecast_stale`).
+
+Under 48 h, a forecast service already on its fallback, with pricing frozen, raised no
+ticket for a whole day. The Phase 15 row `feature_stale` exposed this as a FAIL (fault seed
+801, `docs/evidence/phase-15-failures.json`, kept).
+
+Rejected alternative: serve the model up to 48 h. That would use it outside its validated
+serving contract (every horizon shifts by a day, and the h = 1 target is already past) and
+would let prices move on 2-day-old features. It relaxes the decision-science requirement
+to make an alert quieter.
+
+The 24 h SLO is stricter, never looser. It now breaches exactly when the service stops
+serving the model, which `tests/ops/test_config.py` enforces against the forecast config.
+`feature_stale` is re-judged on the remediation suite (`configs/resilience/remediation.toml`).

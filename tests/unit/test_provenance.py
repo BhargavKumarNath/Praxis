@@ -25,4 +25,13 @@ def test_code_revision_without_git_is_unknown(monkeypatch: pytest.MonkeyPatch) -
         raise FileNotFoundError("git")
 
     monkeypatch.setattr(subprocess, "run", boom)
+    monkeypatch.delenv("PRAXIS_CODE_REVISION", raising=False)
+    assert provenance.code_revision() == "unknown"
+
+
+def test_code_revision_in_an_image_is_the_build_revision(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(provenance, "_git", lambda *a: None)  # no git in a container image
+    monkeypatch.setenv("PRAXIS_CODE_REVISION", " 2272c3a-dirty ")
+    assert provenance.code_revision() == "2272c3a-dirty"
+    monkeypatch.setenv("PRAXIS_CODE_REVISION", "")
     assert provenance.code_revision() == "unknown"

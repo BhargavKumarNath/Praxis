@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from praxis import __version__
 from praxis.agent.config import load_agent_policy
 from praxis.agent.requests import ApprovalDesk, PostgresRequestStore, RequestError
-from praxis.api.middleware import install_middleware, publisher_lifespan
+from praxis.api.middleware import docs_routes, install_middleware, publisher_lifespan
 from praxis.config import Settings, get_settings
 from praxis.console.auth import Approvers, ApproversConfigError, bearer, parse_approvers
 from praxis.console.context import ConsoleContext
@@ -255,9 +255,11 @@ def create_console_app(
         )
         context = ConsoleContext(engine, settings.warehouse_path, reader)
     desk, freezes = _admin_paths(context, settings)
+    docs = docs_routes(settings)
     app = FastAPI(
-        title="Praxis console", version=__version__, lifespan=publisher_lifespan(publisher)
-    )
+        title="Praxis console", version=__version__, lifespan=publisher_lifespan(publisher),
+        docs_url=docs.docs_url, redoc_url=docs.redoc_url, openapi_url=docs.openapi_url,
+    )  # fmt: skip
     install_middleware(app)
     app.include_router(read_router(context))
     deps = AdminDeps(

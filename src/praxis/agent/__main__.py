@@ -14,6 +14,8 @@ import sys
 from datetime import date
 from typing import Any
 
+from sqlalchemy import Engine
+
 from praxis.agent.config import load_agent_policy
 from praxis.agent.executor import ToolExecutor
 from praxis.agent.provider import Task
@@ -21,6 +23,7 @@ from praxis.agent.requests import RequestError
 from praxis.agent.wiring import TOOLS, ControlPlane, control_plane, operator_for
 from praxis.config import get_settings
 from praxis.control.db import make_engine
+from praxis.control.metric_snapshots import publish_batch
 from praxis.logging import configure_logging
 from praxis.pricing.freeze import FreezeError
 
@@ -29,15 +32,16 @@ def _print(payload: Any) -> None:
     sys.stdout.write(json.dumps(payload, indent=2, default=str) + "\n")
 
 
-def _plane() -> ControlPlane:
+def _engine() -> Engine:
     settings = get_settings()
     if settings.database_url is None:
         raise SystemExit("PRAXIS_DATABASE_URL is required (the control-plane database)")
-    return control_plane(
-        make_engine(settings.database_url.get_secret_value()),
-        settings.environment,
-        settings.warehouse_path,
-    )
+    return make_engine(settings.database_url.get_secret_value())
+
+
+def _plane(engine: Engine | None = None) -> ControlPlane:
+    settings = get_settings()
+    return control_plane(engine or _engine(), settings.environment, settings.warehouse_path)
 
 
 def _executor(plane: ControlPlane) -> ToolExecutor:
@@ -62,7 +66,11 @@ def cmd_investigate(args: argparse.Namespace) -> int:
         args.kind, args.as_of, incident_id=args.incident, model_version=args.model_version,
         decision_id=args.decision_id, note=args.note,
     )  # fmt: skip
-    run = operator_for(_executor(_plane())).investigate(task)
+    engine = _engine()
+    run = operator_for(_executor(_plane(engine))).investigate(task)
+    # The ops monitor sees agent_* metrics (alert agent_provider_degraded) only through a
+    # snapshot: an investigation is a batch job (ADR 0020).
+    publish_batch(engine, "agent")
     _print(run.as_dict())
     return 0 if run.outcome == "completed" and run.grounded else 1
 

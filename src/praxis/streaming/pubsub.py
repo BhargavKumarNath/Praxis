@@ -27,7 +27,13 @@ from google.protobuf import duration_pb2
 
 from praxis.errors import TransientError
 from praxis.streaming.topology import SubscriptionSpec, Topology
-from praxis.streaming.transport import ConsumerCrashed, Delivery, Disposition, Worker
+from praxis.streaming.transport import (
+    ConsumerCrashed,
+    Delivery,
+    FlowControl,
+    Worker,
+    process_pull,
+)
 
 EMULATOR_ENV = "PUBSUB_EMULATOR_HOST"
 
@@ -193,13 +199,17 @@ def run_pull_loop(
 ) -> PullLoopReport:
     """Pull, process, ack / nack until idle for ``idle_timeout_s`` (or a delivery cap).
 
+    One call is one consumer process: its lease window starts at one message and grows to
+    ``max_messages`` (``FlowControl``, ADR 0025); a crash ends the call.
+
     ``heartbeat`` runs once per pull (e.g. a throttled metric-snapshot publisher)."""
     report = PullLoopReport()
+    flow = FlowControl(max_messages)
     last_activity = time.monotonic()
     while max_deliveries is None or report.deliveries < max_deliveries:
         if heartbeat is not None:
             heartbeat()
-        deliveries = puller.pull(max_messages, timeout_s=max(1.0, min(idle_timeout_s, 5.0)))
+        deliveries = puller.pull(flow.limit, timeout_s=max(1.0, min(idle_timeout_s, 5.0)))
         report.pulls += 1
         if not deliveries:
             if time.monotonic() - last_activity >= idle_timeout_s:
@@ -207,24 +217,8 @@ def run_pull_loop(
             continue
         last_activity = time.monotonic()
         report.deliveries += len(deliveries)
-        groups = [deliveries] if worker.batches else [[d] for d in deliveries]
         try:
-            for group in groups:
-                dispositions = worker.process(group)
-                acks = [
-                    d.ack_id
-                    for d, s in zip(group, dispositions, strict=True)
-                    if s is Disposition.ACK
-                ]
-                nacks = [
-                    d.ack_id
-                    for d, s in zip(group, dispositions, strict=True)
-                    if s is Disposition.NACK
-                ]
-                puller.ack(acks)
-                puller.nack(nacks)
-                report.acks += len(acks)
-                report.nacks += len(nacks)
+            process_pull(worker, flow, deliveries, puller.ack, puller.nack, report)
         except ConsumerCrashed:
             report.crashed = True  # in-flight leases expire; Pub/Sub redelivers them
             break

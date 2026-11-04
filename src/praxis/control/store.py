@@ -363,6 +363,13 @@ class ControlPlaneStore:
             return int(result.rowcount)
 
     # --- reads ------------------------------------------------------------------------
+    def has_processed_events(self) -> bool:
+        """True once any consumer has processed an event into this control plane."""
+        with transient_errors(), self.engine.connect() as conn:
+            return bool(
+                conn.execute(text("SELECT EXISTS (SELECT 1 FROM processed_events)")).scalar()
+            )
+
     def dead_letter_counts(self) -> dict[str, int]:
         """Open (not redriven) dead letters by reason."""
         with transient_errors(), self.engine.connect() as conn:

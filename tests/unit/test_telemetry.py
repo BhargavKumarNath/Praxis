@@ -94,3 +94,32 @@ def test_use_telemetry_restores_previous(tel: Telemetry) -> None:
     with use_telemetry() as other:
         assert telemetry() is other
     assert telemetry() is tel
+
+
+def test_increase_subtracts_cumulative_series_and_keeps_gauges() -> None:
+    bounds = (10.0, 20.0)
+    old = MetricsView((
+        Point("http_requests_total", {"route": "/a", "method": "GET", "status": "200"}, 5.0),
+        Point("http_requests_total", {"route": "/a", "method": "GET", "status": "200"}, 3.0),
+        Point("event_lag_ms", {"subscription": "s"}, 30.0, 2, bounds, (1, 1, 0)),
+        Point("queue_backlog", {"subscription": "s"}, 7.0),
+    ))  # fmt: skip
+    new = MetricsView((
+        Point("http_requests_total", {"route": "/a", "method": "GET", "status": "200"}, 12.0),
+        Point("event_lag_ms", {"subscription": "s"}, 70.0, 4, bounds, (2, 1, 1)),
+        Point("queue_backlog", {"subscription": "s"}, 2.0),
+        Point("http_server_errors_total", {"route": "/a"}, 1.0),
+    ))  # fmt: skip
+    inc = new.increase(old)
+    assert inc.total("http_requests_total") == 4.0  # two instances summed: 12 - 8
+    assert inc.total("http_server_errors_total") == 1.0  # new series: all of it is new
+    (lag,) = inc.select("event_lag_ms")
+    assert (lag.value, lag.count, lag.buckets) == (40.0, 2, (1, 0, 1))
+    assert inc.peak("queue_backlog") == 2.0  # gauges are current state
+
+
+def test_increase_treats_a_drop_as_a_reset() -> None:
+    labels = {"route": "/a", "method": "GET", "status": "200"}
+    before = MetricsView((Point("http_requests_total", labels, 50.0),))
+    after = MetricsView((Point("http_requests_total", labels, 4.0),))  # process restarted
+    assert after.increase(before).total("http_requests_total") == 4.0

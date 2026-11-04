@@ -1893,6 +1893,10 @@ dev = [
     { name = "ruff" },
     { name = "types-jsonschema" },
 ]
+pipeline = [
+    { name = "dbt-core" },
+    { name = "dbt-duckdb" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1931,6 +1935,10 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "types-jsonschema", specifier = ">=4.26.0.20260518" },
+]
+pipeline = [
+    { name = "dbt-core", specifier = ">=1.12.5" },
+    { name = "dbt-duckdb", specifier = ">=1.11.0" },
 ]
 
 [[package]]

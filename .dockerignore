@@ -1,0 +1,22 @@
+# Allowlist: only what the images need. Never .env, credentials, tfvars or state.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!configs/
+!schemas/
+!docs/runbooks/
+!dbt/
+dbt/target
+dbt/logs
+!frontend/
+frontend/node_modules
+frontend/.next
+frontend/test-results
+frontend/test-results-journey.json
+frontend/e2e
+frontend/tsconfig.tsbuildinfo
+**/__pycache__
+**/*.pyc
+**/.env*

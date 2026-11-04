@@ -10,7 +10,7 @@ from praxis.ops.evaluate import Alert
 from praxis.ops.health import HealthReport, build_health
 from praxis.ops.incidents import IncidentManager, IncidentReport
 from praxis.ops.system import SystemReader
-from praxis.telemetry import telemetry
+from praxis.telemetry import MetricsView, telemetry
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class OpsMonitor:
         self.cfg = cfg
         self.manager = manager
         self.reader = reader
+        self._previous: MetricsView | None = None  # the last tick's view (two-window rule)
 
     def tick(self, now: datetime | None = None, *, extra: list[Alert] | None = None) -> Tick:
         now = now or datetime.now(UTC)
@@ -35,7 +36,11 @@ class OpsMonitor:
         else:
             system = self.reader.read(now)
             view, inputs = system.view, system.inputs()
-        health = build_health(self.cfg, view, self.manager.store.live(), now=now, inputs=inputs)
+        recent = view.increase(self._previous) if self._previous is not None else None
+        self._previous = view
+        health = build_health(
+            self.cfg, view, self.manager.store.live(), now=now, inputs=inputs, recent=recent
+        )
         report = self.manager.process(health.alerts() + (extra or []), now)
         return Tick(health, report)
 

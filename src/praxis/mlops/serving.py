@@ -37,8 +37,13 @@ from praxis.forecasting.service import (
 )
 from praxis.mlops.shadow import ShadowRecorder
 from praxis.mlops.store import RegistryStore, VersionRow
+from praxis.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
+
+
+# The metric label every forecast serving path uses (``ForecastService`` emits the same one).
+SERVING_MODEL = "demand_forecast"
 
 
 class ServingUnavailable(RuntimeError):
@@ -140,15 +145,27 @@ class RegistryForecaster:
         return changed
 
     def _service(self, row: VersionRow, current: ForecastService | None) -> ForecastService | None:
+        """The service for ``row``; ``model_serving_refused{stage}`` says whether the
+        registry's version of that stage is the one actually loaded (ops alert
+        ``model_unservable``): a refusal is otherwise invisible, because the last good
+        version keeps answering."""
         if current is not None and current.model_version == row.model_version:
+            self._refused(row, False)
             return current
         try:
             art = load_registered(row)
         except (ArtifactError, OSError, KeyError, ValueError):
             self.counters[f"refresh_refused_total:{row.stage.value}"] += 1
+            self._refused(row, True)
             logger.exception("mlops.serving_refused", extra={"model_version": row.model_version})
             return None
+        self._refused(row, False)
         return self._factory(art, self.source)
+
+    @staticmethod
+    def _refused(row: VersionRow, refused: bool) -> None:
+        telemetry().set("model_serving_refused", 1.0 if refused else 0.0,
+                        model=SERVING_MODEL, stage=row.stage.value)  # fmt: skip
 
     def _require(self) -> Active:
         self.refresh()
@@ -177,7 +194,11 @@ class RegistryForecaster:
         horizons: Sequence[int] | None = None,
         planned_prices: Mapping[str, int] | None = None,
     ) -> ForecastResult:
-        active = self._require()
+        try:
+            active = self._require()
+        except ServingUnavailable:  # counted like any unavailable inference (inference_failures)
+            telemetry().inc("model_inference_total", model=SERVING_MODEL, outcome="unavailable")
+            raise
         if active.shadow is None:
             return active.champion.forecast(series, horizons, planned_prices)
         snap = active.champion.fetch_snapshot()

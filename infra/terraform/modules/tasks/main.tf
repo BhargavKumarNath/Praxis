@@ -27,11 +27,13 @@ resource "google_cloud_tasks_queue" "payment_retries" {
 }
 
 # Only the dunning service may create / delete tasks; least privilege (CLAUDE.md s17).
+# Keyed by a static name: the member is a service-account email known only at apply time
+# (a `count` on it failed the first real plan, 2026-11-01).
 resource "google_cloud_tasks_queue_iam_member" "enqueuer" {
-  count    = var.enqueuer_member == null ? 0 : 1
+  for_each = var.enqueuer_members
   project  = var.project_id
   location = var.location
   name     = google_cloud_tasks_queue.payment_retries.name
   role     = "roles/cloudtasks.enqueuer"
-  member   = var.enqueuer_member
+  member   = each.value
 }

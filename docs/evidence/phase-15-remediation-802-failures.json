@@ -1,0 +1,864 @@
+{
+  "phase": 15,
+  "suite": "resilience",
+  "generated_at": "2026-11-01T15:21:48.494622+00:00",
+  "criteria_version": "2026-11-01.2",
+  "criteria_path": "remediation.toml",
+  "criteria_sha256": "9328255d1f5ffb8d23709bf3c422d42a8d0818585ac8bd83b2517b2bd255a811",
+  "supersedes": {
+    "criteria_version": "2026-11-01.1",
+    "criteria_sha256": "4810c7dbbc980b61cc8a0eab6ca18ac51789477ef2182fbe631fcf138aef3b14",
+    "evidence": "docs/evidence/phase-15-failures.json (kept unchanged)"
+  },
+  "code_revision": {
+    "commit": "2272c3ad6bab3ab04ba5644e8abcb6315504c27c",
+    "dirty": true
+  },
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43"
+  },
+  "run": {
+    "tick_interval_s": 60,
+    "clear_after_ticks": 2,
+    "sim_seed": 1,
+    "fault_seed": 802,
+    "burst_customers": 500,
+    "burst_days": 28,
+    "burst_duplicate_rate": 0.2,
+    "crash_customers": 200,
+    "crash_days": 14,
+    "crash_rate": 0.01,
+    "fetch_timeout_s": 0.2,
+    "db_statement_timeout_ms": 200,
+    "db_timeout_requests": 25
+  },
+  "data_origin": "SYNTHETIC (simulator worlds, fixtures, local services; no real customer)",
+  "passed": 12,
+  "total": 12,
+  "gate": "PASS",
+  "failures": [
+    {
+      "failure_id": "source_timeout",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "source_timeout",
+        "plan_item": "external API timeout",
+        "injection": "local HTTP server accepts the connection and never answers; real httpx read timeout on every attempt",
+        "expected": "the batch is reported unavailable after the bounded retries; no warehouse row changes; no alert while the newest observation is within the freshness limit; source_stale fires on the first tick after the limit",
+        "recovery": "the source answers again: the next ingest stores the window, source_stale clears",
+        "alerts": [
+          "source_stale"
+        ],
+        "quiet": [
+          "data_contract_failure"
+        ],
+        "max_ticks_to_detect": 1,
+        "required_test": "source timeout",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "source_timeout",
+        "actual": "ingest outcome unavailable after 3 attempts in 0.60 s; warehouse unchanged=True; alerts within the freshness budget=[]",
+        "detection_ticks": {
+          "source_stale": 1
+        },
+        "detection_wall_ms": {
+          "source_stale": 13.881
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "recovery ingest {'stored': 1, 'duplicate': 0, 'quarantined': 0, 'unavailable': 0, 'rejected': 0, 'missing_credential': 0, 'new_records': 96}; 96 new rows",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "attempts": 3,
+          "max_attempts": 3,
+          "per_attempt_timeout_s": 0.2,
+          "backoff_s_requested": [
+            1.0,
+            2.0
+          ],
+          "fetch_elapsed_s": 0.603,
+          "freshness_limit_h": 48.0,
+          "alerts_within_budget": [],
+          "incidents_notified": [
+            "opened",
+            "resolved"
+          ]
+        },
+        "detection_time_s": {
+          "source_stale": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "source_malformed",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "source_malformed",
+        "plan_item": "malformed source payload",
+        "injection": "local HTTP server returns a body that violates the source contract (schema drift)",
+        "expected": "the batch is quarantined: raw body archived with its checksum, zero normalised rows, quality status recorded; data_contract_failure pages on the first tick",
+        "recovery": "a valid body is stored; data_contract_failure clears once the quarantine leaves the 24 h contract window",
+        "alerts": [
+          "data_contract_failure"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "source malformed",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "source_malformed",
+        "actual": "ingest outcome quarantined: contract violation at 'intensity.forecast': int_parsing; raw archived with checksum=True; normalised rows unchanged=True",
+        "detection_ticks": {
+          "data_contract_failure": 1
+        },
+        "detection_wall_ms": {
+          "data_contract_failure": 45.046
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "valid body: {'stored': 1, 'duplicate': 0, 'quarantined': 0, 'unavailable': 0, 'rejected': 0, 'missing_credential': 0, 'new_records': 96}; alert cleared after the 24 h window",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "quarantine_reason": "contract violation at 'intensity.forecast': int_parsing",
+          "batch_id": "d099e6f80355810353be41aca0588251a5bc6bcf1b64966a3044c5e8b6ba4b6e",
+          "checksum_sha256": "0eac2e170db78c63664bdf30e4231698799f373709d46030179d893d595ed376",
+          "incidents_notified": [
+            "opened",
+            "resolved"
+          ]
+        },
+        "detection_time_s": {
+          "data_contract_failure": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "db_timeout",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "db_timeout",
+        "plan_item": "DB timeout",
+        "injection": "another Postgres session holds an ACCESS EXCLUSIVE lock on the webhook inbox; the API engine has a real statement_timeout",
+        "expected": "every webhook delivery during the lock answers 503 (never 2xx without a durable write); webhook_success_slo_breach and api_availability_slo_breach page on the first tick",
+        "recovery": "lock released; Stripe redelivers every event; each is accepted once; both alerts clear",
+        "alerts": [
+          "webhook_success_slo_breach",
+          "api_availability_slo_breach"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "DB timeout",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "db_timeout",
+        "actual": "25 deliveries during the lock -> [503] (['inbox_unavailable']) in 5.14 s; 0 acknowledged without a durable write",
+        "detection_ticks": {
+          "webhook_success_slo_breach": 1,
+          "api_availability_slo_breach": 1
+        },
+        "detection_wall_ms": {
+          "webhook_success_slo_breach": 5140.746,
+          "api_availability_slo_breach": 5140.746
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "redelivery statuses ['accepted']; inbox rows 25",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "statement_timeout_ms": 200,
+          "mean_503_ms": 205.6,
+          "webhook_outcomes": {
+            "inbox_unavailable": 25.0,
+            "accepted": 25.0
+          },
+          "incidents_notified": [
+            [
+              "opened",
+              "api_availability_slo_breach"
+            ],
+            [
+              "opened",
+              "webhook_success_slo_breach"
+            ],
+            [
+              "resolved",
+              "api_availability_slo_breach"
+            ],
+            [
+              "resolved",
+              "webhook_success_slo_breach"
+            ]
+          ]
+        },
+        "detection_time_s": {
+          "webhook_success_slo_breach": 60,
+          "api_availability_slo_breach": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "pubsub_redelivery",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "pubsub_redelivery",
+        "plan_item": "Pub/Sub redelivery",
+        "injection": "Pub/Sub emulator: the consumer applies events then loses the ack (deadline expires) and the publisher retries a batch; the emulator redelivers",
+        "expected": "each redelivered copy is recognised as a duplicate and acked without a second side effect; no alert (a normal at-least-once condition)",
+        "recovery": "automatic: control-plane state equals the oracle; no open dead letter",
+        "alerts": [],
+        "quiet": [
+          "dlq_backlog_high",
+          "queue_backlog_high"
+        ],
+        "max_ticks_to_detect": 1,
+        "required_test": "Pub/Sub duplicate",
+        "signal": "events_consumed_total",
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "pubsub_redelivery",
+        "actual": "100 deliveries applied then their ack lost; 83 stateful events re-published; restarted consumer saw 215 deliveries in 25.8 s, 183 recognised as duplicates",
+        "detection_ticks": {},
+        "detection_wall_ms": {},
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "state == oracle: True",
+        "clear_ticks": 1,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": 183,
+        "signal_expected": 183,
+        "evidence": {
+          "ack_deadline_s": 10,
+          "stateful_events": 132,
+          "processed_rows": 132,
+          "ledger_entries": 14
+        },
+        "detection_time_s": {},
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "consumer_crash",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "consumer_crash",
+        "plan_item": "service restart (consumer)",
+        "injection": "seeded CrashPlan kills the operational and warehouse consumers before and after side effects (LocalPipeline over Postgres + DuckDB); then a poison storm: the payment.failed event of each of 12 fresh customer flows kills both consumers on EVERY delivery",
+        "expected": "isolated crashes are redelivered to a restarted consumer and applied once, with zero dead letters; in the poison storm exactly the 12 poison events are dead-lettered on each subscription, no healthy message is dead-lettered, and dlq_backlog_high pages on the first tick",
+        "recovery": "the fix is deployed (consumers without the poison crash) and the pubsub-backlog runbook redrive restores every dead letter; state equals the oracle; the alert clears",
+        "alerts": [
+          "dlq_backlog_high"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "consumer crash",
+        "signal": null,
+        "amendment": "v1 expected the crash storm (every event crashes the consumer once) to dead-letter in-flight messages: that encoded the ADR 0009 collateral as expected behaviour. ADR 0025 flow control removes the collateral by design, so a transient crash storm no longer dead-letters anything (tests/streaming scenario 09b). Dead letters must now come only from genuine poison, which the storm therefore injects; 12 poison events exceed the pre-registered dlq_backlog limit of 10 per subscription, so the page is exercised (a single poison message stays below the page limit and is visible on the dashboard). The isolated-crash expectation is unchanged and stated explicitly as zero dead letters. Approved by the owner's Phase 15 remediation instruction (2026-11-01)."
+      },
+      "measured": {
+        "failure_id": "consumer_crash",
+        "actual": "isolated crashes {'operational': 19, 'warehouse': 276} over 12115 events: dead letters 0, state == oracle True; poison storm (12 poison events, crashes {'operational': 60, 'warehouse': 60}): dead letters per subscription {'praxis-local-events-operational': 12, 'praxis-local-events-warehouse': 12}, healthy messages dead-lettered 0",
+        "detection_ticks": {
+          "dlq_backlog_high": 1
+        },
+        "detection_wall_ms": {
+          "dlq_backlog_high": 622.728
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "isolated phase: 0 dead letters (expected 0); storm: only poison dead-lettered True; after the fix and the runbook redrive of 24: state == oracle True, open dead letters 0",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "crashes": {
+            "operational": 19,
+            "warehouse": 276
+          },
+          "storm_crashes": {
+            "operational": 60,
+            "warehouse": 60
+          },
+          "isolated_dead_letters": 0,
+          "storm_dead_letters_per_subscription": {
+            "praxis-local-events-operational": 12,
+            "praxis-local-events-warehouse": 12
+          },
+          "storm_healthy_dead_letters": 0,
+          "poison_events": 12,
+          "redriven": 24,
+          "warehouse_rows": 12223,
+          "crash_seed": 802,
+          "crash_rate": 0.01
+        },
+        "detection_time_s": {
+          "dlq_backlog_high": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "service_restart",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "service_restart",
+        "plan_item": "service restart",
+        "injection": "the ops monitor and the API process are replaced by fresh instances (new engine, new in-memory state) while an alert fires and webhook rows are pending",
+        "expected": "the restarted monitor sees the open incident in Postgres: no duplicate incident, no second notification; webhook rows accepted before the restart are processed after it, once",
+        "recovery": "the incident auto-resolves after the fix; the inbox drains",
+        "alerts": [
+          "dlq_backlog_high"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": null,
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "service_restart",
+        "actual": "after the monitor restart: 1 live incident(s), 1 incident row(s), notifications ['opened', 'resolved']; API restart: accepted ['accepted', 'accepted', 'accepted', 'accepted', 'accepted'], redelivered ['duplicate', 'duplicate', 'duplicate', 'duplicate', 'duplicate'], processor published 5",
+        "detection_ticks": {
+          "dlq_backlog_high": 1
+        },
+        "detection_wall_ms": {
+          "dlq_backlog_high": 10.519
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "restarted monitor notified ['resolved']; inbox processed 5 of 5",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "notifications": [
+            "opened",
+            "resolved"
+          ],
+          "inbox_deliveries": {
+            "evt_rs0": 2,
+            "evt_rs1": 2,
+            "evt_rs2": 2,
+            "evt_rs3": 2,
+            "evt_rs4": 2
+          },
+          "internal_events": 5,
+          "fetches": [
+            "in_rs0",
+            "in_rs1",
+            "in_rs2",
+            "in_rs3",
+            "in_rs4"
+          ]
+        },
+        "detection_time_s": {
+          "dlq_backlog_high": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "model_missing",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "model_missing",
+        "plan_item": "model artifact missing",
+        "injection": "the registry champion's artifact directory is deleted after promotion; separately the API starts with a missing model directory",
+        "expected": "the last good version keeps serving (every 200 carries a registry version) and model_unservable pages; with no loadable model the API answers 503 and inference_failures pages",
+        "recovery": "the artifact is restored: the champion is served on the next refresh and both alerts clear",
+        "alerts": [
+          "model_unservable",
+          "inference_failures"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "model missing",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "model_missing",
+        "actual": "after deletion: 25 calls -> [200] served by ['demand-hybrid-41dd15dfd12c'] (registry champion demand-hybrid-b9653b975043); restarted API: [503]; missing model dir: [503]",
+        "detection_ticks": {
+          "model_unservable": 1,
+          "inference_failures": 1
+        },
+        "detection_wall_ms": {
+          "model_unservable": 909.877,
+          "inference_failures": 181.701
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "after restore: [(200, 'demand-hybrid-b9653b975043')]",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "refused_counter": {
+            "refresh_swapped_total": 2,
+            "refresh_refused_total:champion": 25
+          },
+          "restarted_counter": {
+            "refresh_refused_total:champion": 25,
+            "refresh_swapped_total": 1
+          },
+          "incidents_notified": [
+            [
+              "opened",
+              "model_unservable"
+            ],
+            [
+              "opened",
+              "api_availability_slo_breach"
+            ],
+            [
+              "opened",
+              "inference_failures"
+            ],
+            [
+              "resolved",
+              "model_unservable"
+            ],
+            [
+              "resolved",
+              "api_availability_slo_breach"
+            ],
+            [
+              "resolved",
+              "inference_failures"
+            ]
+          ]
+        },
+        "detection_time_s": {
+          "model_unservable": 60,
+          "inference_failures": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "feature_stale",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "feature_stale",
+        "plan_item": "stale features",
+        "injection": "the warehouse's newest complete feature day is older than the fresh limit, then older than the stale limit (serving clock advanced)",
+        "expected": "within the stale limit the seasonal baseline serves (freshness=stale) and forecast_stale fires; beyond it no forecast is served (503) and inference_failures pages",
+        "recovery": "fresh features: the model serves again and both alerts clear",
+        "alerts": [
+          "forecast_stale",
+          "inference_failures"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "feature stale",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "feature_stale",
+        "actual": "fresh: fresh/model; lag 2 d: [200] ['fallback_baseline'], alerts on the next tick ['forecast_stale']; lag 8 d: [503] ['features_unavailable']",
+        "detection_ticks": {
+          "forecast_stale": 1,
+          "inference_failures": 1
+        },
+        "detection_wall_ms": {
+          "forecast_stale": 745.21,
+          "inference_failures": 667.81
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "fresh again: [(200, 'model')]",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "feature_date": "2026-06-21",
+          "fresh_max_lag_days": 1,
+          "stale_max_lag_days": 7,
+          "forecast_freshness_slo_max_h": 24.0,
+          "forecast_age_hours_at_first_stale_day": 48,
+          "alert_history": [
+            [
+              "2026-11-01T09:01:00+00:00",
+              []
+            ],
+            [
+              "2026-11-01T09:02:00+00:00",
+              [
+                "forecast_stale"
+              ]
+            ],
+            [
+              "2026-11-01T09:03:00+00:00",
+              [
+                "api_availability_slo_breach",
+                "forecast_stale",
+                "inference_failures"
+              ]
+            ],
+            [
+              "2026-11-01T09:04:00+00:00",
+              []
+            ],
+            [
+              "2026-11-01T09:05:00+00:00",
+              []
+            ]
+          ]
+        },
+        "detection_time_s": {
+          "forecast_stale": 60,
+          "inference_failures": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "failed_candidate",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "failed_candidate",
+        "plan_item": "failed candidate",
+        "injection": "a candidate whose artifact fails validation (corrupted checksum) and one that fails the acceptance metrics are submitted to the pipeline",
+        "expected": "both are rejected with a recorded reason in the same run; the champion pointer and the served version are unchanged; no alert (the guard worked)",
+        "recovery": "nothing to recover: production never saw the candidate",
+        "alerts": [],
+        "quiet": [
+          "model_unservable",
+          "inference_failures"
+        ],
+        "max_ticks_to_detect": 1,
+        "required_test": null,
+        "signal": "registry rejection events",
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "failed_candidate",
+        "actual": "corrupted artifact -> stage rejected (failed ['artifact_integrity']); bad recipe -> stage rejected (failed ['backtest_acceptance', 'baseline_comparison', 'segment_regression_vs_baseline', 'champion_non_inferiority']); served versions before/after ['demand-hybrid-41dd15dfd12c']",
+        "detection_ticks": {},
+        "detection_wall_ms": {},
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "champion pointer and served version unchanged",
+        "clear_ticks": null,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": 2,
+        "signal_expected": 2,
+        "evidence": {
+          "rejected": [
+            [
+              "demand-hybrid-b9653b975043",
+              "mlops-automation",
+              "failed checks: artifact_integrity"
+            ],
+            [
+              "demand-hybrid-52bb5c4f86bd",
+              "mlops-automation",
+              "failed checks: backtest_acceptance, baseline_comparison, segment_regression_vs_baseline, champion_non_inferiority"
+            ]
+          ]
+        },
+        "detection_time_s": {},
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "stripe_duplicate",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "stripe_duplicate",
+        "plan_item": "Stripe duplicate event",
+        "injection": "the same signed Stripe event is delivered three times to the webhook route (twice before processing, once after) plus an out-of-order pair",
+        "expected": "one inbox row per event (deliveries counted), the effect is applied once, duplicates are acknowledged 200; webhook_success_slo_breach stays quiet",
+        "recovery": "nothing to recover",
+        "alerts": [],
+        "quiet": [
+          "webhook_success_slo_breach",
+          "api_availability_slo_breach"
+        ],
+        "max_ticks_to_detect": 1,
+        "required_test": null,
+        "signal": "webhook_events_total",
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "stripe_duplicate",
+        "actual": "delivery statuses ['accepted', 'duplicate', 'accepted', 'accepted', 'duplicate']; inbox deliveries for the event 3; processor fetched ['in_dup0001', 'in_ooo0001']; first drain published 2, second 0",
+        "detection_ticks": {},
+        "detection_wall_ms": {},
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "nothing to recover; duplicates acknowledged 200",
+        "clear_ticks": null,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": 2,
+        "signal_expected": 2,
+        "evidence": {
+          "inbox": {
+            "evt_ooo_2": [
+              "processed",
+              1
+            ],
+            "evt_ooo_1": [
+              "processed",
+              1
+            ],
+            "evt_dup0001": [
+              "processed",
+              3
+            ],
+            "evt_ok0": [
+              "pending",
+              1
+            ],
+            "evt_ok1": [
+              "pending",
+              1
+            ],
+            "evt_ok2": [
+              "pending",
+              1
+            ],
+            "evt_ok3": [
+              "pending",
+              1
+            ],
+            "evt_ok4": [
+              "pending",
+              1
+            ],
+            "evt_ok5": [
+              "pending",
+              1
+            ],
+            "evt_ok6": [
+              "pending",
+              1
+            ],
+            "evt_ok7": [
+              "pending",
+              1
+            ],
+            "evt_ok8": [
+              "pending",
+              1
+            ],
+            "evt_ok9": [
+              "pending",
+              1
+            ],
+            "evt_ok10": [
+              "pending",
+              1
+            ],
+            "evt_ok11": [
+              "pending",
+              1
+            ],
+            "evt_ok12": [
+              "pending",
+              1
+            ],
+            "evt_ok13": [
+              "pending",
+              1
+            ],
+            "evt_ok14": [
+              "pending",
+              1
+            ],
+            "evt_ok15": [
+              "pending",
+              1
+            ],
+            "evt_ok16": [
+              "pending",
+              1
+            ],
+            "evt_ok17": [
+              "pending",
+              1
+            ]
+          },
+          "internal_events": 2,
+          "fetches": [
+            "in_dup0001",
+            "in_ooo0001"
+          ],
+          "alerts": []
+        },
+        "detection_time_s": {},
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "agent_unavailable",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "agent_unavailable",
+        "plan_item": "agent API failure",
+        "injection": "the agent's LLM provider raises ProviderUnavailable on every call (with and without the deterministic fallback)",
+        "expected": "with the fallback every investigation completes, grounded; without it the run ends provider_unavailable; zero guarded actions; pricing runs identically; agent_provider_degraded fires on the first tick after 3 investigations",
+        "recovery": "provider restored: investigations use it again and the alert clears once outages fall to 0.25 per investigation or fewer",
+        "alerts": [
+          "agent_provider_degraded"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "agent unavailable",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "agent_unavailable",
+        "actual": "with fallback: [('completed', True, ['down', 'deterministic-triage']), ('completed', True, ['down', 'deterministic-triage']), ('completed', True, ['down', 'deterministic-triage'])]; without: provider_unavailable; pricing executions identical=True; guarded executions 0",
+        "detection_ticks": {
+          "agent_provider_degraded": 1
+        },
+        "detection_wall_ms": {
+          "agent_provider_degraded": 107.223
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "restored provider: completed, providers ['deterministic-triage']",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "provider_failures_counted": 4,
+          "requests_created": [],
+          "fallback_audit_events": 3,
+          "pricing_executions": 1,
+          "incidents_notified": [
+            [
+              "opened",
+              "agent_provider_degraded"
+            ],
+            [
+              "resolved",
+              "agent_provider_degraded"
+            ]
+          ]
+        },
+        "detection_time_s": {
+          "agent_provider_degraded": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    },
+    {
+      "failure_id": "event_burst",
+      "verdict": "PASS",
+      "reasons": [],
+      "criteria": {
+        "id": "event_burst",
+        "plan_item": "sudden event burst",
+        "injection": "the whole seed-1 world (500 customers x 28 days) is published as one burst with 20% broker duplicates (fault seed 801), before any consumer runs",
+        "expected": "queue_backlog_high pages on the first tick after the burst; consumers drain it; no message is lost or applied twice",
+        "recovery": "backlog drained, state equals the oracle, no open dead letter, the alert clears",
+        "alerts": [
+          "queue_backlog_high"
+        ],
+        "quiet": [],
+        "max_ticks_to_detect": 1,
+        "required_test": "event burst",
+        "signal": null,
+        "amendment": null
+      },
+      "measured": {
+        "failure_id": "event_burst",
+        "actual": "52745 events published in one burst; peak backlog {'operational': 2764, 'warehouse': 63364, 'monitoring': 63451, 'dlq-inspect': 0}; drained in 19.8 s (6,555 deliveries/s); backlog after {'operational': 0, 'warehouse': 0, 'monitoring': 0, 'dlq-inspect': 0}",
+        "detection_ticks": {
+          "queue_backlog_high": 1
+        },
+        "detection_wall_ms": {
+          "queue_backlog_high": 1654.03
+        },
+        "quiet_fired": [],
+        "recovered": true,
+        "recovery_actual": "state == oracle True; dead letters {}",
+        "clear_ticks": 2,
+        "data_loss": 0,
+        "duplicate_side_effects": 0,
+        "signal_observed": null,
+        "signal_expected": null,
+        "evidence": {
+          "events": 52745,
+          "deliveries": 129579,
+          "duplicate_rate": 0.2,
+          "fault_seed": 802,
+          "drain_s": 19.77,
+          "peak_backlog": {
+            "operational": 2764,
+            "warehouse": 63364,
+            "monitoring": 63451,
+            "dlq-inspect": 0
+          }
+        },
+        "detection_time_s": {
+          "queue_backlog_high": 60
+        },
+        "data_loss_status": "none",
+        "duplicate_side_effect_status": "none"
+      }
+    }
+  ]
+}

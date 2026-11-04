@@ -35,7 +35,7 @@ from praxis.streaming.pipeline import (
     subscription_consistent,
 )
 from praxis.streaming.producer import replay_archive
-from praxis.streaming.redrive import redrive_dead_letters
+from praxis.streaming.redrive import redrive_all, redrive_dead_letters
 from praxis.streaming.topology import DLQ_INSPECT, MONITORING, OPERATIONAL, WAREHOUSE
 from praxis.tracing import current_correlation_id, current_trace_id
 from tests.streaming.helpers import customer_lifecycle, invoice_lifecycle, sim_events
@@ -313,28 +313,47 @@ def test_scenario_09_failure_after_side_effect_before_ack(
     assert p.store.dead_letter_counts() == {}
 
 
-def test_scenario_09b_crash_storm_burns_retries_of_in_flight_messages(
+def test_scenario_09b_crash_storm_dead_letters_nothing(
     make_pipeline: Callable[..., LocalPipeline],
 ) -> None:
-    """Finding: a consumer that crashes on every event exhausts the delivery attempts of
-    messages leased alongside the crashing one, so innocent messages can reach the DLQ.
-    Correctness still holds: nothing is applied twice, the dead letters are visible, and
-    a redrive after the fault is fixed restores the exact final state."""
+    """Every event crashes each consumer once, after its side effect. ADR 0009 measured
+    that this dead-lettered 14 innocent in-flight messages (each crash burned an attempt
+    of every message leased with it); with ADR 0025 flow control (slow start, redeliveries
+    processed alone) each crash strands only the in-flight lease, so nothing reaches the
+    DLQ and the final state needs no redrive."""
     ids = {e["event_id"] for e in FLOW}
     p = make_pipeline(
         crash_plans={OPERATIONAL: CrashPlan(after=set(ids)), WAREHOUSE: CrashPlan(after=set(ids))}
     )
     p.run(FLOW)
-    # Deterministic for this seed-free plan: each crash costs every in-flight message one
-    # attempt. Warehouse batches lose all 9 after 5 crashes; operational acks 4, loses 5.
-    assert p.store.dead_letter_counts() == {"max_delivery_attempts_exceeded": 14}
-    assert p.reports[OPERATIONAL].crashes == p.reports[WAREHOUSE].crashes == MAX_ATTEMPTS
-    assert p.store.snapshot()["ledger_entries"] == 0
-    report = redrive_dead_letters(p.store, p.broker, p.topology.events_topic)
-    assert report.republished == 14
-    p.drain()
-    _assert_flow_final(p)
     assert p.store.dead_letter_counts() == {}
+    stateful = [e for e in FLOW if not e["event_type"].startswith(("usage", "request"))]
+    assert p.reports[OPERATIONAL].crashes == len(stateful)  # once per event, never more
+    assert p.reports[WAREHOUSE].crashes > 0
+    _assert_flow_final(p)
+
+
+def test_scenario_09c_process_killing_poison_is_isolated(
+    make_pipeline: Callable[..., LocalPipeline],
+) -> None:
+    """A message that kills the consumer on EVERY delivery (a crash, not an exception) is
+    dead-lettered after max_delivery_attempts; nothing delivered with it is, and a redrive
+    after the fix applies it once."""
+    poison = OK2["event_id"]
+    p = make_pipeline(
+        crash_plans={OPERATIONAL: CrashPlan(poison={poison}), WAREHOUSE: CrashPlan(poison={poison})}
+    )
+    p.run(FLOW)
+    assert p.store.dead_letter_counts() == {"max_delivery_attempts_exceeded": 2}
+    with p.store.engine.connect() as conn:
+        dead = conn.execute(text("SELECT event_id, delivery_attempt FROM dead_letters")).all()
+    assert {tuple(r) for r in dead} == {(poison, MAX_ATTEMPTS)}
+    assert p.reports[OPERATIONAL].crashes == p.reports[WAREHOUSE].crashes == MAX_ATTEMPTS
+    fixed = make_pipeline()  # the fix is deployed: a consumer without the poison crash
+    assert redrive_all(fixed.store, fixed.broker, fixed.topology.events_topic).republished == 2
+    fixed.drain()
+    _assert_flow_final(fixed)
+    assert fixed.store.dead_letter_counts() == {}
 
 
 # 10 ---------------------------------------------------------------------------------

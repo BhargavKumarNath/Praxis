@@ -80,6 +80,9 @@ METRICS: dict[str, MetricSpec] = dict(
         _spec("model_inference_total", "counter", "Model calls", "model", "outcome"),
         _spec("model_inference_duration_ms", "histogram", "Model call latency", "model"),
         _spec("model_version_info", "gauge", "1 for the serving version", "model", "version"),
+        # 1 while the registry's version of that stage cannot be loaded (a last good version,
+        # if any, keeps serving); 0 once it loads (Phase 15, ADR 0023)
+        _spec("model_serving_refused", "gauge", "Registry version refused", "model", "stage"),
         _spec("forecast_age_hours", "gauge", "Age of the freshest forecast inputs", "model"),
         _spec("model_drift_alarm", "gauge", "1 while a drift alarm is active", "model"),
         _spec("model_calibration_80", "gauge", "80% interval coverage", "model"),
@@ -92,6 +95,8 @@ METRICS: dict[str, MetricSpec] = dict(
         # AI operator (Phase 12): tool is a declared tool name or "undeclared" (bounded)
         _spec("agent_tool_calls_total", "counter", "Agent tool calls", "tool", "tier", "status"),
         _spec("agent_investigations_total", "counter", "Agent runs", "provider", "outcome"),
+        # one per investigation step whose provider raised ProviderUnavailable (Phase 15)
+        _spec("agent_provider_failures_total", "counter", "Agent provider outages", "provider"),
     ]
 )
 
@@ -169,6 +174,55 @@ class MetricsView:
             if seen >= target:
                 return bounds[i] if i < len(bounds) else float("inf")
         return float("inf")
+
+    def increase(self, since: MetricsView) -> MetricsView:
+        """What happened between ``since`` and this view: counters and histograms become
+        their increase, gauges keep their current value.
+
+        Series are compared after summing the points that share a name and labels (a fleet
+        view holds one point per process). A series that went DOWN was reset (a process
+        restarted or its snapshot expired), so its current total is the increase, as in
+        Prometheus ``increase()``.
+        """
+        before = _cumulative_totals(since)
+        out: list[Point] = []
+        for key, now in _cumulative_totals(self).items():
+            old = before.get(key)
+            if (
+                old is not None
+                and old.count <= now.count
+                and old.value <= now.value
+                and all(a <= b for a, b in zip(old.buckets, now.buckets, strict=False))
+            ):
+                now = Point(
+                    now.name, now.labels, now.value - old.value, now.count - old.count,
+                    now.bounds, tuple(b - a for a, b in zip(old.buckets, now.buckets, strict=True)),
+                )  # fmt: skip
+            out.append(now)
+        gauges = [p for p in self.points if not _is_cumulative(p.name)]
+        return MetricsView(tuple(out + gauges))
+
+
+def _is_cumulative(name: str) -> bool:
+    spec = METRICS.get(name)
+    return spec is not None and spec.kind != "gauge"
+
+
+def _cumulative_totals(view: MetricsView) -> dict[tuple[str, tuple[tuple[str, str], ...]], Point]:
+    totals: dict[tuple[str, tuple[tuple[str, str], ...]], Point] = {}
+    for p in view.points:
+        if not _is_cumulative(p.name):
+            continue
+        key = (p.name, tuple(sorted(p.labels.items())))
+        acc = totals.get(key)
+        if acc is None:  # every histogram shares LATENCY_BOUNDS_MS
+            totals[key] = Point(p.name, dict(p.labels), p.value, p.count, p.bounds, p.buckets)
+            continue
+        totals[key] = Point(
+            p.name, acc.labels, acc.value + p.value, acc.count + p.count, p.bounds,
+            tuple(a + b for a, b in zip(acc.buckets, p.buckets, strict=True)),
+        )  # fmt: skip
+    return totals
 
 
 class Telemetry:

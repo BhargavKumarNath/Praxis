@@ -164,7 +164,7 @@ jobs:
           if-no-files-found: ignore
 
   terraform:
-    name: terraform fmt + validate
+    name: terraform fmt + validate + mocked destroy/recreate test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -172,4 +172,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.16.5 # same as TF_IMAGE in the Makefile
+          terraform_wrapper: false
       - run: make tf-check

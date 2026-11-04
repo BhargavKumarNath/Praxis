@@ -1,0 +1,60 @@
+# Live world (ADR 0027). SYNTHETIC. Overlay on configs/simulator/default.toml.
+#
+# The world the deployed system operates on: one simulated day per real day. The daily live
+# tick re-runs this world with `--days` = the number of days observed so far (start_date
+# through yesterday, UTC), so the newest day appears once it has happened and no day is ever
+# visible early. `arrival_horizon_days` is FIXED so that a longer run shares the exact
+# population and therefore the exact earlier days of a shorter one (the prefix property,
+# tests/live/test_world.py). Without it the arrival process would depend on the run length.
+#
+# PRE-REGISTERED 2026-11-04, before any live tick ran. This is an operating environment, not
+# an evaluation world: nothing measured on it is evidence for a pre-registered gate, and its
+# seed (9001, live.seed in configs/live/live.toml) is used by no other phase.
+#
+# Organic change is left ON (default growth ~ N(0.002, 0.004)/day, compounding): ADR 0017
+# measured that it moves a frozen champion's error by up to 1.41x over ~2 months, which is
+# the environment change the drift monitor exists for. One scheduled, sustained regime
+# change is added below and written down here in advance, so a detection is not a surprise
+# chosen after the fact.
+
+[run]
+start_date = "2026-04-06"   # a Monday; the live clock maps day d to start_date + d
+days = 212                  # placeholder; every tick passes --days
+
+[population]
+# New customers keep arriving for two years of live operation (uniformly over days 1..729).
+arrival_horizon_days = 730
+
+# Seasonal-scale demand spikes, as in the forecast world (difficult, short-lived).
+[[infrastructure.demand_spikes]]
+region = "eu_west"
+start_day = 40
+end_day = 46
+multiplier = 1.6
+
+[[infrastructure.demand_spikes]]
+region = "us_west"
+start_day = 61
+end_day = 65
+multiplier = 1.7
+
+[[infrastructure.demand_spikes]]
+region = "us_east"
+product = "api_requests"
+start_day = 95
+end_day = 100
+multiplier = 2.0
+
+[[infrastructure.demand_spikes]]
+region = "ap_southeast"
+start_day = 120
+end_day = 128
+multiplier = 1.5
+
+# Scheduled regime change: from day 238 (2026-11-30) us_east demand is 40 % higher for
+# about six months. Sustained, so it is a change in the environment, not noise.
+[[infrastructure.demand_spikes]]
+region = "us_east"
+start_day = 238
+end_day = 420
+multiplier = 1.4

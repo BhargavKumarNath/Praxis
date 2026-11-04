@@ -29,7 +29,7 @@ flowchart LR
 | Archive | `praxis.streaming.archive` | Append-only, content-addressed, checksum verified on read |
 | Runtime | `praxis.streaming.runtime` | Decode, bind trace context, classify failures, DLQ routing, latency metrics |
 | Operational | `praxis.streaming.consumers.operational` + `praxis.control.store` | Exactly-once *effect*: idempotency row and refold in one transaction |
-| Warehouse | `praxis.streaming.consumers.warehouse` | Batched `INSERT ... ON CONFLICT (event_id) DO NOTHING` |
+| Warehouse | `praxis.streaming.consumers.warehouse` | Batched insert-if-absent on `event_id`: primary-key lookup, then a plain INSERT of new rows (same projection and result as the loader's `ON CONFLICT (event_id) DO NOTHING`, which stays the race fallback; ADR 0025 amendment 1) |
 | Monitoring | `praxis.streaming.consumers.monitoring` | Delivery telemetry; best-effort duplicate detection |
 | DLQ inspector | `praxis.streaming.consumers.dead_letter` | Every dead letter stored once, with reason, attempts and trace IDs |
 | Redrive | `praxis.streaming.redrive` | Operator-triggered republish of decodable dead letters; same `event_id`, fresh `praxis_sent_at` so latency counts from the redrive |

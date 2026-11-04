@@ -6,6 +6,9 @@ import type { NextConfig } from "next";
 const consoleApi = process.env.PRAXIS_CONSOLE_API_URL ?? "http://127.0.0.1:8001";
 
 const nextConfig: NextConfig = {
+  // The container build (infra/docker/web.Dockerfile) sets NEXT_OUTPUT=standalone; local dev
+  // and the E2E journey keep the default output.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   reactStrictMode: true,
   poweredByHeader: false,
   devIndicators: false,

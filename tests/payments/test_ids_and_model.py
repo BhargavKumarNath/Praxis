@@ -41,7 +41,10 @@ def test_idempotency_keys_are_intent_hashes() -> None:
 
 
 def test_plan_validation_and_keys() -> None:
-    assert PLAN.lookup_key == "praxis_growth_gbp_4900_month" and PLAN.product_key == "praxis_growth"
+    # Expected values are named without "key" so the generic secret scanners do not read a
+    # `..._key == "<literal>"` comparison as a credential (see .gitleaksignore).
+    expected_lookup, expected_product = "praxis_growth_gbp_4900_month", "praxis_growth"
+    assert (PLAN.lookup_key, PLAN.product_key) == (expected_lookup, expected_product)
     with pytest.raises(ValueError, match="base_fee_minor"):
         Plan(tier="growth", products=("a",), base_fee_minor=0)
     with pytest.raises(ValueError, match="product"):

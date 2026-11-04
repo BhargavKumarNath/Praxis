@@ -1,0 +1,440 @@
+{
+  "project": "praxis-dev-510522",
+  "region": "us-central1",
+  "at": "2026-11-01T22:22:54.122818+00:00",
+  "synthetic": true,
+  "passed": 46,
+  "total": 46,
+  "checks": [
+    {
+      "check": "api: no public IAM binding",
+      "expected": "no allUsers/allAuthenticatedUsers",
+      "observed": "private",
+      "pass": true
+    },
+    {
+      "check": "api: anonymous / rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "api: anonymous /v1/ops/health rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "api: anonymous /v1/budget rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "console: no public IAM binding",
+      "expected": "no allUsers/allAuthenticatedUsers",
+      "observed": "private",
+      "pass": true
+    },
+    {
+      "check": "console: anonymous / rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "console: anonymous /v1/ops/health rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "console: anonymous /v1/budget rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "spend-guard: no public IAM binding",
+      "expected": "no allUsers/allAuthenticatedUsers",
+      "observed": "private",
+      "pass": true
+    },
+    {
+      "check": "spend-guard: anonymous / rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "spend-guard: anonymous /v1/ops/health rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "spend-guard: anonymous /v1/budget rejected by IAM",
+      "expected": "403",
+      "observed": 403,
+      "pass": true
+    },
+    {
+      "check": "spend-guard: service policy invokers",
+      "expected": [
+        "serviceAccount:praxis-dev-guard@praxis-dev-510522.iam.gserviceaccount.com"
+      ],
+      "observed": [
+        "serviceAccount:praxis-dev-guard@praxis-dev-510522.iam.gserviceaccount.com"
+      ],
+      "pass": true
+    },
+    {
+      "check": "spend-guard: project Owner (inherits run.invoker) posts an empty body",
+      "expected": "200 ignore (unusable message acked; billing untouched)",
+      "observed": "200 {\"action\":\"ignore\",\"reason\":\"not a Pub/Sub push envelope\"}",
+      "pass": true
+    },
+    {
+      "check": "api /healthz is reserved by Cloud Run's frontend (use /v1/ops/health)",
+      "expected": "404 from Google, never the container",
+      "observed": 404,
+      "pass": true
+    },
+    {
+      "check": "api model loaded (checksum-verified at start)",
+      "expected": "200, demand-hybrid-24c8b0b1de4d",
+      "observed": 200,
+      "pass": true
+    },
+    {
+      "check": "api forecast freshness contract (synthetic world ends 2026-09-13)",
+      "expected": "503 features_unavailable: features older than the 7-day limit",
+      "observed": "503 {\"error\":\"features_unavailable\",\"correlation_id\":\"b58f5953-3958-4d25-b278-159ff9eff841\",\"detail\":\"latest feature day 2026-09-13 is 49 days old (limit 7)\"}",
+      "pass": true
+    },
+    {
+      "check": "api /v1/ops/health",
+      "expected": "200",
+      "observed": 200,
+      "pass": true
+    },
+    {
+      "check": "api schema not published outside local",
+      "expected": "404",
+      "observed": 404,
+      "pass": true
+    },
+    {
+      "check": "api Stripe webhook unconfigured (no Stripe)",
+      "expected": "503",
+      "observed": 503,
+      "pass": true
+    },
+    {
+      "check": "console UI",
+      "expected": "200 (Next app)",
+      "observed": 200,
+      "pass": true
+    },
+    {
+      "check": "console admin: no approver token",
+      "expected": "401",
+      "observed": 401,
+      "pass": true
+    },
+    {
+      "check": "console admin: named approver",
+      "expected": "200 owner",
+      "observed": "200 {\"approver\":\"owner\"}",
+      "pass": true
+    },
+    {
+      "check": "console approve: wrong token",
+      "expected": "401",
+      "observed": 401,
+      "pass": true
+    },
+    {
+      "check": "console approve: authorized, unknown request",
+      "expected": "404",
+      "observed": 404,
+      "pass": true
+    },
+    {
+      "check": "console read model (Postgres over private VPC)",
+      "expected": "200",
+      "observed": 200,
+      "pass": true
+    },
+    {
+      "check": "pubsub publish (bounded: 100 customer-days, twice)",
+      "expected": "same count twice, > 0",
+      "observed": [
+        932,
+        932
+      ],
+      "pass": true
+    },
+    {
+      "check": "operational: drained and acked, 0 dead-lettered",
+      "expected": "deliveries > 0, acks == deliveries, dead_lettered 0",
+      "observed": {
+        "loop": {
+          "acks": 86,
+          "crashed": false,
+          "deliveries": 86,
+          "nacks": 0,
+          "pulls": 12
+        },
+        "counters": {
+          "deliveries": 86,
+          "status_duplicate": 86
+        }
+      },
+      "pass": true
+    },
+    {
+      "check": "operational: second drain finds nothing (acks held)",
+      "expected": "0 deliveries",
+      "observed": {
+        "acks": 0,
+        "crashed": false,
+        "deliveries": 0,
+        "nacks": 0,
+        "pulls": 4
+      },
+      "pass": true
+    },
+    {
+      "check": "warehouse: drained and acked, 0 dead-lettered",
+      "expected": "deliveries > 0, acks == deliveries, dead_lettered 0",
+      "observed": {
+        "loop": {
+          "acks": 1864,
+          "crashed": false,
+          "deliveries": 1864,
+          "nacks": 0,
+          "pulls": 30
+        },
+        "counters": {
+          "batches": 25,
+          "deliveries": 1864,
+          "status_applied": 1864
+        }
+      },
+      "pass": true
+    },
+    {
+      "check": "warehouse: two copies of every event stored once (idempotent insert)",
+      "expected": "rows == 932 (published once), deliveries >= 1864",
+      "observed": {
+        "rows": 932,
+        "deliveries": 1864
+      },
+      "pass": true
+    },
+    {
+      "check": "warehouse: second drain finds nothing (acks held)",
+      "expected": "0 deliveries",
+      "observed": {
+        "acks": 0,
+        "crashed": false,
+        "deliveries": 0,
+        "nacks": 0,
+        "pulls": 4
+      },
+      "pass": true
+    },
+    {
+      "check": "monitoring: drained and acked, 0 dead-lettered",
+      "expected": "deliveries > 0, acks == deliveries, dead_lettered 0",
+      "observed": {
+        "loop": {
+          "acks": 1864,
+          "crashed": false,
+          "deliveries": 1864,
+          "nacks": 0,
+          "pulls": 31
+        },
+        "counters": {
+          "deliveries": 1864,
+          "duplicate_deliveries": 932,
+          "status_duplicate": 932,
+          "status_observed": 932,
+          "type_conversion.observed": 8,
+          "type_customer.created": 20,
+          "type_price.exposed": 63,
+          "type_request.completed": 51,
+          "type_service.metric_observed": 600,
+          "type_subscription.started": 15,
+          "type_usage.observed": 175,
+          "unique_events_observed": 932
+        }
+      },
+      "pass": true
+    },
+    {
+      "check": "monitoring: duplicates detected, unique events == published",
+      "expected": "unique == 932, duplicates >= 932",
+      "observed": {
+        "unique": 932,
+        "dupes": 932
+      },
+      "pass": true
+    },
+    {
+      "check": "monitoring: second drain finds nothing (acks held)",
+      "expected": "0 deliveries",
+      "observed": {
+        "acks": 0,
+        "crashed": false,
+        "deliveries": 0,
+        "nacks": 0,
+        "pulls": 4
+      },
+      "pass": true
+    },
+    {
+      "check": "dlq-inspect: no dead letters (ops identity)",
+      "expected": "0 deliveries",
+      "observed": {
+        "acks": 0,
+        "crashed": false,
+        "deliveries": 0,
+        "nacks": 0,
+        "pulls": 4
+      },
+      "pass": true
+    },
+    {
+      "check": "ops monitor tick (alerts evaluated into incidents)",
+      "expected": "status reported",
+      "observed": {
+        "alerts": [],
+        "at": "2026-11-01T22:21:43.411477+00:00",
+        "collectors": {
+          "dead_letters": "ok",
+          "revenue": "ok",
+          "warehouse": "ok"
+        },
+        "opened": [],
+        "resolved": [],
+        "stale_processes": [
+          "api",
+          "console",
+          "consumer-dlq-inspect",
+          "consumer-monitoring",
+          "consumer-operational",
+          "consumer-warehouse"
+        ],
+        "status": "ok"
+      },
+      "pass": true
+    },
+    {
+      "check": "spend guard: notification via real topic + OIDC push, below threshold",
+      "expected": "action hold (billing untouched)",
+      "observed": [
+        {
+          "action": "hold",
+          "budget_gbp": "10",
+          "budget_name": "praxis-dev-monthly",
+          "correlation_id": "cfa0cb0a-f6ed-4dd9-97d2-7e57d2b9af2d",
+          "cost_gbp": "0.01",
+          "level": "INFO",
+          "logger": "praxis.api.spend_guard",
+          "message": "budget notification",
+          "reason": "cost GBP 0.01 < guard GBP 8",
+          "service": "praxis-spend-guard",
+          "timestamp": "2026-11-01T22:22:28.254659+00:00",
+          "trace_id": "08e2f14d84c516bd909b0c2304bf9d9d"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "check": "billing still enabled after the guard smoke",
+      "expected": "True",
+      "observed": "True",
+      "pass": true
+    },
+    {
+      "check": "secret database-url: readers",
+      "expected": [
+        "agent",
+        "api",
+        "console",
+        "ops",
+        "streaming"
+      ],
+      "observed": [
+        "agent",
+        "api",
+        "console",
+        "ops",
+        "streaming"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secret stripe-webhook-secret: readers",
+      "expected": [
+        "api"
+      ],
+      "observed": [
+        "api"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secret stripe-api-key: readers",
+      "expected": [
+        "api"
+      ],
+      "observed": [
+        "api"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secret task-token: readers",
+      "expected": [
+        "api"
+      ],
+      "observed": [
+        "api"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secret console-approvers: readers",
+      "expected": [
+        "console"
+      ],
+      "observed": [
+        "console"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secret llm-api-key: readers",
+      "expected": [
+        "agent"
+      ],
+      "observed": [
+        "agent"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secret postgres-password: readers",
+      "expected": [
+        "db"
+      ],
+      "observed": [
+        "db"
+      ],
+      "pass": true
+    }
+  ]
+}

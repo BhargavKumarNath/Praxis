@@ -164,3 +164,40 @@ resource "google_pubsub_subscription_iam_member" "dlq_source_subscriber" {
   role         = "roles/pubsub.subscriber"
   member       = local.pubsub_agent
 }
+
+# Runtime grants (Phase 15, ADR 0024): resource-level only, never project-level.
+locals {
+  subscription_names = {
+    operational = google_pubsub_subscription.operational.name
+    warehouse   = google_pubsub_subscription.warehouse.name
+    monitoring  = google_pubsub_subscription.monitoring.name
+    dunning     = google_pubsub_subscription.dunning.name
+    dlq_inspect = google_pubsub_subscription.dead_letter_inspect.name
+  }
+}
+
+resource "google_pubsub_topic_iam_member" "publisher" {
+  for_each = var.publisher_members
+  project  = var.project_id
+  topic    = google_pubsub_topic.events.name
+  role     = "roles/pubsub.publisher"
+  member   = each.value
+}
+
+resource "google_pubsub_subscription_iam_member" "subscriber" {
+  for_each     = var.subscriber_members
+  project      = var.project_id
+  subscription = local.subscription_names[each.key]
+  role         = "roles/pubsub.subscriber"
+  member       = each.value
+}
+
+# The consumers' DeadLetterRouter (praxis.streaming.runtime) publishes a non-retryable message
+# to the DLQ topic itself; without this grant the first cloud dead letter fails with 403.
+resource "google_pubsub_topic_iam_member" "dlq_router" {
+  for_each = var.dead_letter_publisher_members
+  project  = var.project_id
+  topic    = google_pubsub_topic.dead_letter.name
+  role     = "roles/pubsub.publisher"
+  member   = each.value
+}

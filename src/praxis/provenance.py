@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -24,9 +25,12 @@ def _git(*args: str) -> str | None:
 
 
 def code_revision() -> str:
-    """``<short sha>``, with ``-dirty`` when the working tree has uncommitted changes."""
+    """``<short sha>``, with ``-dirty`` when the working tree has uncommitted changes.
+
+    Outside a git checkout (a container image) the revision the image was built from,
+    ``PRAXIS_CODE_REVISION`` (set by the Dockerfile from its REVISION build argument)."""
     sha = _git("rev-parse", "--short", "HEAD")
     if not sha:
-        return "unknown"
+        return os.environ.get("PRAXIS_CODE_REVISION", "").strip() or "unknown"
     dirty = _git("status", "--porcelain", "--untracked-files=no")
     return f"{sha}-dirty" if dirty else sha

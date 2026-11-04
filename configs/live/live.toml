@@ -1,0 +1,27 @@
+# The live loop (ADR 0027). SYNTHETIC. One simulated day per real (UTC) day.
+#
+# PRE-REGISTERED 2026-11-04, before any live tick ran; tests/live/test_config.py pins this
+# file's hash. The model lifecycle policy itself is configs/mlops/demand.toml (ADR 0017) and
+# is NOT changed by the live loop: automation retrains, validates, shadows and rolls back;
+# promotion to champion always needs a named human approver (the console).
+
+[world]
+scenario = "configs/simulator/scenarios/live.toml"
+seed = 9001               # used by no other phase; an operating environment, not evidence
+customers = 1000
+start_date = "2026-04-06" # must equal the scenario's run.start_date (checked at load)
+
+[bootstrap]
+# The first champion is trained on the world through this day (146 days >= the 112-day
+# minimum of the lifecycle policy). The days after it are operated by ordinary ticks, each
+# on point-in-time data, so the loop has real monitoring history when it goes live.
+train_through = "2026-08-30"
+
+[tick]
+# Days of lifecycle catch-up one execution may run (bounds an execution's work after a
+# missed schedule; the next tick continues where this one stopped).
+max_catchup_days = 7
+# When a shadow version has passed, ask the operator (deterministic triage; no LLM is
+# configured in the cloud) to review it: it files a PENDING promotion request, which only a
+# named human can approve in the console.
+review_ready_shadow = true

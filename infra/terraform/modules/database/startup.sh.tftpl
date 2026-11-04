@@ -1,0 +1,44 @@
+#!/bin/bash
+# Runs on every boot (COS keeps /etc and /run stateless). Rendered by Terraform; contains no
+# secret: the password is fetched from Secret Manager into tmpfs at boot.
+set -euo pipefail
+
+DEV=/dev/disk/by-id/google-pgdata
+MNT=/mnt/disks/pgdata
+if ! blkid "$DEV" >/dev/null 2>&1; then
+  mkfs.ext4 -m 0 -E lazy_itable_init=0,lazy_journal_init=0,discard "$DEV"
+fi
+mkdir -p "$MNT"
+mountpoint -q "$MNT" || mount -o discard,defaults "$DEV" "$MNT"
+mkdir -p "$MNT/data"
+
+META=http://metadata.google.internal/computeMetadata/v1
+TOKEN=$(curl -sf -H 'Metadata-Flavor: Google' "$META/instance/service-accounts/default/token" \
+  | sed -n 's/.*"access_token" *: *"\([^"]*\)".*/\1/p')
+mkdir -p /run/praxis
+chmod 0755 /run/praxis
+umask 0222
+curl -sf -H "Authorization: Bearer $TOKEN" \
+  "https://secretmanager.googleapis.com/v1/projects/${project_id}/secrets/${secret_id}/versions/latest:access" \
+  | sed -n 's/.*"data" *: *"\([^"]*\)".*/\1/p' | base64 -d > /run/praxis/pgpass.new
+test -s /run/praxis/pgpass.new
+mv -f /run/praxis/pgpass.new /run/praxis/pgpass
+unset TOKEN
+
+# Postgres only from the private subnet (COS's host firewall drops other inbound traffic).
+iptables -C INPUT -p tcp -s ${cidr} --dport 5432 -j ACCEPT 2>/dev/null \
+  || iptables -A INPUT -p tcp -s ${cidr} --dport 5432 -j ACCEPT
+
+export HOME=/var/lib/praxis-docker
+mkdir -p "$HOME"
+docker-credential-gcr configure-docker --registries=${registry}
+docker pull ${image}
+docker rm -f praxis-postgres >/dev/null 2>&1 || true
+docker run -d --name praxis-postgres --restart=always --network host \
+  --log-opt max-size=10m --log-opt max-file=3 \
+  -v "$MNT/data":/var/lib/postgresql/data \
+  -v /run/praxis/pgpass:/run/secrets/pgpass:ro \
+  -e POSTGRES_USER=${db_user} -e POSTGRES_DB=${db_name} \
+  -e POSTGRES_PASSWORD_FILE=/run/secrets/pgpass \
+  -e POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
+  ${image} ${memory_args} -c listen_addresses='*' -c password_encryption=scram-sha-256

@@ -1,7 +1,9 @@
 # Praxis alert rules (Phase 11, ADR 0018). PRE-REGISTERED 2026-10-25 before the ops drill.
 # Pinned by tests/ops/test_config.py. A rule fires when ANY matching series violates the
 # condition; every rule names its runbook (docs/runbooks/<runbook>.md).
-version = "2026-10-25.1"
+# 2026-11-01.1 (Phase 15, ADR 0023): two rules ADDED before any resilience run, for failures
+# that had no alert (model_unservable, agent_provider_degraded). No existing rule changed.
+version = "2026-11-01.1"
 
 # --- service ---------------------------------------------------------------------------
 [[rule]]
@@ -73,6 +75,36 @@ op = ">"
 threshold = 0.05
 runbook = "broken-candidate-deployment"
 summary = "More than 5% of model inferences are unavailable"
+
+# The last good version keeps serving when the registry's champion cannot be loaded, so
+# inference_failures never fires; without this rule a rollback or promotion that did not
+# take effect is silent.
+[[rule]]
+id = "model_unservable"
+category = "model"
+severity = "page"
+kind = "threshold"
+metric = "model_serving_refused"
+labels = { stage = "champion" }
+op = ">="
+threshold = 1
+runbook = "broken-candidate-deployment"
+summary = "The registry's champion cannot be loaded; production serves an older version or none"
+
+# Provider outages per investigation (a fallback keeps the operator answering, so the
+# outcome stays "completed"). Investigations are rare, hence the small minimum.
+[[rule]]
+id = "agent_provider_degraded"
+category = "service"
+severity = "ticket"
+kind = "threshold"
+metric = "agent_provider_failures_total"
+denominator = "agent_investigations_total"
+min_denominator = 3
+op = ">"
+threshold = 0.25
+runbook = "agent-failure"
+summary = "More than a quarter of agent investigations lost their LLM provider"
 
 # --- data ------------------------------------------------------------------------------
 # Per-source maximum age in seconds = configs/data/sources.toml [freshness] hours * 3600.

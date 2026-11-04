@@ -44,7 +44,8 @@ the delivery pattern.
     after `max_delivery_attempts` (5), so retries are bounded with no in-process retry
     loop.
 * **Acks.** Non-batch workers ack each message as soon as it completes, like the
-  streaming-pull client. Batch workers (the warehouse) ack a batch together and fall back
+  streaming-pull client. Batch workers (the warehouse) ack a batch of first-time
+  deliveries together (redeliveries form their own groups, ADR 0025) and fall back
   to one-by-one processing on a non-transient failure, so one poison message cannot drag
   a whole batch into the DLQ.
 * **Dead letters are visible and recoverable.** The DLQ inspector stores every dead
@@ -73,7 +74,9 @@ the delivery pattern.
 * Measured finding: a consumer that crashes repeatedly also burns delivery attempts of the
   messages leased with it, so a crash storm can dead-letter innocent messages (batch
   consumers are worst affected). Correctness holds and redrive restores state exactly,
-  but crash loops must page someone (Phase 11 alerting).
+  but crash loops must page someone (Phase 11 alerting). **Superseded by ADR 0025
+  (2026-11-01):** slow-start lease windows and evidence tiers keep a crash's cost on the
+  crashing message; transient crash storms no longer dead-letter healthy messages.
 * Monitoring counters count deliveries, including duplicates. Its LRU-based duplicate
   detection is best-effort and resets on restart. Business counts come from the
   idempotent stores.

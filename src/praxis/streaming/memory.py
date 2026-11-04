@@ -31,8 +31,9 @@ from praxis.streaming.transport import (
     DEAD_LETTER_SOURCE_SUBSCRIPTION,
     ConsumerCrashed,
     Delivery,
-    Disposition,
+    FlowControl,
     Worker,
+    process_pull,
 )
 
 DEFAULT_EPOCH = 1_767_225_600.0  # 2026-01-01T00:00:00Z
@@ -269,16 +270,20 @@ def drain(
     batch_size: int = 100,
     max_rounds: int = 10_000_000,
     batch_wait_s: float = 0.0,
+    flow: FlowControl | None = None,
 ) -> DrainReport:
     """Deliver until the subscription is empty, advancing virtual time when idle.
 
-    Batch workers get the whole pull and are acked together; other workers are acked one
-    message at a time as each completes (like the Pub/Sub streaming-pull client), so a
-    crash only strands the messages that were still in flight.
+    Each pull is sized and grouped by ``FlowControl`` / ``process_pull`` (ADR 0025): a
+    batch worker gets its first-time deliveries as one atomic group, every redelivered
+    message is processed alone, and each group is acked as soon as it completes, so a
+    crash only strands the messages that were still in flight. Pass ``flow`` to keep the
+    lease window of a worker that outlives this call (``LocalPipeline`` does).
 
     ``ConsumerCrashed`` models process death: un-acked in-flight messages are neither acked
     nor nacked (their leases expire, their delivery attempt counts grow) and the worker is
-    rebuilt from the factory, losing in-memory state, like a restarted container.
+    rebuilt from the factory, losing in-memory state, like a restarted container; its
+    lease window restarts at one message.
 
     ``batch_wait_s`` is the micro-batch window of batch workers (ADR 0022): when nothing is
     ready, the virtual clock moves to the next wake-up plus this window, like a sink that
@@ -290,9 +295,10 @@ def drain(
         raise ValueError("batch_wait_s must be >= 0")
     report = DrainReport()
     worker = worker_factory()
+    flow = flow if flow is not None else FlowControl(batch_size)
     while report.rounds < max_rounds:
         report.rounds += 1
-        deliveries = broker.pull(subscription, batch_size)
+        deliveries = broker.pull(subscription, flow.limit)
         if not deliveries:
             wake = broker.next_wakeup(subscription)
             if wake is None:
@@ -300,25 +306,17 @@ def drain(
             broker.clock.advance_to(wake + (batch_wait_s if worker.batches else 0.0))
             continue
         report.deliveries += len(deliveries)
-        groups = [deliveries] if worker.batches else [[d] for d in deliveries]
         try:
-            for group in groups:
-                dispositions = worker.process(group)
-                acks = [
-                    d.ack_id
-                    for d, s in zip(group, dispositions, strict=True)
-                    if s is Disposition.ACK
-                ]
-                nacks = [
-                    d.ack_id
-                    for d, s in zip(group, dispositions, strict=True)
-                    if s is Disposition.NACK
-                ]
-                broker.ack(subscription, acks)
-                broker.nack(subscription, nacks)
-                report.acks += len(acks)
-                report.nacks += len(nacks)
+            process_pull(
+                worker,
+                flow,
+                deliveries,
+                lambda ids: broker.ack(subscription, ids),
+                lambda ids: broker.nack(subscription, ids),
+                report,
+            )
         except ConsumerCrashed:
             report.crashes += 1
             worker = worker_factory()
+            flow.restart()
     raise RuntimeError(f"drain of {subscription} did not finish within {max_rounds} rounds")

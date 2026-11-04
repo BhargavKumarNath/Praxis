@@ -35,15 +35,34 @@ _EVENT_FILE_COLUMNS = (
     "'payload':'JSON'}"
 )
 
-_INSERT_EVENTS = (
-    "INSERT INTO raw.sim_events "
+# One projection (casts, derived event_date, provenance) for every event write path, so the
+# batch loader and both streaming paths below can never disagree about an event.
+_EVENT_PROJECTION = (
     "SELECT event_id, event_type, source, schema_version, entity_id, "
     "CAST(occurred_at AS TIMESTAMPTZ), CAST(published_at AS TIMESTAMPTZ), "
     "CAST(CAST(occurred_at AS TIMESTAMPTZ) AS DATE), trace_id, correlation_id, "
     "causation_id, is_synthetic, payload, ?, ? "
-    "FROM read_json(?, format='newline_delimited', columns=" + _EVENT_FILE_COLUMNS + ") "
-    "ON CONFLICT (event_id) DO NOTHING"
 )
+_EVENT_FILE = "FROM read_json(?, format='newline_delimited', columns=" + _EVENT_FILE_COLUMNS + ")"
+_INSERT_EVENTS = (
+    "INSERT INTO raw.sim_events "
+    + _EVENT_PROJECTION
+    + _EVENT_FILE
+    + " ON CONFLICT (event_id) DO NOTHING"
+)
+# Streaming writes (ADR 0025): the conflict check is an index lookup, then a plain insert of
+# the new rows only. DuckDB's ON CONFLICT costs ~2 ms per statement, which dominated the
+# small writes that crash-isolating consumers make; the primary key still rejects a race.
+_EVENT_KEYS = ("event_id", "event_type", "source", "schema_version", "entity_id",
+               "occurred_at", "published_at", "trace_id", "correlation_id", "causation_id",
+               "is_synthetic", "payload")  # fmt: skip
+_EVENT_VALUE_ROW = (
+    "(?::VARCHAR, ?::VARCHAR, ?::VARCHAR, ?::INTEGER, ?::VARCHAR, ?::VARCHAR, ?::VARCHAR, "
+    "?::VARCHAR, ?::VARCHAR, ?::VARCHAR, ?::BOOLEAN, ?::JSON)"
+)
+# Measured crossover (DuckDB 1.5): bound parameters are cheaper than a temporary NDJSON
+# file up to about 12-16 rows; above that, binding cost grows faster than the file scan.
+_MAX_BOUND_ROWS = 8
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
 
@@ -210,20 +229,55 @@ class Warehouse:
     def insert_events(self, events: Iterable[dict[str, Any]], batch_id: str) -> int:
         """Idempotently insert envelope dicts (streaming path). Returns NEW event count.
 
-        Same SQL as the batch loader (``ON CONFLICT (event_id) DO NOTHING``), so the
-        streaming and batch paths can never disagree about an event. The count comes from
-        the INSERT itself (conflicts excluded): counting the table per batch would make
-        streaming quadratic in table size.
+        Insert-if-absent with the batch loader's projection: ids already in the table are
+        found by a primary-key lookup and skipped, and the first occurrence of an id inside
+        the batch wins, exactly as ``ON CONFLICT (event_id) DO NOTHING`` does. Only new rows
+        are written, by a plain INSERT. If another writer adds one of them in between, the
+        primary key rejects the INSERT and the batch is retried with the loader's
+        ``ON CONFLICT`` statement, so a race can never duplicate an event. The count comes
+        from the write itself: counting the table per batch would make streaming quadratic.
         """
+        rows: dict[str, dict[str, Any]] = {}
+        for event in events:
+            rows.setdefault(str(event["event_id"]), event)
+        if not rows:
+            return 0
+        ids = list(rows)
+        existing = self._con.execute(
+            f"SELECT event_id FROM raw.sim_events WHERE event_id IN ({', '.join('?' * len(ids))})",  # noqa: S608
+            ids,
+        ).fetchall()
+        for (event_id,) in existing:
+            del rows[event_id]
+        if not rows:
+            return 0
+        try:
+            return self._insert_new_events(list(rows.values()), batch_id, conflict=False)
+        except duckdb.ConstraintException:
+            return self._insert_new_events(list(rows.values()), batch_id, conflict=True)
+
+    def _insert_new_events(
+        self, rows: list[dict[str, Any]], batch_id: str, *, conflict: bool
+    ) -> int:
+        loaded_at = datetime.now(UTC)
+        suffix = " ON CONFLICT (event_id) DO NOTHING" if conflict else ""
+        if len(rows) <= _MAX_BOUND_ROWS:
+            params: list[Any] = [batch_id, loaded_at]
+            for row in rows:
+                params.extend(_event_param(row, key) for key in _EVENT_KEYS)
+            values = ", ".join([_EVENT_VALUE_ROW] * len(rows))
+            source = f"FROM (VALUES {values}) AS v({', '.join(_EVENT_KEYS)})"
+            sql = "INSERT INTO raw.sim_events " + _EVENT_PROJECTION + source + suffix
+            result = self._con.execute(sql, params).fetchone()
+            return int(result[0]) if result else 0
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.ndjson"
             with path.open("w") as fh:
-                for event in events:
-                    fh.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
-            row = self._con.execute(
-                _INSERT_EVENTS, [batch_id, datetime.now(UTC), str(path)]
-            ).fetchone()
-        return int(row[0]) if row else 0
+                for row in rows:
+                    fh.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+            sql = "INSERT INTO raw.sim_events " + _EVENT_PROJECTION + _EVENT_FILE + suffix
+            result = self._con.execute(sql, [batch_id, loaded_at, str(path)]).fetchone()
+        return int(result[0]) if result else 0
 
     # --- helpers ----------------------------------------------------------------------
     def count(self, table: str) -> int:
@@ -242,3 +296,11 @@ class Warehouse:
             f"(FORMAT PARQUET, PARTITION_BY ({partition_col}), OVERWRITE_OR_IGNORE)"
         )
         return len(list(out_dir.glob(f"{partition_col}=*")))
+
+
+def _event_param(row: dict[str, Any], key: str) -> Any:
+    """A bound parameter typed like the NDJSON column of ``_EVENT_FILE_COLUMNS``."""
+    value = row.get(key)
+    if key == "payload" and value is not None:
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return value

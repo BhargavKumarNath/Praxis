@@ -24,5 +24,10 @@
 | [0020](0020-cross-process-metrics-and-ops-monitor.md) | Cross-process metric snapshots, pull collectors, the ops monitor process |
 | [0021](0021-decision-console-and-admin-boundary.md) | Decision console: separate process, panel read model, server-side approver boundary |
 | [0022](0022-scale-protocol-sharded-consumers-and-batching.md) | Scale protocol (archive + sharded replay + oracle), consumer shards, sink micro-batching, counter aggregation |
+| [0023](0023-resilience-suite-and-two-window-alerting.md) | Pre-registered resilience suite, two-window alerting, detection fixes, redrive_all; amendments: remediation suite on fault seeds 802, 803 and 804 |
+| [0024](0024-cloud-security-and-cost-posture.md) | Per-process identities, secret isolation, private console, Cloud Run caps, budget and BigQuery quota, mocked destroy/recreate |
+| [0025](0025-crash-isolating-consumer-flow-control.md) | Crash-isolating consumer flow control: slow-start lease window, evidence tiers, repeated redeliveries leased alone; am. 1: lookup + plain-insert warehouse writes (amends 0009) |
+| [0026](0026-gcp-deployment-topology-and-spend-guard.md) | GCP deployment: us-central1 compute + europe-west2 BigQuery, Free Tier e2-micro Postgres (no external IP), Direct VPC egress, private services, jobs, GBP 10 budget + spend guard |
+| [0027](0027-live-loop.md) | The live loop: one synthetic day per real day, daily scheduled tick (world rebuild, warehouse, model lifecycle), registry-served champion, live GCS volume; promotion stays human |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

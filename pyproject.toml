@@ -25,6 +25,12 @@ dependencies = [
 ]
 
 [dependency-groups]
+# The warehouse build (simulator -> raw -> dbt marts). The app image installs it for the live
+# loop (ADR 0027); dbt-bigquery stays dev-only (bq-verify is an owner action).
+pipeline = [
+    "dbt-core>=1.12.5",
+    "dbt-duckdb>=1.11.0",
+]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
@@ -36,8 +42,7 @@ dev = [
     "pip-audit>=2.7",
     "pre-commit>=3.8",
     "types-jsonschema>=4.26.0.20260518",
-    "dbt-core>=1.12.5",
-    "dbt-duckdb>=1.11.0",
+    {include-group = "pipeline"},
     "dbt-bigquery>=1.12.1",
     "import-linter>=2.15",
 ]
@@ -120,7 +125,7 @@ include_external_packages = true
 name = "Layered architecture (higher may import lower, never the reverse)"
 type = "layers"
 layers = [
-    "praxis.console",
+    "praxis.console | praxis.live",
     "praxis.api | praxis.science | praxis.agent",
     "praxis.dunning",
     "praxis.pricing | praxis.payments | praxis.mlops",
@@ -198,6 +203,19 @@ forbidden_modules = [
     "praxis.api.tasks", "praxis.api.webhooks", "praxis.api.forecast", "subprocess",
 ]
 
+# The live loop (ADR 0027) sequences the existing CLIs as subprocesses; it never decides,
+# trains or promotes in-process and never reads simulator ground truth (only the scenario
+# config, to check the world's start date).
+[[tool.importlinter.contracts]]
+name = "The live loop only drives the existing CLIs"
+type = "forbidden"
+source_modules = ["praxis.live"]
+forbidden_modules = [
+    "praxis.mlops", "praxis.agent", "praxis.science", "praxis.pricing", "praxis.payments",
+    "praxis.dunning", "praxis.forecasting", "praxis.simulator.engine",
+    "praxis.simulator.population", "praxis.simulator.runner", "praxis.api", "praxis.console",
+]
+
 # Payments sees no simulator ground truth and no pricing internals: Stripe and the synthetic
 # provider only exchange provider-neutral snapshots and internal event contracts (ADR 0014).
 [[tool.importlinter.contracts]]
@@ -216,6 +234,8 @@ forbidden_modules = ["praxis.simulator", "praxis.science", "praxis.pricing", "pr
 "src/praxis/control/*" = 95
 "src/praxis/events/*" = 95
 "src/praxis/streaming/runtime.py" = 95
+"src/praxis/api/spend_guard.py" = 95  # billing kill switch (ADR 0026)
+"src/praxis/live/*" = 95             # the live loop: sequencing, state, catch-up (ADR 0027)
 "src/praxis/streaming/redrive.py" = 95
 "src/praxis/streaming/memory.py" = 95
 "src/praxis/streaming/consumers/*" = 95

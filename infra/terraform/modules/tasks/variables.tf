@@ -30,8 +30,8 @@ variable "max_attempts" {
   default = 20
 }
 
-variable "enqueuer_member" {
-  description = "IAM member (e.g. serviceAccount:...) allowed to create and delete tasks."
-  type        = string
-  default     = null
+variable "enqueuer_members" {
+  description = "Static name -> IAM member (serviceAccount:...) allowed to create and delete tasks."
+  type        = map(string)
+  default     = {}
 }

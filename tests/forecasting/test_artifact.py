@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from praxis.forecasting.artifact import (
+    MANIFEST,
     ArtifactError,
     ForecastArtifact,
     load_artifact,
@@ -189,3 +190,17 @@ def test_corrupt_existing_copy_is_not_silently_reused(
     files = _files(artifact)
     with pytest.raises(ArtifactError):
         save_artifact(manifest, files, target.parent)
+
+
+def test_an_interrupted_write_is_rewritten(copy: Path, artifact: ForecastArtifact) -> None:
+    """No directory rename (object storage, ADR 0027): the manifest is written last, so a
+    directory without one was never published and is replaced by a complete copy."""
+    manifest = dict(artifact.manifest)
+    target = copy.parent / manifest["model_version"]
+    copy.rename(target)
+    (target / MANIFEST).unlink()
+    (target / "q0.5.txt").write_text("half-written")
+    files = _files(artifact)
+    assert save_artifact(manifest, files, target.parent) == target
+    assert load_artifact(target).model_version == artifact.model_version
+    assert not list(target.glob(".*.partial"))

@@ -7,7 +7,8 @@
 	stripe-verify recovery-data recovery-train recovery-evaluate \
 	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive \
 	mlops-data mlops-drill console-api console-web console-demo e2e e2e-browsers \
-	scale-archive scale-run scale-http scale-payments
+	scale-archive scale-run scale-http scale-payments tf-test resilience cloud-destroy \
+	_cloud-project cloud-init cloud-images cloud-plan cloud-apply cloud-smoke
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
 # `make check` locally means exactly what CI means. See CLAUDE.md "CI/CD and code health".
@@ -116,11 +117,79 @@ sim-smoke:
 	.venv/bin/python -m praxis.simulator --customers 10000 --days 28 --seed 42 --validate --schema-every 50
 
 # Terraform via Docker when no local binary is installed.
-TF = $(shell command -v terraform 2>/dev/null || echo docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -v $(CURDIR)/infra/terraform:/work -w /work hashicorp/terraform:latest)
-tf-check:
+TF_IMAGE ?= hashicorp/terraform:1.16.5
+TF = $(shell command -v terraform 2>/dev/null || echo docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -v $(CURDIR)/infra/terraform:/work -w /work $(TF_IMAGE))
+tf-check: tf-test
 	cd infra/terraform && $(TF) fmt -recursive -check
 	cd infra/terraform && $(TF) -chdir=envs/dev init -backend=false -input=false >/dev/null
 	cd infra/terraform && $(TF) -chdir=envs/dev validate
+
+# Phase 15 destroy / recreate gate (ADR 0024): plan, apply and destroy the whole dev
+# environment twice against MOCKED providers. No credentials, no API call, GBP 0.
+tf-test:
+	cd infra/terraform && $(TF) -chdir=envs/dev init -backend=false -input=false >/dev/null
+	cd infra/terraform && $(TF) -chdir=envs/dev test
+
+# Phase 15 failure suite (configs/resilience/failures.toml, ADR 0023): the same tests run in
+# `make test`; this target also writes the machine-readable s21 report.
+resilience: pg-up pubsub-up
+	PUBSUB_EMULATOR_HOST=$(PUBSUB_EMULATOR) \
+		PRAXIS_RESILIENCE_OUT=docs/evidence/phase-15-remediation-failures.json \
+		.venv/bin/pytest -q tests/resilience --no-cov -p no:cacheprovider
+
+# --- Cloud deployment (ADR 0026, docs/deployment.md). Owner actions; never run by CI. --------
+# Terraform runs in the pinned image with the caller's application-default credentials
+# (read-only mount); state lives in the versioned gs://$(CLOUD_PROJECT)-tfstate bucket.
+# Variables (project, billing account, invokers, image digests) are in the GITIGNORED
+# infra/terraform/envs/dev/deploy.auto.tfvars. Images are built locally (no Cloud Build) and
+# deployed by digest; the postgres image is the official one, mirrored by digest.
+CLOUD_PROJECT ?= $(TF_VAR_project_id)
+CLOUD_REGION ?= us-central1
+CLOUD_REPO = $(CLOUD_REGION)-docker.pkg.dev/$(CLOUD_PROJECT)/praxis
+POSTGRES_SOURCE ?= postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b # 17.11
+TF_CLOUD = docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp \
+	-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcloud/application_default_credentials.json \
+	-e GOOGLE_CLOUD_QUOTA_PROJECT=$(CLOUD_PROJECT) -v $(HOME)/.config/gcloud:/tmp/gcloud:ro \
+	-v $(CURDIR)/infra/terraform:/work -w /work/envs/dev $(TF_IMAGE)
+REVISION = $(shell git rev-parse --short HEAD)$(shell git diff --quiet HEAD || echo -dirty)
+
+_cloud-project:
+	@test -n "$(CLOUD_PROJECT)" || { echo "set CLOUD_PROJECT (or TF_VAR_project_id)"; exit 2; }
+
+cloud-init: _cloud-project
+	$(TF_CLOUD) init -input=false -reconfigure -backend-config=bucket=$(CLOUD_PROJECT)-tfstate
+
+# Build, push and print the three digests for deploy.auto.tfvars.
+cloud-images: _cloud-project
+	gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://$(CLOUD_REGION)-docker.pkg.dev
+	docker build -f infra/docker/app.Dockerfile --build-arg REVISION=$(REVISION) -t $(CLOUD_REPO)/app:$(REVISION) .
+	docker build -f infra/docker/web.Dockerfile --build-arg REVISION=$(REVISION) -t $(CLOUD_REPO)/console-web:$(REVISION) .
+	docker pull $(POSTGRES_SOURCE) && docker tag $(POSTGRES_SOURCE) $(CLOUD_REPO)/postgres:17.11
+	docker push -q $(CLOUD_REPO)/app:$(REVISION)
+	docker push -q $(CLOUD_REPO)/console-web:$(REVISION)
+	docker push -q $(CLOUD_REPO)/postgres:17.11
+	@for i in app:$(REVISION) console-web:$(REVISION) postgres:17.11; do gcloud artifacts docker images \
+		describe $(CLOUD_REPO)/$$i --format='value(image_summary.fully_qualified_digest)'; done
+
+cloud-plan: _cloud-project
+	$(TF_CLOUD) plan -input=false -out=deploy.tfplan
+	$(TF_CLOUD) show -no-color deploy.tfplan > $(CURDIR)/infra/terraform/envs/dev/deploy.tfplan.txt
+
+# Applies exactly the reviewed plan file, nothing else.
+cloud-apply: _cloud-project
+	@test -f infra/terraform/envs/dev/deploy.tfplan || { echo "run make cloud-plan first"; exit 2; }
+	$(TF_CLOUD) apply -input=false deploy.tfplan
+	rm -f infra/terraform/envs/dev/deploy.tfplan
+
+# Bounded post-deploy verification (synthetic only; never Stripe, never a load test).
+cloud-smoke: _cloud-project
+	CLOUD_PROJECT=$(CLOUD_PROJECT) CLOUD_REGION=$(CLOUD_REGION) .venv/bin/python scripts/cloud_smoke.py
+
+# Real teardown of the APPLIED environment. Never run by CI or any other target; refuses
+# without CONFIRM=destroy-<project id>. Applying is likewise an owner action (cost-guard.md).
+cloud-destroy: _cloud-project
+	@test "$(CONFIRM)" = "destroy-$(CLOUD_PROJECT)" || { echo "refusing: pass CONFIRM=destroy-$(CLOUD_PROJECT)"; exit 2; }
+	$(TF_CLOUD) destroy -input=false
 
 frontend-check:
 	cd frontend && npm run typecheck && npm run lint && npm run test

@@ -135,3 +135,80 @@ def test_slo_rules_fire_on_breach_only(cfg: OpsConfig, tel: Telemetry) -> None:
     assert {"forecast_stale", "dlq_backlog_high"} <= set(_alerts(cfg, tel))
     empty = MetricsView()
     assert evaluate_alerts(cfg.rules, evaluate_slos(cfg.slos, empty), empty) == []
+
+
+# --- two-window rule (Phase 15, ADR 0023) -------------------------------------------------
+def _requests(tel: Telemetry, ok: int, bad: int) -> MetricsView:
+    for _ in range(ok):
+        tel.inc("http_requests_total", route="/x", method="GET", status="200")
+    for _ in range(bad):
+        tel.inc("http_requests_total", route="/x", method="GET", status="503")
+        tel.inc("http_server_errors_total", route="/x")
+    return tel.snapshot()
+
+
+def test_slo_alert_needs_the_recent_window_to_breach_too(cfg: OpsConfig, tel: Telemetry) -> None:
+    outage = _requests(tel, ok=0, bad=25)
+    first = evaluate_slos(cfg.slos, outage, recent=outage.increase(MetricsView()))
+    avail = next(s for s in first if s.id == "api_availability")
+    assert (avail.state, avail.recent_state, avail.alerting) == ("breach", "breach", True)
+    assert "api_availability_slo_breach" in {
+        a.rule_id for a in evaluate_alerts(cfg.rules, first, outage)
+    }
+
+    healed = _requests(tel, ok=25, bad=0)  # cumulative still 50% bad, recent window clean
+    statuses = evaluate_slos(cfg.slos, healed, recent=healed.increase(outage))
+    avail = next(s for s in statuses if s.id == "api_availability")
+    assert (avail.state, avail.recent_state, avail.alerting) == ("breach", "ok", False)
+    assert avail.as_dict()["recent_state"] == "ok"
+    assert evaluate_alerts(cfg.rules, statuses, healed) == []
+
+    idle = evaluate_slos(cfg.slos, healed, recent=healed.increase(healed))  # no traffic
+    assert next(s for s in idle if s.id == "api_availability").recent_state == "no_data"
+    # Without a recent view (one-off health read) the cumulative breach alone alerts.
+    assert next(s for s in evaluate_slos(cfg.slos, healed) if s.id == "api_availability").alerting
+
+
+def test_latency_slo_uses_the_recent_window(cfg: OpsConfig, tel: Telemetry) -> None:
+    for _ in range(25):
+        tel.observe("event_lag_ms", 9000.0, subscription="s")
+    slow = tel.snapshot()
+    for _ in range(1000):
+        tel.observe("event_lag_ms", 10.0, subscription="s")
+    fast = tel.snapshot()
+    lag = next(s for s in evaluate_slos(cfg.slos, fast, recent=fast.increase(slow))
+               if s.id == "event_consumer_lag_p95")  # fmt: skip
+    assert lag.state == "ok"  # p95 of everything is already fine
+    for _ in range(4000):
+        tel.observe("event_lag_ms", 9000.0, subscription="s")
+    again = tel.snapshot()
+    lag = next(s for s in evaluate_slos(cfg.slos, again, recent=again.increase(fast))
+               if s.id == "event_consumer_lag_p95")  # fmt: skip
+    assert (lag.state, lag.recent_state) == ("breach", "breach")
+
+
+def test_ratio_rule_needs_the_recent_window(cfg: OpsConfig, tel: Telemetry) -> None:
+    for _ in range(20):
+        tel.inc("model_inference_total", model="m", outcome="unavailable")
+    down = tel.snapshot()
+    rules = tuple(r for r in cfg.rules if r.id == "inference_failures")
+    assert [a.rule_id for a in evaluate_alerts(rules, [], down, down.increase(MetricsView()))] == [
+        "inference_failures"
+    ]
+    for _ in range(5):
+        tel.inc("model_inference_total", model="m", outcome="served")
+    served = tel.snapshot()
+    assert evaluate_alerts(rules, [], served, served.increase(down)) == []
+    assert evaluate_alerts(rules, [], served, served.increase(served)) == []  # nothing recent
+    assert [a.rule_id for a in evaluate_alerts(rules, [], served)] == ["inference_failures"]
+
+
+def test_threshold_rules_on_gauges_ignore_the_recent_window(cfg: OpsConfig, tel: Telemetry) -> None:
+    rules = tuple(r for r in cfg.rules if r.kind == "threshold")
+    tel.set("model_serving_refused", 1, model="demand_forecast", stage="champion")
+    view = tel.snapshot()
+    alerts = evaluate_alerts(rules, [], view, view.increase(view))
+    assert [a.rule_id for a in alerts] == ["model_unservable"]
+    tel.set("model_serving_refused", 1, model="demand_forecast", stage="shadow")
+    tel.set("model_serving_refused", 0, model="demand_forecast", stage="champion")
+    assert evaluate_alerts(rules, [], tel.snapshot()) == []

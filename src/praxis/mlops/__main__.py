@@ -1,4 +1,6 @@
-"""CLI: ``python -m praxis.mlops --database-url URL --warehouse DB <command>``.
+"""CLI: ``python -m praxis.mlops [--database-url URL] --warehouse DB <command>``.
+
+The database URL defaults to ``PRAXIS_DATABASE_URL``.
 
 Lifecycle of the demand forecaster (ADR 0017). Exit codes: 0 = done, 1 = the gate refused
 (candidate rejected, promotion refused), 2 = invalid request.
@@ -262,7 +264,9 @@ COMMANDS = {
 
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python -m praxis.mlops")
-    p.add_argument("--database-url", required=True)
+    # Default: PRAXIS_DATABASE_URL (Secret Manager in the cloud), so the URL and its password
+    # never have to appear on a command line (ADR 0027).
+    p.add_argument("--database-url", default=None)
     p.add_argument("--warehouse", type=Path, default=Path("data/warehouse/praxis.duckdb"))
     p.add_argument("--models", type=Path, default=Path("data/models/demand_candidates"))
     p.add_argument("--config", type=Path, default=None, help="lifecycle policy TOML")
@@ -306,8 +310,14 @@ MONITORING_COMMANDS = frozenset({"run-day", "operate"})  # the commands that set
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
-    configure_logging("praxis-mlops", get_settings().log_level.value)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    settings = get_settings()
+    configure_logging("praxis-mlops", settings.log_level.value)
+    if args.database_url is None:
+        if settings.database_url is None:
+            parser.error("--database-url or PRAXIS_DATABASE_URL is required")
+        args.database_url = settings.database_url.get_secret_value()
     if args.command == "migrate":
         migrate(args.database_url)
         _write({"migrated": True})

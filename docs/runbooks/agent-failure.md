@@ -1,17 +1,22 @@
 # Runbook: AI operator (agent) failure
 
-Alerts: none
+Alerts: agent_provider_degraded
 
-Exercised end to end by `tests/agent/test_runbook_agent_failure.py` (provider outage drill).
+Exercised end to end by `tests/agent/test_runbook_agent_failure.py` (provider outage drill)
+and `tests/resilience/test_agent_unavailable.py` (Phase 15: outage -> alert -> recovery).
 
 ## Trigger
 
-An agent run ends with outcome `provider_unavailable`, `tool_errors` or `step_limit`, or ends
-`completed` with `grounded = false`. Causes include a provider outage, quota or timeout, a
-backend the tools read being down, or the agent being disabled. No alert rule exists: the
-signals are the run's outcome (CLI exit code 1), the session audit events and the counter
-`agent_investigations_total{outcome}`. Telemetry is in-process only, so that counter is visible
-only in the process that ran the agent.
+- Alert `agent_provider_degraded` (ticket): more than 0.25 provider outages per investigation
+  (`agent_provider_failures_total / agent_investigations_total`, at least 3 investigations).
+  The CLI publishes its metrics as a snapshot after each investigation, so the ops monitor
+  sees them (ADR 0020).
+- Without an alert: an agent run ends with outcome `provider_unavailable`, `tool_errors` or
+  `step_limit`, or ends `completed` with `grounded = false` (CLI exit code 1, session audit
+  events, `agent_investigations_total{outcome}`).
+
+Causes include a provider outage, quota or timeout, a backend the tools read being down, or
+the agent being disabled.
 
 ## Impact
 
@@ -27,8 +32,8 @@ Today no live LLM provider is configured, and triage is both the provider and th
    Session rows show `started`, then `fallback` or `provider_unavailable` (with the provider
    name and the error type, never the error text), then the final outcome. Every tool call has
    a `received` and an `outcome` row.
-2. Confirm the core flows are healthy through `GET /v1/ops/health`. An agent failure must not
-   show up there as degraded service, because the agent is not part of any SLO or alert.
+2. Confirm the core flows are healthy through `GET /v1/ops/health`. The only agent signal
+   there is `agent_provider_degraded`; no SLO depends on the agent.
 
 ## Mitigate
 
@@ -44,7 +49,8 @@ Today no live LLM provider is configured, and triage is both the provider and th
 
 ## Verify
 
-1. Core health is unchanged.
+1. Core health is unchanged. `agent_provider_degraded` clears once outages fall to 0.25 or
+   fewer per investigation (cumulative per process: a restarted agent process starts at 0).
 2. Either the agent is restored (a run completes with `grounded = true`, with or without the
    fallback), or it is consciously left disabled with a ticket.
 

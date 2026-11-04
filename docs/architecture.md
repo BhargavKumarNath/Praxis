@@ -49,7 +49,7 @@ The loop is only complete when outcomes flow back into ingestion (right to left 
 
 | Plane | Technology | Holds |
 | --- | --- | --- |
-| Control | Postgres (Supabase first) | Mutable operational state, decisions, dedupe keys, audit |
+| Control | Postgres (deployed: Postgres 17 on a Free Tier e2-micro VM, private IP only; ADR 0026) | Mutable operational state, decisions, dedupe keys, audit |
 | Analytical | BigQuery | Large facts and marts, partitioned by event date |
 | Raw archive | Cloud Storage | Immutable / append-only raw and replay data |
 | Events | Pub/Sub | Transport; assume at-least-once |
@@ -111,6 +111,26 @@ scripts/           Repository tooling (secret scan, schema export, bounded readi
   `ApprovalDesk`, `ModelRegistry` and `FreezeStore`, authorized server-side by a token that
   names the approver. It cannot import the optimiser, the pricing service, payment execution,
   streaming, the simulator or science (import contract), and no route can carry a price.
+* Resilience (ADR 0023, `docs/evidence/phase-15-remediation.md`): twelve failures are
+  injected against real boundaries by `tests/resilience/` and judged against pre-registered
+  criteria (active: `configs/resilience/remediation-804.toml`); alerts use the two-window rule (cumulative AND
+  since-last-tick), so an incident opens on the first tick and clears after recovery.
+* Consumer flow control (ADR 0025): each consumer process leases through `FlowControl`
+  (slow start; first deliveries, then first redeliveries, as separate groups; a message
+  redelivered twice is leased and processed alone), so a crash costs delivery attempts only
+  where the evidence points, and healthy messages stay out of the DLQ. The resulting small
+  warehouse writes use a primary-key lookup + plain INSERT (ADR 0025 amendment 1).
+* Cloud posture (ADR 0024, `infra/terraform`): one service account per process with only
+  resource-level grants, secrets readable by named processes only (values never in state),
+  only the API public, the console private, Cloud Run scale-to-zero with capped instances,
+  a GBP budget alert and an enforced BigQuery daily quota. `make tf-test` proves the dev
+  environment applies and destroys cleanly against mocked providers (no spend).
+* Deployment (ADR 0026, `docs/deployment.md`): `praxis-dev-510522`, with compute in
+  us-central1 and BigQuery in europe-west2. Everything is private, including the API until
+  Stripe is switched on. Cloud Run reaches the database VM over Direct VPC egress; there is
+  no external IP, NAT or load balancer. Consumers and the ops monitor run as on-demand
+  Cloud Run jobs. A GBP 10 budget feeds a spend guard that unlinks billing at GBP 8; this
+  is the single classified project-level grant.
 * Large-scale tests use the synthetic gateway only (ADR 0006).
 * Consumers are idempotent and order-independent; state changes only via transition tables,
   enforced again in Postgres (ADR 0009, `docs/event-backbone.md`).

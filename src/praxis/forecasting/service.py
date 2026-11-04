@@ -201,9 +201,6 @@ class ForecastService:
         except ForecastUnavailable as exc:
             self._finish("unavailable", started, labels | {"reason": exc.code})
             raise
-        telemetry().set(
-            "forecast_age_hours", result.feature_lag_days * 24.0, model="demand_forecast"
-        )
         self._finish(
             "served",
             started,
@@ -289,6 +286,10 @@ class ForecastService:
         today = now.date()
         snap = snapshot if snapshot is not None else self.fetch_snapshot()
         lag = (today - snap.feature_date).days
+        # The age of the freshest inputs is a fact about the features, served or not: set it
+        # before refusing, or the gauge would freeze at the last served value exactly when
+        # the features are too old to serve (Phase 15 finding, ADR 0023).
+        telemetry().set("forecast_age_hours", lag * 24.0, model="demand_forecast")
         if lag > self._serving.stale_max_lag_days:
             raise ForecastUnavailable(
                 "features_unavailable",

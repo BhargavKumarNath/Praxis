@@ -1,0 +1,179 @@
+# Phase 15 resilience criteria, registration 3 (ADR 0023 amendment 3). PRE-REGISTERED
+# 2026-11-01, BEFORE any run on fault seed 804, and pinned by tests/resilience/test_config.py.
+#
+# Identical to remediation-803.toml (v2026-11-01.3) except `version`, `supersedes` and
+# `run.fault_seed` (enforced by test_config.py): not one criterion changed. Why a third
+# registration: remediation-803.toml ran ONCE on fault seed 803 and passed 12 / 12
+# (docs/evidence/phase-15-remediation-803-failures.json, kept), but `make nightly-perf`
+# failed (954 chaos events/s, floor 1218). The warehouse write path was then optimised
+# (ADR 0025 amendment 1: primary-key lookup + plain INSERT instead of ON CONFLICT), measured
+# on the nightly-perf development world only; the lease / ack / flow-control logic is
+# unchanged. The code differs from what ran on 803, so the final code is judged here, once,
+# on the fresh fault seed 804; evidence goes to
+# docs/evidence/phase-15-remediation-failures.json. failures.toml (801), remediation.toml
+# (802) and remediation-803.toml (803) stay unchanged. Editing this file after a run needs
+# another amendment and the owner's approval.
+#
+# Semantics are those of failures.toml:
+# Every failure is injected at a real boundary (Postgres, DuckDB, the Pub/Sub emulator, a
+# local HTTP server, the filesystem, the SyntheticPaymentGateway / signed webhook route, the
+# agent provider) and its s21 record is written to the evidence file named above.
+#
+# Detection is measured in ops-monitor ticks: tick k is the k-th OpsMonitor.tick after the
+# failure's effect exists (production cadence `tick_interval_s`, the `python -m praxis.ops run`
+# default). "Detected" = every rule in `alerts` fires within `max_ticks_to_detect` ticks, or,
+# for a row without alerts, the `signal` metric records every injected fault. Rules in
+# `quiet` must NOT fire (a normal, self-healing condition must not page anyone).
+# Recovery = the system returns to a state equal to its oracle and every alert it raised
+# auto-resolves within `clear_after_ticks` healthy ticks. Data loss and duplicate side effects
+# are counted against an independent oracle; the bound for both is 0 for every failure.
+version = "2026-11-01.4"
+supersedes = "2026-11-01.3"
+
+[run]
+tick_interval_s = 60      # python -m praxis.ops run --interval default
+clear_after_ticks = 2     # IncidentManager default (auto-resolve)
+sim_seed = 1              # development world (never a held-out seed, CLAUDE.md s24)
+fault_seed = 804          # fresh; 803 / 802 / 801 belong to earlier Phase 15 evidence, 701 to Phase 14
+burst_customers = 500     # event burst world: seed 1, 500 customers x 28 days, one burst
+burst_days = 28
+burst_duplicate_rate = 0.2
+crash_customers = 200     # consumer crash world: seed 1, 200 customers x 14 days
+crash_days = 14
+crash_rate = 0.01         # before AND after the side effect, operational + warehouse
+fetch_timeout_s = 0.2     # source timeout: per-attempt client timeout (3 attempts)
+db_statement_timeout_ms = 200
+db_timeout_requests = 25  # webhook deliveries during the lock (api SLO min_events = 20)
+
+[[failure]]
+id = "source_timeout"
+required_test = "source timeout"
+plan_item = "external API timeout"
+injection = "local HTTP server accepts the connection and never answers; real httpx read timeout on every attempt"
+expected = "the batch is reported unavailable after the bounded retries; no warehouse row changes; no alert while the newest observation is within the freshness limit; source_stale fires on the first tick after the limit"
+recovery = "the source answers again: the next ingest stores the window, source_stale clears"
+alerts = ["source_stale"]
+quiet = ["data_contract_failure"]
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "source_malformed"
+required_test = "source malformed"
+plan_item = "malformed source payload"
+injection = "local HTTP server returns a body that violates the source contract (schema drift)"
+expected = "the batch is quarantined: raw body archived with its checksum, zero normalised rows, quality status recorded; data_contract_failure pages on the first tick"
+recovery = "a valid body is stored; data_contract_failure clears once the quarantine leaves the 24 h contract window"
+alerts = ["data_contract_failure"]
+quiet = []
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "db_timeout"
+required_test = "DB timeout"
+plan_item = "DB timeout"
+injection = "another Postgres session holds an ACCESS EXCLUSIVE lock on the webhook inbox; the API engine has a real statement_timeout"
+expected = "every webhook delivery during the lock answers 503 (never 2xx without a durable write); webhook_success_slo_breach and api_availability_slo_breach page on the first tick"
+recovery = "lock released; Stripe redelivers every event; each is accepted once; both alerts clear"
+alerts = ["webhook_success_slo_breach", "api_availability_slo_breach"]
+quiet = []
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "pubsub_redelivery"
+required_test = "Pub/Sub duplicate"
+plan_item = "Pub/Sub redelivery"
+injection = "Pub/Sub emulator: the consumer applies events then loses the ack (deadline expires) and the publisher retries a batch; the emulator redelivers"
+expected = "each redelivered copy is recognised as a duplicate and acked without a second side effect; no alert (a normal at-least-once condition)"
+recovery = "automatic: control-plane state equals the oracle; no open dead letter"
+alerts = []
+quiet = ["dlq_backlog_high", "queue_backlog_high"]
+signal = "events_consumed_total"
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "consumer_crash"
+required_test = "consumer crash"
+plan_item = "service restart (consumer)"
+injection = "seeded CrashPlan kills the operational and warehouse consumers before and after side effects (LocalPipeline over Postgres + DuckDB); then a poison storm: the payment.failed event of each of 12 fresh customer flows kills both consumers on EVERY delivery"
+expected = "isolated crashes are redelivered to a restarted consumer and applied once, with zero dead letters; in the poison storm exactly the 12 poison events are dead-lettered on each subscription, no healthy message is dead-lettered, and dlq_backlog_high pages on the first tick"
+recovery = "the fix is deployed (consumers without the poison crash) and the pubsub-backlog runbook redrive restores every dead letter; state equals the oracle; the alert clears"
+alerts = ["dlq_backlog_high"]
+quiet = []
+max_ticks_to_detect = 1
+amendment = "v1 expected the crash storm (every event crashes the consumer once) to dead-letter in-flight messages: that encoded the ADR 0009 collateral as expected behaviour. ADR 0025 flow control removes the collateral by design, so a transient crash storm no longer dead-letters anything (tests/streaming scenario 09b). Dead letters must now come only from genuine poison, which the storm therefore injects; 12 poison events exceed the pre-registered dlq_backlog limit of 10 per subscription, so the page is exercised (a single poison message stays below the page limit and is visible on the dashboard). The isolated-crash expectation is unchanged and stated explicitly as zero dead letters. Approved by the owner's Phase 15 remediation instruction (2026-11-01)."
+
+[[failure]]
+id = "service_restart"
+plan_item = "service restart"
+injection = "the ops monitor and the API process are replaced by fresh instances (new engine, new in-memory state) while an alert fires and webhook rows are pending"
+expected = "the restarted monitor sees the open incident in Postgres: no duplicate incident, no second notification; webhook rows accepted before the restart are processed after it, once"
+recovery = "the incident auto-resolves after the fix; the inbox drains"
+alerts = ["dlq_backlog_high"]
+quiet = []
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "model_missing"
+required_test = "model missing"
+plan_item = "model artifact missing"
+injection = "the registry champion's artifact directory is deleted after promotion; separately the API starts with a missing model directory"
+expected = "the last good version keeps serving (every 200 carries a registry version) and model_unservable pages; with no loadable model the API answers 503 and inference_failures pages"
+recovery = "the artifact is restored: the champion is served on the next refresh and both alerts clear"
+alerts = ["model_unservable", "inference_failures"]
+quiet = []
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "feature_stale"
+required_test = "feature stale"
+plan_item = "stale features"
+injection = "the warehouse's newest complete feature day is older than the fresh limit, then older than the stale limit (serving clock advanced)"
+expected = "within the stale limit the seasonal baseline serves (freshness=stale) and forecast_stale fires; beyond it no forecast is served (503) and inference_failures pages"
+recovery = "fresh features: the model serves again and both alerts clear"
+alerts = ["forecast_stale", "inference_failures"]
+quiet = []
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "failed_candidate"
+plan_item = "failed candidate"
+injection = "a candidate whose artifact fails validation (corrupted checksum) and one that fails the acceptance metrics are submitted to the pipeline"
+expected = "both are rejected with a recorded reason in the same run; the champion pointer and the served version are unchanged; no alert (the guard worked)"
+recovery = "nothing to recover: production never saw the candidate"
+alerts = []
+quiet = ["model_unservable", "inference_failures"]
+signal = "registry rejection events"
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "stripe_duplicate"
+plan_item = "Stripe duplicate event"
+injection = "the same signed Stripe event is delivered three times to the webhook route (twice before processing, once after) plus an out-of-order pair"
+expected = "one inbox row per event (deliveries counted), the effect is applied once, duplicates are acknowledged 200; webhook_success_slo_breach stays quiet"
+recovery = "nothing to recover"
+alerts = []
+quiet = ["webhook_success_slo_breach", "api_availability_slo_breach"]
+signal = "webhook_events_total"
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "agent_unavailable"
+required_test = "agent unavailable"
+plan_item = "agent API failure"
+injection = "the agent's LLM provider raises ProviderUnavailable on every call (with and without the deterministic fallback)"
+expected = "with the fallback every investigation completes, grounded; without it the run ends provider_unavailable; zero guarded actions; pricing runs identically; agent_provider_degraded fires on the first tick after 3 investigations"
+recovery = "provider restored: investigations use it again and the alert clears once outages fall to 0.25 per investigation or fewer"
+alerts = ["agent_provider_degraded"]
+quiet = []
+max_ticks_to_detect = 1
+
+[[failure]]
+id = "event_burst"
+required_test = "event burst"
+plan_item = "sudden event burst"
+injection = "the whole seed-1 world (500 customers x 28 days) is published as one burst with 20% broker duplicates (fault seed 801), before any consumer runs"
+expected = "queue_backlog_high pages on the first tick after the burst; consumers drain it; no message is lost or applied twice"
+recovery = "backlog drained, state equals the oracle, no open dead letter, the alert clears"
+alerts = ["queue_backlog_high"]
+quiet = []
+max_ticks_to_detect = 1

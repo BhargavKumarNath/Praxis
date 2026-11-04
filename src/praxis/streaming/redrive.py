@@ -61,3 +61,31 @@ def redrive_dead_letters(
         extra={"republished": len(republished), "skipped_undecodable": skipped, "reason": reason},
     )
     return RedriveReport(len(republished), skipped)
+
+
+def redrive_all(
+    store: ControlPlaneStore,
+    publisher: Publisher,
+    topic: str,
+    *,
+    reason: str | None = None,
+    page: int = 1000,
+    max_pages: int = 1000,
+    source_prefix: str | None = None,
+) -> RedriveReport:
+    """Redrive EVERY open dead letter, ``page`` at a time (what ``dlq --redrive`` runs).
+
+    Phase 15 finding: one ``redrive_dead_letters`` call stops at its limit, so a crash storm
+    with more than 1000 dead letters was only partly restored by the runbook command.
+    Undecodable letters stay open (never republished), so a page with no republished
+    message ends the loop; ``max_pages`` bounds it anyway.
+    """
+    republished = skipped = 0
+    for _ in range(max_pages):
+        report = redrive_dead_letters(store, publisher, topic, reason=reason, limit=page,
+                                      source_prefix=source_prefix)  # fmt: skip
+        republished += report.republished
+        skipped = report.skipped_undecodable  # the same letters are seen on every page
+        if report.republished == 0 or report.republished + report.skipped_undecodable < page:
+            break
+    return RedriveReport(republished, skipped)

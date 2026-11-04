@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 import pytest
 
+from praxis.forecasting.config import load_forecast_config
 from praxis.ops.config import REPO_ROOT, OpsConfig, Rule, Slo, load_ops_config
 from praxis.ops.runbooks import REQUIRED_RUNBOOKS, validate_runbooks
 
@@ -17,12 +18,14 @@ def cfg() -> OpsConfig:
 
 
 def test_versions_and_counts_are_pinned(cfg: OpsConfig) -> None:
+    # alerts 2026-11-01.1 (ADR 0023): two rules added in Phase 15, none changed
+    # slos 2026-11-01.1 (ADR 0018 amendment 1): forecast_freshness 48 -> 24 h, owner-approved
     assert (cfg.slo_version, cfg.alert_version, cfg.dashboard_version) == (
-        "2026-10-25.1",
-        "2026-10-25.1",
+        "2026-11-01.1",
+        "2026-11-01.1",
         "2026-10-25.1",
     )
-    assert len(cfg.slos) == 6 and len(cfg.rules) == 14
+    assert len(cfg.slos) == 6 and len(cfg.rules) == 16
 
 
 def test_slo_targets_are_the_preregistered_values(cfg: OpsConfig) -> None:
@@ -32,7 +35,7 @@ def test_slo_targets_are_the_preregistered_values(cfg: OpsConfig) -> None:
         "webhook_processing_success": (0.99, None, None, None),
         "pricing_decision_latency_p95": (None, 2500, None, 0.95),
         "event_consumer_lag_p95": (None, 5000, None, 0.95),
-        "forecast_freshness": (None, None, 48, None),
+        "forecast_freshness": (None, None, 24, None),  # = forecast fresh limit (ADR 0018 am. 1)
         "dlq_backlog": (None, None, 10, None),
     }
 
@@ -47,6 +50,8 @@ def test_alert_thresholds_are_the_preregistered_values(cfg: OpsConfig) -> None:
         "calibration_regression": 0.70,
         "business_kpi_shock": 0.30,
         "price_volatility": 0.50,
+        "model_unservable": 1,  # Phase 15 additions (pre-registered 2026-11-01)
+        "agent_provider_degraded": 0.25,
     }
 
 
@@ -122,3 +127,11 @@ def test_config_cross_references_are_checked(cfg: OpsConfig) -> None:
     bad["panels"][0]["metric"] = "missing"
     with pytest.raises(ValueError, match="unknown metric"):
         OpsConfig.model_validate(bad)
+
+
+def test_forecast_freshness_slo_equals_the_service_fresh_limit(cfg: OpsConfig) -> None:
+    """The SLO must breach exactly when the forecast service stops serving the model
+    (ADR 0018 amendment 1): the gauge is lag_days x 24."""
+    fresh_days = load_forecast_config().serving.fresh_max_lag_days
+    (slo,) = [s for s in cfg.slos if s.id == "forecast_freshness"]
+    assert slo.max_value == fresh_days * 24

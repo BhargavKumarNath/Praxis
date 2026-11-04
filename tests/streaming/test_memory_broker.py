@@ -14,6 +14,7 @@ from praxis.streaming.transport import (
     ConsumerCrashed,
     Delivery,
     Disposition,
+    FlowControl,
 )
 
 TOPO = build_topology(min_backoff_s=10, max_backoff_s=60, ack_deadline_s=30)
@@ -135,18 +136,20 @@ class _Flaky:
 
     def __init__(self, crash_on: set[bytes]) -> None:
         self.crash_on = crash_on
-        self.seen: list[tuple[bytes, int]] = []
+        self.groups: list[list[tuple[bytes, int]]] = []
 
     def process(self, deliveries: Sequence[Delivery]) -> list[Disposition]:
+        self.groups.append([(d.data, d.delivery_attempt) for d in deliveries])
         for d in deliveries:
-            self.seen.append((d.data, d.delivery_attempt))
             if d.data in self.crash_on:
                 self.crash_on.discard(d.data)
                 raise ConsumerCrashed("boom")
         return [Disposition.ACK] * len(deliveries)
 
 
-def test_drain_restarts_crashed_worker_and_redelivers_whole_batch() -> None:
+def test_drain_restarts_crashed_worker_and_redelivers_only_its_leases() -> None:
+    """ADR 0025: slow start (1, 2, ...) bounds what a crash strands, and the replacement
+    starts over at one; first redeliveries come back as their own group."""
     b = _broker()
     for i in range(5):
         b.publish(EVENTS, str(i).encode(), {})
@@ -160,8 +163,11 @@ def test_drain_restarts_crashed_worker_and_redelivers_whole_batch() -> None:
     report = drain(b, WH, factory, batch_size=10)
     assert report.crashes == 1 and len(workers) == 2
     assert report.acks == 5 and b.backlog(WH) == 0
-    redelivered = {data for data, attempt in workers[1].seen if attempt == 2}
-    assert redelivered == {str(i).encode() for i in range(5)}  # nothing in the batch was acked
+    assert workers[0].groups == [[(b"0", 1)], [(b"1", 1), (b"2", 1)]]  # windows 1, then 2
+    assert workers[1].groups[0] == [(b"3", 1)]  # the replacement leases one message
+    redelivered = [g for g in workers[1].groups if any(a > 1 for _, a in g)]
+    assert redelivered == [[(b"1", 2), (b"2", 2)]]  # never mixed with first deliveries
+    assert b.stats(WH)["redelivered"] == 2  # only the crashed lease, never the queue
 
 
 def test_non_batch_worker_is_acked_message_by_message() -> None:
@@ -181,8 +187,44 @@ def test_non_batch_worker_is_acked_message_by_message() -> None:
 
     report = drain(b, WH, CrashOnThird, batch_size=10)
     assert report.crashes == 1 and report.acks == 4
-    # "0" and "1" were acked before the crash and never redelivered.
-    assert b.stats(WH)["redelivered"] == 2
+    # "0" and "1" were acked before the crash; "3" was never leased (window 2: "1", "2").
+    assert b.stats(WH)["redelivered"] == 1
+
+
+def test_drain_keeps_a_passed_lease_window_across_calls() -> None:
+    b = _broker()
+    flow = FlowControl(8)
+    for i in range(7):
+        b.publish(EVENTS, str(i).encode(), {})
+    drain(b, WH, lambda: _Flaky(set()), batch_size=8, flow=flow)
+    assert flow.limit == 8  # pulls of 1, 2 and 4 fresh messages
+    b.publish(EVENTS, b"x", {})
+    worker = _Flaky(set())
+    drain(b, WH, lambda: worker, batch_size=8, flow=flow)
+    assert flow.limit == 8 and worker.groups == [[(b"x", 1)]]
+
+
+def test_process_killing_poison_is_dead_lettered_alone() -> None:
+    """A message that crashes the process on every delivery reaches the DLQ after
+    ``max_delivery_attempts``; the messages pulled with it are processed exactly once."""
+    b = _broker()
+    for i in range(12):
+        b.publish(EVENTS, f"m{i}".encode(), {})
+
+    class Poison(_Flaky):
+        def process(self, deliveries: Sequence[Delivery]) -> list[Disposition]:
+            self.groups.append([(d.data, d.delivery_attempt) for d in deliveries])
+            if any(d.data == b"m5" for d in deliveries):
+                raise ConsumerCrashed("poison")
+            return [Disposition.ACK] * len(deliveries)
+
+    report = drain(b, WH, lambda: Poison(set()), batch_size=10)
+    max_attempts = TOPO.by_role(WAREHOUSE).max_delivery_attempts
+    assert report.crashes == max_attempts and report.acks == 11
+    assert b.stats(WH)["dead_lettered"] == 1
+    assert b.stats(DLQ)["enqueued"] == 1
+    (dead,) = b.pull(DLQ, 10)
+    assert dead.data == b"m5"
 
 
 def test_drain_gives_up_after_max_rounds() -> None:

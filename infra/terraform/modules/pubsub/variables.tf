@@ -31,3 +31,21 @@ variable "labels" {
   type    = map(string)
   default = {}
 }
+
+variable "publisher_members" {
+  description = "Static name -> runtime identity allowed to publish to the events topic (s17)."
+  type        = map(string)
+  default     = {}
+}
+
+variable "subscriber_members" {
+  description = "Subscription role (operational, warehouse, ...) -> the one identity consuming it."
+  type        = map(string)
+  default     = {}
+}
+
+variable "dead_letter_publisher_members" {
+  description = "Static name -> identity whose dead-letter router publishes to the DLQ topic."
+  type        = map(string)
+  default     = {}
+}

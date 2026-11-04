@@ -77,6 +77,7 @@ export interface Slo {
   target: number;
   observed: number | null;
   budget_consumed: number | null;
+  recent_state?: string | null; // two-window rule (ADR 0023); absent = not evaluated
 }
 
 export interface HealthSection {

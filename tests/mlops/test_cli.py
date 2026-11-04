@@ -166,3 +166,23 @@ def test_cli_retrain_without_request(
     code, out = cli(capsys, base, "retrain", "--as-of", world.date(140).isoformat())
     assert code == 0 and out == {"retrained": False, "reason": "no open retraining request"}
     assert h.N_SERIES == 12
+
+
+def test_cli_reads_the_database_url_from_the_environment(
+    pg_url: str, world: World, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    """ADR 0027: the live job passes no secret on a command line."""
+    from praxis.config import get_settings
+
+    base = ["--warehouse", str(world.clean), "--models", str(tmp_path)]
+    monkeypatch.delenv("PRAXIS_DATABASE_URL", raising=False)
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit) as err:
+        main([*base, "status"])
+    assert err.value.code == 2
+    capsys.readouterr()
+    monkeypatch.setenv("PRAXIS_DATABASE_URL", pg_url)
+    get_settings.cache_clear()
+    code, out = cli(capsys, base, "retrain", "--as-of", world.date(140).isoformat())
+    assert code == 0 and out["retrained"] is False

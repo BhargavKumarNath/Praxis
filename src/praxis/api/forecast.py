@@ -29,8 +29,9 @@ from praxis.forecasting.service import (
     WarehouseFeatureSource,
 )
 from praxis.mlops.config import load_mlops_config
-from praxis.mlops.serving import RegistryForecaster, ServingUnavailable
+from praxis.mlops.serving import SERVING_MODEL, RegistryForecaster, ServingUnavailable
 from praxis.mlops.store import RegistryStore
+from praxis.telemetry import telemetry
 from praxis.tracing import current_correlation_id
 
 MODEL_VERSION_HEADER = "X-Praxis-Model-Version"
@@ -201,7 +202,8 @@ def forecast_router(service: ForecastProvider | None) -> APIRouter:
         responses={400: {}, 404: {}, 422: {}, 503: {}},
     )
     def forecast(body: DemandForecastRequest, response: Response) -> Any:
-        if service is None:
+        if service is None:  # no artifact loaded at startup: still an unavailable inference
+            telemetry().inc("model_inference_total", model=SERVING_MODEL, outcome="unavailable")
             return _error(503, "forecast_unavailable", "no forecast model is loaded")
         series = (
             [SeriesKey(s.region_id, s.product, s.segment) for s in body.series]

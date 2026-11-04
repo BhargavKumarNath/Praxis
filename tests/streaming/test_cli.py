@@ -60,6 +60,9 @@ def test_run_local_matches_oracle_and_writes_report(
     backlog = {p.labels["subscription"] for p in view.select("queue_backlog")}
     assert backlog and not any("dlq" in sub for sub in backlog)  # dead letters: dlq_backlog
     assert view.total("events_consumed_total") > 0
+    # A second world on the same control plane would be judged against the wrong oracle.
+    with pytest.raises(SystemExit, match="empty control plane"):
+        main(["--database-url", pg_url, "run-local", "--customers", "5", "--days", "3"])
 
 
 @pytest.mark.parametrize(
@@ -85,3 +88,49 @@ def test_redrive_requires_the_emulator(pg_url: str) -> None:
 def test_missing_database_url_is_explicit() -> None:
     with pytest.raises(SystemExit, match="PRAXIS_DATABASE_URL"):
         main(["migrate"])
+
+
+@pytest.fixture
+def cloud_project(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
+    from praxis.config import get_settings
+
+    monkeypatch.delenv("PUBSUB_EMULATOR_HOST", raising=False)
+    monkeypatch.setenv("PRAXIS_GCP_PROJECT_ID", "praxis-cloud-test")
+    get_settings.cache_clear()
+    yield "praxis-cloud-test"
+    get_settings.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("argv", "message"),
+    [
+        (["produce", "--cloud", "--project", "other"], "--project equal to PRAXIS_GCP_PROJECT_ID"),
+        (["consume", "--cloud", "--role", "warehouse"], "--project equal to PRAXIS_GCP_PROJECT_ID"),
+        (
+            ["produce", "--cloud", "--project", "praxis-cloud-test", "--customers", "201",
+             "--days", "10"],
+            "capped at 2000 customer-days",
+        ),
+    ],
+)  # fmt: skip
+def test_cloud_pubsub_is_explicit_bounded_and_project_pinned(
+    cloud_project: str, pg_url: str, argv: list[str], message: str
+) -> None:
+    """ADR 0026: Cloud Pub/Sub only by --cloud, only the configured project, and a cloud
+    produce is a bounded smoke workload (never a load test)."""
+    with pytest.raises(SystemExit, match=message):
+        main(["--database-url", pg_url, *argv])
+
+
+def test_cloud_and_emulator_are_mutually_exclusive(
+    cloud_project: str, pg_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PUBSUB_EMULATOR_HOST", "127.0.0.1:1")
+    with pytest.raises(SystemExit, match="mutually exclusive"):
+        main(["--database-url", pg_url, "produce", "--cloud", "--project", cloud_project])
+
+
+@pytest.mark.parametrize("argv", [["emulator-setup"], ["replay", "--archive", "x"]])
+def test_topology_and_replay_never_accept_the_cloud(argv: list[str], pg_url: str) -> None:
+    with pytest.raises(SystemExit):  # argparse: unrecognized --cloud
+        main(["--database-url", pg_url, *argv, "--cloud"])

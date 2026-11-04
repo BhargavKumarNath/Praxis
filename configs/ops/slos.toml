@@ -1,7 +1,9 @@
 # Praxis SLOs (Phase 11, ADR 0018). PRE-REGISTERED 2026-10-25, before the ops drill ran:
 # a target is never loosened after seeing a result (CLAUDE.md integrity rule). Pinned by
 # tests/ops/test_config.py. Values are local/development targets for the synthetic system.
-version = "2026-10-25.1"
+# 2026-11-01.1 (ADR 0018 amendment 1, owner-approved Phase 15 remediation): forecast_freshness
+# tightened 48 -> 24 h to equal the forecast service's fresh limit; no other target changed.
+version = "2026-11-01.1"
 
 # Ratio SLO: good events / total events >= target over the evaluated window (the process
 # lifetime for the in-process reader). Needs `min_events` before it can be judged.
@@ -48,13 +50,16 @@ max_ms = 5000
 min_events = 20
 
 # Gauge SLO: every series of the gauge must be <= max_value.
+# forecast_age_hours = feature lag in days x 24 (healthy: yesterday = 24). 24 h is the
+# service's fresh limit (configs/forecast/demand.toml fresh_max_lag_days = 1, ADR 0010):
+# beyond it the fallback serves and pricing holds every price (require_fresh_forecast).
 [[slo]]
 id = "forecast_freshness"
 category = "model"
 description = "Hours since the freshest feature day behind the served forecast"
 kind = "gauge_max"
 metric = "forecast_age_hours"
-max_value = 48
+max_value = 24
 
 [[slo]]
 id = "dlq_backlog"

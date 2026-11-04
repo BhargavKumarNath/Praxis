@@ -30,3 +30,15 @@ variable "labels" {
   type    = map(string)
   default = {}
 }
+
+variable "live_writers" {
+  description = "Static key => member that may write the live volume (the live job only)."
+  type        = map(string)
+  default     = {}
+}
+
+variable "live_readers" {
+  description = "Static key => member that may read the live volume."
+  type        = map(string)
+  default     = {}
+}

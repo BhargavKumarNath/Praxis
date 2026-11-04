@@ -10,7 +10,9 @@
     python -m praxis.streaming dlq [--redrive --project praxis-local]
 
 The database URL comes from ``--database-url`` or ``PRAXIS_DATABASE_URL``; it is never
-printed. Pub/Sub commands target the emulator (``PUBSUB_EMULATOR_HOST``); the cloud
+printed. Pub/Sub commands target the emulator (``PUBSUB_EMULATOR_HOST``); ``produce`` and
+``consume`` also accept ``--cloud`` (the configured project's Terraform topology; a cloud
+produce is capped at CLOUD_MAX_CUSTOMER_DAYS, ADR 0026); the cloud
 topology is owned by Terraform.
 """
 
@@ -61,7 +63,7 @@ from praxis.streaming.pubsub import (
     ensure_topology,
     run_pull_loop,
 )
-from praxis.streaming.redrive import redrive_dead_letters
+from praxis.streaming.redrive import redrive_all
 from praxis.streaming.runtime import Consumer, ConsumerWorker, DeadLetterRouter
 from praxis.streaming.scale_cli import add_scale_commands
 from praxis.streaming.topology import (
@@ -119,6 +121,13 @@ def cmd_run_local(args: argparse.Namespace) -> int:
     """Simulate -> publish (with faults) -> consume -> verify against the oracle."""
     engine = make_engine(_db_url(args))
     store = ControlPlaneStore(engine)
+    if store.has_processed_events():
+        # The oracle covers THIS world only: state left by another run (e.g. another customer
+        # count) would be reported as a mismatch, or rejected by the transition guards.
+        raise SystemExit(
+            "run-local needs an empty control plane: this database already holds processed "
+            "events (recreate it, e.g. `make _events-db`)"
+        )
     events, max_attempts = _sim(args.customers, args.days, args.seed)
     events_list = list(events)
     crash = CrashPlan(seed=args.seed, before_rate=args.crash_rate, after_rate=args.crash_rate)
@@ -146,7 +155,7 @@ def cmd_run_local(args: argparse.Namespace) -> int:
         backlog = pipeline.backlog()
         record_backlog({pipeline.subscription(r): backlog[r] for r in backlog if r != DLQ_INSPECT})
         # Chaos harness only: exercise the operator redrive so recovery is measured too.
-        redriven = redrive_dead_letters(store, pipeline.broker, pipeline.topology.events_topic)
+        redriven = redrive_all(store, pipeline.broker, pipeline.topology.events_topic)
         pipeline.drain()
         snap = store.snapshot()
         expected = expected_state(events_list, max_attempts)
@@ -190,6 +199,31 @@ def _require_emulator() -> None:
         raise SystemExit(f"{EMULATOR_ENV} must point at the Pub/Sub emulator")
 
 
+# A cloud `produce` is a bounded smoke workload, never a load test (ADR 0026): at most this
+# many simulated customer-days (~2 events each), well inside the Pub/Sub free tier.
+CLOUD_MAX_CUSTOMER_DAYS = 2000
+
+
+def _require_pubsub(args: argparse.Namespace) -> None:
+    """The emulator, or Cloud Pub/Sub by explicit opt-in on the configured project only.
+
+    Topology is never created here in the cloud (Terraform owns it); only `produce` and
+    `consume` accept ``--cloud``."""
+    cloud = bool(getattr(args, "cloud", False))
+    if os.environ.get(EMULATOR_ENV):
+        if cloud:
+            raise SystemExit(f"--cloud and {EMULATOR_ENV} are mutually exclusive")
+        return
+    if not cloud:
+        raise SystemExit(f"{EMULATOR_ENV} must point at the Pub/Sub emulator (or pass --cloud)")
+    configured = get_settings().gcp_project_id
+    if not configured or args.project != configured:
+        raise SystemExit("--cloud needs --project equal to PRAXIS_GCP_PROJECT_ID")
+    customers = getattr(args, "customers", None)
+    if customers is not None and customers * args.days > CLOUD_MAX_CUSTOMER_DAYS:
+        raise SystemExit(f"--cloud produce is capped at {CLOUD_MAX_CUSTOMER_DAYS} customer-days")
+
+
 def cmd_emulator_setup(args: argparse.Namespace) -> int:
     _require_emulator()
     created = ensure_topology(args.project, _topology(args))
@@ -198,7 +232,7 @@ def cmd_emulator_setup(args: argparse.Namespace) -> int:
 
 
 def cmd_produce(args: argparse.Namespace) -> int:
-    _require_emulator()
+    _require_pubsub(args)
     topo = _topology(args)
     archive = EventArchive(args.archive) if args.archive else None
     producer = EventProducer(PubSubPublisher(args.project), topo.events_topic, archive)
@@ -238,7 +272,7 @@ def _worker(
 
 
 def cmd_consume(args: argparse.Namespace) -> int:
-    _require_emulator()
+    _require_pubsub(args)
     topo = _topology(args)
     engine = make_engine(_db_url(args))
     store = ControlPlaneStore(engine)
@@ -256,10 +290,12 @@ def cmd_consume(args: argparse.Namespace) -> int:
     )
     publisher.publish()
     puller.close()
-    if warehouse is not None:
+    out: dict[str, Any] = {"role": args.role, "loop": vars(report), "metrics": metrics.snapshot()}
+    if warehouse is not None:  # distinct rows stored: duplicates must not add any
+        out["warehouse_rows"] = warehouse.count("raw.sim_events")
         warehouse.close()
     engine.dispose()
-    _write({"role": args.role, "loop": vars(report), "metrics": metrics.snapshot()}, None)
+    _write(out, None)
     return 0
 
 
@@ -341,7 +377,7 @@ def cmd_dlq(args: argparse.Namespace) -> int:
     if args.redrive:
         _require_emulator()
         topo = _topology(args)
-        report = redrive_dead_letters(
+        report = redrive_all(
             store, PubSubPublisher(args.project), topo.events_topic, reason=args.reason
         )
         out["redrive"] = vars(report)
@@ -390,6 +426,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - complexity-de
     produce.add_argument("--days", type=int, default=14)
     produce.add_argument("--seed", type=int, default=42)
     produce.add_argument("--archive", type=Path, default=None)
+    produce.add_argument("--cloud", action="store_true", help="Cloud Pub/Sub (bounded smoke)")
     produce.set_defaults(fn=cmd_produce)
 
     consume = sub.add_parser("consume")
@@ -397,6 +434,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0915 - complexity-de
     consume.add_argument("--role", choices=[*ROLES, DLQ_INSPECT], required=True)
     consume.add_argument("--idle-timeout", type=float, default=10.0)
     consume.add_argument("--duckdb", type=Path, default=Path("data/warehouse/stream.duckdb"))
+    consume.add_argument("--cloud", action="store_true", help="Cloud Pub/Sub (Terraform topology)")
     consume.set_defaults(fn=cmd_consume)
 
     bench = sub.add_parser("emulator-bench")

@@ -7,6 +7,7 @@ resource "google_bigquery_dataset" "layer" {
   project                         = var.project_id
   location                        = var.location
   default_partition_expiration_ms = var.default_partition_expiration_days * 24 * 60 * 60 * 1000
+  default_table_expiration_ms     = var.default_table_expiration_days * 24 * 60 * 60 * 1000
   delete_contents_on_destroy      = var.delete_contents_on_destroy
   labels                          = var.labels
 }

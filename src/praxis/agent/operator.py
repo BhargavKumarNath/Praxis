@@ -136,6 +136,9 @@ class Operator:
         self, run: Investigation, session: Session, current: LLMProvider, down: Exception
     ) -> LLMProvider | None:
         detail = {"provider": current.name, "error_type": type(down).__name__}
+        # Ops alert agent_provider_degraded: a fallback keeps the operator working, so the
+        # outage is otherwise only visible in the audit log.
+        telemetry().inc("agent_provider_failures_total", provider=current.name)
         if self.fallback is None or current is self.fallback:
             self.executor.session_event(session, "provider_unavailable", detail)
             return None

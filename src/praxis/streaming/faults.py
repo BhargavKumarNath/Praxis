@@ -1,8 +1,9 @@
 """Fault injection for consumers and the database boundary (chaos tests, local runs).
 
 * ``CrashPlan`` / ``CrashingConsumer``: the process dies once before, or once after, the
-  side effect of selected events. The plan lives outside the consumer, so it survives the
-  restart that ``drain`` performs (otherwise the restarted consumer would crash forever).
+  side effect of selected events (a transient crash), or before the side effect of a
+  ``poison`` event on EVERY delivery (a process-killing poison message). The plan lives
+  outside the consumer, so it survives the restart that ``drain`` performs.
 * ``DatabaseOutage``: makes the next N statements on an engine fail with a real
   ``sqlalchemy.exc.OperationalError`` (what a dropped connection raises).
 
@@ -35,10 +36,13 @@ class CrashPlan:
     after_rate: float = 0.0
     before: set[str] = field(default_factory=set)
     after: set[str] = field(default_factory=set)
+    poison: set[str] = field(default_factory=set)
     crashed_before: set[str] = field(default_factory=set)
     crashed_after: set[str] = field(default_factory=set)
 
     def should_crash_before(self, event_id: str) -> bool:
+        if event_id in self.poison:
+            return True
         if event_id in self.crashed_before:
             return False
         hit = event_id in self.before or _unit(self.seed, "b", event_id) < self.before_rate

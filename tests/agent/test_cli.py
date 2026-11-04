@@ -83,6 +83,11 @@ def test_call_investigate_audit(
     assert main(["audit", "--session", run["session_id"]]) == 0
     events = _json(capsys.readouterr().out)
     assert {e["phase"] for e in events} == {"session", "received", "outcome"}
+    # Phase 15: the investigation publishes an "agent" batch snapshot, so the ops monitor
+    # (another process) sees agent_investigations_total for agent_provider_degraded.
+    fleet = MetricSnapshotStore(make_engine(db)).read(datetime.now(UTC))
+    assert any(src.component == "agent" and not src.stale for src in fleet.sources)
+    assert fleet.view.total("agent_investigations_total") >= 1
 
 
 def test_human_approves_rejects_and_lifts(
