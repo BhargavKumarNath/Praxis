@@ -1,7 +1,12 @@
-# One accepted gitleaks finding, ignored by exact fingerprint (commit:file:rule:line), so no
+# Accepted gitleaks findings, ignored by exact fingerprint (commit:file:rule:line), so no
 # path, rule or later commit is exempt. Reviewed 2026-11-01 (Phase 15 remediation):
-# `generic-api-key` matched `PLAN.lookup_key == "praxis_growth_gbp_4900_month"` in a payments
-# unit test: a Stripe price LOOKUP KEY (a public, human-chosen product label built from tier,
+# `generic-api-key` matched an equality test of `PLAN.lookup_key` against the literal lookup
+# key in a payments unit test: a Stripe price LOOKUP KEY (a public, human-chosen product label built from tier,
 # currency and amount), not a credential. The line has since been rewritten so it no longer
 # matches; this commit stays in history (rewriting history needs the owner's instruction).
 105c9306cdbe7e74f2b77a5183bbd9d77371c95e:tests/payments/test_ids_and_model.py:generic-api-key:44
+# Owner-approved 2026-11-05: the same false positive, quoted while documenting it (this file
+# and the Phase 15 remediation evidence, commit 5815d9f). Both quotes were reworded so they
+# no longer match; the commit stays in history.
+5815d9fedea584e462112d794b933fe98fc69306:.gitleaksignore:generic-api-key:3
+5815d9fedea584e462112d794b933fe98fc69306:docs/evidence/phase-15-remediation.md:generic-api-key:132

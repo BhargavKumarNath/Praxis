@@ -1,4 +1,4 @@
-"""CLI: ``python -m praxis.pricing {decide|approve|execute|show|churn-archive}``.
+"""CLI: ``python -m praxis.pricing {decide|approve|execute|show|churn-archive[-without]}``.
 
 * ``decide``: run one pricing cycle as of a date (default mode: the policy's, i.e. shadow).
   Without ``--database-url`` decisions are kept in memory and written to ``--out`` only;
@@ -6,6 +6,8 @@
 * ``approve`` / ``execute`` / ``show``: act on one recorded decision (Postgres).
 * ``churn-archive``: the meta-analytic archive of earlier churn-response documents (ADR 0016
   third amendment); its checksum is pinned in the policy.
+* ``churn-archive-without``: the same archive minus named experiments, derived from a
+  verified archive (the nightly decides seed 1 without its own test; no raw worlds needed).
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ from praxis.elasticity.config import load_registry
 from praxis.forecasting.artifact import load_artifact
 from praxis.forecasting.service import WarehouseFeatureSource
 from praxis.logging import configure_logging
-from praxis.pricing.churn_prior import ChurnPriorError, build_archive
+from praxis.pricing.churn_prior import ChurnPriorError, archive_without, build_archive
 from praxis.pricing.config import Mode, load_policy
 from praxis.pricing.evidence import (
     EvidenceError,
@@ -158,6 +160,20 @@ def cmd_churn_archive(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_churn_archive_without(args: argparse.Namespace) -> int:
+    """Derive an archive without some experiments from a verified archive (no raw worlds)."""
+    try:
+        doc = json.loads(args.archive.read_text())
+        archive = archive_without(doc, set(args.exclude))
+    except (OSError, ValueError, ChurnPriorError) as exc:
+        sys.stderr.write(f"refused: {type(exc).__name__}: {exc}\n")
+        return 2
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(archive, indent=1, sort_keys=True) + "\n")
+    sys.stdout.write(archive["checksum"] + "\n")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m praxis.pricing")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -189,6 +205,11 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--out", type=Path, required=True)
     a.add_argument("docs", type=Path, nargs="+", help="churn_response.json of each experiment")
     a.set_defaults(func=cmd_churn_archive)
+    w = sub.add_parser("churn-archive-without", help="an archive minus some experiments")
+    w.add_argument("--archive", type=Path, required=True, help="a verified churn archive")
+    w.add_argument("--exclude", action="append", required=True, help="experiment label")
+    w.add_argument("--out", type=Path, required=True)
+    w.set_defaults(func=cmd_churn_archive_without)
     return parser
 
 

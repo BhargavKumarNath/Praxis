@@ -87,6 +87,24 @@ def build_archive(docs: list[tuple[str, dict[str, Any]]], *, verify: Any) -> dic
     return out
 
 
+def archive_without(doc: dict[str, Any], sources: set[str]) -> dict[str, Any]:
+    """The same archive minus the experiments labelled ``sources`` (e.g. a world's own test,
+    so it is decided without itself). Equal to ``build_archive`` over the remaining documents:
+    each entry is copied unchanged, in order, and the checksum is recomputed. The input must
+    verify and every excluded source must be in it."""
+    if doc.get("archive_format") != ARCHIVE_FORMAT or checksum(doc) != doc.get("checksum"):
+        raise ChurnPriorError("churn archive format or checksum mismatch")
+    labels = {str(e["source"]) for e in doc["experiments"]}
+    if missing := sorted(sources - labels):
+        raise ChurnPriorError(f"not in the archive: {', '.join(missing)}")
+    kept = [e for e in doc["experiments"] if e["source"] not in sources]
+    if not kept:
+        raise ChurnPriorError("an archive needs at least one churn-response document")
+    out = {k: v for k, v in doc.items() if k != "checksum"} | {"experiments": kept}
+    out["checksum"] = checksum(out)
+    return out
+
+
 @dataclass(frozen=True)
 class ChurnArchive:
     checksum: str

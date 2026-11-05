@@ -15,6 +15,7 @@ from praxis.elasticity.config import load_registry
 from praxis.pricing.__main__ import main
 from praxis.pricing.churn_prior import (
     ChurnPriorError,
+    archive_without,
     build_archive,
     load_archive,
     predictive_prior,
@@ -339,3 +340,47 @@ def test_cli_builds_an_archive_and_refuses_a_corrupt_document(
     Path(docs[0]).write_text(json.dumps(corrupt))
     assert main(["churn-archive", "--out", str(out), *docs]) == 2
     assert "refused" in capsys.readouterr().err
+
+
+def test_archive_without_equals_building_from_the_rest(tmp_path: Path) -> None:
+    """Deriving the archive minus one experiment = archiving the remaining documents."""
+    docs = []
+    for k in range(3):
+        d = tmp_path / f"eval-seed{k}-c8000" / "analysis" / "churn_response.json"
+        d.parent.mkdir(parents=True)
+        write_churn_response(d, gammas={"api_requests": (1.0 + k, 1.0)})
+        docs.append((f"eval-seed{k}-c8000", json.loads(d.read_text())))
+    full = build_archive(docs, verify=check_churn_document)
+    rest = build_archive(docs[1:], verify=check_churn_document)
+    assert archive_without(full, {"eval-seed0-c8000"}) == rest
+    with pytest.raises(ChurnPriorError, match="not in the archive: eval-seed9-c8000"):
+        archive_without(full, {"eval-seed9-c8000"})
+    with pytest.raises(ChurnPriorError, match="at least one"):
+        archive_without(full, {s for s, _ in docs})
+    tampered = json.loads(json.dumps(full))
+    tampered["experiments"][1]["products"]["api_requests"]["gamma"] = 9.0
+    with pytest.raises(ChurnPriorError, match="checksum"):
+        archive_without(tampered, {"eval-seed0-c8000"})
+
+
+def test_cli_derives_an_archive_without_an_experiment(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    full = tmp_path / "full.json"
+    docs = []
+    for k in range(2):
+        d = tmp_path / f"eval-seed{k}-c8000" / "analysis" / "churn_response.json"
+        d.parent.mkdir(parents=True)
+        write_churn_response(d, gammas={"api_requests": (1.0 + k, 1.0)})
+        docs.append(str(d))
+    assert main(["churn-archive", "--out", str(full), *docs]) == 0
+    capsys.readouterr()
+    out = tmp_path / "sub" / "without.json"
+    args = ["churn-archive-without", "--archive", str(full), "--out", str(out)]
+    assert main([*args, "--exclude", "eval-seed0-c8000"]) == 0
+    derived = json.loads(out.read_text())
+    assert capsys.readouterr().out.strip() == derived["checksum"]
+    assert [e["source"] for e in derived["experiments"]] == ["eval-seed1-c8000"]
+    assert main([*args, "--exclude", "eval-seed7-c8000"]) == 2
+    assert "not in the archive" in capsys.readouterr().err
+    assert main([*args[:2], str(tmp_path / "missing.json"), *args[3:], "--exclude", "x"]) == 2

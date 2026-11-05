@@ -5,7 +5,7 @@
 	elasticity-data elasticity-analyze elasticity-evaluate elasticity-contamination \
 	pricing-data pricing-shadow pricing-dev nightly-science nightly-perf nightly-security perf-baseline \
 	stripe-verify recovery-data recovery-train recovery-evaluate \
-	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive \
+	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive churn-archive-dev \
 	mlops-data mlops-drill console-api console-web console-demo e2e e2e-browsers \
 	scale-archive scale-run scale-http scale-payments tf-test resilience cloud-destroy \
 	_cloud-project cloud-init cloud-images cloud-plan cloud-apply cloud-smoke
@@ -428,6 +428,12 @@ ARCHIVE_SEEDS ?= 1 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 1
 ARCHIVE_OUT ?= configs/pricing/churn_archive.json
 # seed 1 (the nightly / pricing-dev world) is in the archive: decide it without its own test
 DEV_ARCHIVE = data/pricing/churn_archive_without_seed1.json
+# Derived from the pinned, checksum-verified archive (identical to rebuilding it from the other
+# development worlds' documents, which exist only where `make churn-response` ran for them;
+# CI has only seed 1).
+churn-archive-dev:
+	.venv/bin/python -m praxis.pricing churn-archive-without --archive $(ARCHIVE_OUT) \
+		--exclude eval-seed1-c$(EL_CUSTOMERS) --out $(DEV_ARCHIVE)
 churn-archive:
 	PRAXIS_LOG_LEVEL=WARNING .venv/bin/python -m praxis.pricing churn-archive \
 		--out $(ARCHIVE_OUT) \
@@ -443,7 +449,7 @@ pricing-compare:
 pricing-dev:
 	$(MAKE) forecast-data forecast-backtest forecast-train FC_SEED=1
 	$(MAKE) elasticity-data elasticity-analyze churn-response EL_SEED=1
-	$(MAKE) churn-archive ARCHIVE_OUT=$(DEV_ARCHIVE) ARCHIVE_SEEDS="$(filter-out 1,$(ARCHIVE_SEEDS))"
+	$(MAKE) churn-archive-dev
 	$(MAKE) pricing-data customer-train pricing-shadow PX_SEED=1 PX_ARCHIVE=$(DEV_ARCHIVE)
 
 # --- Phase 8 payment recovery (local DuckDB + simulator truth; no cloud) -------------------
@@ -501,7 +507,7 @@ nightly-science:
 	$(MAKE) forecast-train FC_SEED=1
 	$(MAKE) pricing-data PX_SEED=1
 	$(MAKE) customer-train PX_SEED=1
-	$(MAKE) churn-archive ARCHIVE_OUT=$(DEV_ARCHIVE) ARCHIVE_SEEDS="$(filter-out 1,$(ARCHIVE_SEEDS))"
+	$(MAKE) churn-archive-dev
 	$(MAKE) pricing-shadow PX_SEED=1 PX_ARCHIVE=$(DEV_ARCHIVE)
 	$(MAKE) recovery-data RC_SEED=1
 	$(MAKE) recovery-train RC_SEED=1

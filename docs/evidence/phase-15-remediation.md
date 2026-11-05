@@ -129,7 +129,7 @@ first.
 
 ## 3. gitleaks finding
 
-`generic-api-key` matched `PLAN.lookup_key == "praxis_growth_gbp_4900_month"` in
+`generic-api-key` matched an equality test of `PLAN.lookup_key` against the literal lookup key in
 `tests/payments/test_ids_and_model.py:44`. That value is a Stripe price lookup key: a
 public, human-chosen product label (tier, currency, amount), not a credential.
 
