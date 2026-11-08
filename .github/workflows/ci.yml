@@ -38,7 +38,9 @@ jobs:
     # emulator integration tests run here and count towards the coverage floors.
     name: backend tests (+ Pub/Sub emulator) + coverage floors
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The suite takes ~20 min on a typical runner and up to ~1.7x that on a slow one
+    # (2026-11-08: two runs cancelled at 30 min with every test passing so far).
+    timeout-minutes: 45
     services:
       # Throwaway Postgres (trust auth, reachable only inside the runner).
       postgres:
