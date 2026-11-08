@@ -199,8 +199,8 @@ def test_outcome_audit_failure_is_surfaced(memory_world: World, policy: AgentPol
 
 def test_wiring_providers(memory_world: World, policy: AgentPolicy) -> None:
     assert isinstance(provider_for("deterministic-triage", policy), TriageProvider)
-    with pytest.raises(UnknownProvider, match="gemini"):
-        provider_for("gemini", policy)
+    with pytest.raises(UnknownProvider, match="known: deterministic-triage, gemini"):
+        provider_for("no-such-llm", policy)
     executor = ToolExecutor(TOOLS, memory_world.backends, memory_world.audit, policy)
     op = operator_for(executor)
     assert op.fallback is not None and op.provider.name == "deterministic-triage"

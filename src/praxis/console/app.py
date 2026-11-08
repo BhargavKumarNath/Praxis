@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, FastAPI, Header, Path
@@ -26,7 +27,7 @@ from praxis import __version__
 from praxis.agent.config import load_agent_policy
 from praxis.agent.requests import ApprovalDesk, PostgresRequestStore, RequestError
 from praxis.api.middleware import docs_routes, install_middleware, publisher_lifespan
-from praxis.config import Settings, get_settings
+from praxis.config import Environment, Settings, get_settings
 from praxis.console.auth import Approvers, ApproversConfigError, bearer, parse_approvers
 from praxis.console.context import ConsoleContext
 from praxis.console.executive import executive_view
@@ -225,12 +226,22 @@ def _view_endpoint(
     return endpoint
 
 
-def build_approvers(settings: Settings) -> Approvers:
+ROTATION_WARNING = timedelta(days=14)
+
+
+def build_approvers(settings: Settings, now: datetime | None = None) -> Approvers:
+    """Every environment but local requires expiring tokens (ADR 0021 amendment 1)."""
     raw = settings.console_approvers.get_secret_value() if settings.console_approvers else None
-    approvers = parse_approvers(raw)
+    at = now or datetime.now(UTC)
+    approvers = parse_approvers(
+        raw, require_expiry=settings.environment is not Environment.LOCAL, now=at
+    )
     actor = load_agent_policy().agent.actor
-    if any(name == actor for name, _ in approvers.tokens):
+    if actor in approvers.names:
         raise ApproversConfigError(f"{actor!r} is the AI operator's identity, not an approver")
+    due = approvers.expiring(at, ROTATION_WARNING)
+    if due:
+        logger.warning("console.approver_rotation_due", extra={"approvers": due})
     return approvers
 
 

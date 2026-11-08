@@ -1,0 +1,37 @@
+# Fresh held-out pricing evaluation (final engineering run, ADR 0031). SYNTHETIC worlds only.
+#
+# PRE-REGISTERED 2026-11-05 BEFORE any of the worlds below was built (experiment, forecast or
+# pricing). Pinned by tests/pricing/test_evaluation.py. Each world is built ONCE (`make
+# pricing-world SEED=n`) and evaluated ONCE (`make pricing-shadow PX_SEED=n`), with no churn
+# archive override. Development used seeds 1 and 101-124 only.
+#
+# Method under test: the Phase 9 final method, UNCHANGED (configs/pricing/policy.toml as
+# pinned, sha256 0931da35...), now with the Phase 4 loader defect fixed (ADR 0017). The dev
+# sensitivity analysis (docs/evidence/final-pricing-evaluation.md) did not change it.
+
+version = "2026-11-05.1"
+seeds = [901, 902, 903, 904, 905]
+# A world whose Phase 4 forecast gate fails has no forecast artifact (pricing unavailable by
+# design): it is reported as such and replaced by the next of these, in order.
+replacement_seeds = [906, 907, 908]
+policy_sha256 = "0931da35a1874478ad28e75251931cd0872da2fd8ef6103b68c065e318c644f1"
+per_world_acceptance = "configs/pricing/shadow_acceptance.toml"  # unchanged
+
+[hypotheses]
+# H1 SAFETY (gated): every world passes the unchanged per-world shadow acceptance
+#   (0 constraint violations, 0 executions, complete records, forecast lineage, no harm,
+#   churn guardrail, stress fail-safe, direction >= 0.80 when there are changes).
+h1_all_worlds_pass = true
+# H2 VALUE vs STATIC (the commercial question): the mean true objective delta per world-day
+#   over the 5 worlds is > 0 AND the lower bound of its 95% bootstrap CI (worlds resampled,
+#   B = 10000, seed 20261105) is > 0. Static pricing (hold everything) scores exactly 0.
+h2_bootstrap_samples = 10000
+h2_bootstrap_seed = 20261105
+h2_ci_level = 0.95
+# H3 MEANINGFUL DECISIONS: at least 3 of the 5 worlds make >= 1 price change.
+h3_min_worlds_with_changes = 3
+
+[reported]
+# Not gated: captured share of the oracle (best feasible candidate per decision), change
+# share, direction rate, the naive unconstrained point-estimate optimum's true delta (the
+# "no guardrails" baseline already scored per decision), status and reason counts.

@@ -1,0 +1,191 @@
+{
+  "phase": 16,
+  "suite": "required_test.md s22 final acceptance suite",
+  "generated_at": "2026-11-05",
+  "code_revision": {
+    "head": "86ac9e5",
+    "working_tree": "dirty: Phase 16 documentation only (docs/case-study, docs/evidence/phase-16*, README.md); no code, config, threshold or model change"
+  },
+  "environment": {
+    "host": "local Linux 7.0, 16 logical cores, 14.4 GiB RAM",
+    "python": "3.12",
+    "postgres": "17-alpine (Docker)",
+    "pubsub": "emulator (Docker)"
+  },
+  "data_origin": "SYNTHETIC (simulator worlds, fixtures, local services); Stripe step = Stripe Sandbox (test mode)",
+  "steps": [
+    {
+      "step": "check_ci_targets",
+      "command": "make lint typecheck arch ops-check test coverage-gate events-check schemas secrets audit frontend-check workflow-lint",
+      "started_utc": "2026-11-05T20:32:18Z",
+      "exit_code": 0,
+      "duration_s": 1493,
+      "required_test_s22_items": [
+        1,
+        2,
+        3,
+        11
+      ],
+      "result": "PASS",
+      "result_detail": "ruff clean; mypy no issues in 475 source files; 8 import contracts kept, 0 broken; pytest 2,114 passed, 2 skipped (opt-in live BigQuery and Stripe suites), 22 m 53 s; coverage 98.84 %, floors OK on 224 files; events-check, schemas, secrets, audit (pip-audit 0, npm 0), frontend (Vitest 66 passed), workflow-lint all exit 0",
+      "note": "make check minus tf-check, which re-initialises the real backend in place; tf-check ran on a clean copy (next step)"
+    },
+    {
+      "step": "tf_check_clean_copy",
+      "command": "make -C /home/bhargav-kr-nath/scratch/claude-1000/-home-bhargav-kr-nath-Projects-personal-Praxis/af86cd8d-658a-4b88-952f-dd719e25c4c9/scratchpad/p16/tfclean tf-check",
+      "started_utc": "2026-11-05T20:57:11Z",
+      "exit_code": 0,
+      "duration_s": 15,
+      "required_test_s22_items": [
+        12
+      ],
+      "result": "PASS",
+      "result_detail": "terraform test 10 passed, 0 failed (mocked providers); fmt -check clean; validate: configuration is valid",
+      "note": "copy of infra/terraform without .terraform, deploy.auto.tfvars, plans or state"
+    },
+    {
+      "step": "nightly_science",
+      "command": "make nightly-science",
+      "started_utc": "2026-11-05T20:57:26Z",
+      "exit_code": 0,
+      "duration_s": 833,
+      "required_test_s22_items": [
+        5
+      ],
+      "result": "PASS",
+      "result_detail": "DEVELOPMENT world seed 1 only. Forecast 11/11 (hybrid vWAPE 0.13492 vs naive 0.17419, ratio 0.775; cov50 0.4934, cov80 0.7915; data_version panel-edca81519a0e3165). Elasticity recovery PASS (pooled -1.3546 vs truth -1.3372, identical to the recorded dev file). Contamination world: detection + IV pass; its validity gates fail by design (no artifact). Pricing dev shadow PASS (32 hold, 8 frozen, same decisions as recorded). Recovery dev: only the documented known failure champion_truth_recovery, new_failures [] (policy net value per episode champion 984.66 vs baseline 909.61, identical to recorded).",
+      "differences_from_recorded": "Forecast dev data_version and the 4th decimal of coverage differ from docs/evidence/phase-4-backtest-dev-seed1.json (panel-ef9f1156730d4511, cov50 0.4942): that file predates the 2026-10-05 loader determinism fix; data/forecast/determinism.log already recorded panel-edca81519a0e3165 for two rebuilds. vWAPE identical. Model / policy version ids differ where they hash the code revision or the re-pinned policy."
+    },
+    {
+      "step": "e2e",
+      "command": "make e2e",
+      "started_utc": "2026-11-05T21:11:19Z",
+      "exit_code": 0,
+      "duration_s": 9,
+      "required_test_s22_items": [
+        6
+      ],
+      "result": "PASS",
+      "result_detail": "Playwright 1 passed: alert -> incident -> trace -> pending request -> authorized approval"
+    },
+    {
+      "step": "agent_bench",
+      "command": "make pg-up && PRAXIS_AGENT_BENCH_OUT=docs/evidence/phase-16-agent-benchmark.json .venv/bin/pytest -q tests/agent/test_benchmark.py -p no:cacheprovider",
+      "started_utc": "2026-11-05T21:11:28Z",
+      "exit_code": 1,
+      "duration_s": 1,
+      "required_test_s22_items": [
+        7
+      ],
+      "result": "HARNESS ERROR (not a test result)",
+      "result_detail": "8 errors: PRAXIS_TEST_DATABASE_URL not set. The runner invoked pytest directly (to redirect the report away from the recorded Phase 12 file) and omitted the variable the Makefile exports. Retried with the same command plus that variable (agent_bench_retry)."
+    },
+    {
+      "step": "resilience",
+      "command": "make pg-up pubsub-up && PUBSUB_EMULATOR_HOST=127.0.0.1:8085 PRAXIS_RESILIENCE_OUT=docs/evidence/phase-16-resilience-seed804-rerun.json .venv/bin/pytest -q tests/resilience --no-cov -p no:cacheprovider",
+      "started_utc": "2026-11-05T21:11:29Z",
+      "exit_code": 1,
+      "duration_s": 6,
+      "required_test_s22_items": [
+        10
+      ],
+      "result": "HARNESS ERROR (not a test result)",
+      "result_detail": "same cause as agent_bench; retried as resilience_retry"
+    },
+    {
+      "step": "nightly_security",
+      "command": "make nightly-security",
+      "started_utc": "2026-11-05T21:11:35Z",
+      "exit_code": 0,
+      "duration_s": 60,
+      "required_test_s22_items": [
+        11
+      ],
+      "result": "PASS",
+      "result_detail": "pip-audit: no known vulnerabilities; npm audit: 0; gitleaks (full history): no leaks found; trivy config: 0 misconfigurations"
+    },
+    {
+      "step": "nightly_perf",
+      "command": "make nightly-perf",
+      "started_utc": "2026-11-05T21:12:35Z",
+      "exit_code": 0,
+      "duration_s": 75,
+      "required_test_s22_items": [],
+      "result": "PASS",
+      "result_detail": "simulator 72,555 ev/s, 109.5 MB; chaos 1,800.9 ev/s, 536.4 MB; within the local baseline bands (floor 0.5x, RSS 1.5x)"
+    },
+    {
+      "step": "stripe_verify",
+      "command": "make stripe-verify",
+      "started_utc": "2026-11-05T21:13:50Z",
+      "exit_code": 0,
+      "duration_s": 79,
+      "required_test_s22_items": [
+        4
+      ],
+      "result": "PASS",
+      "result_detail": "Stripe SANDBOX (test mode): 5 passed in 78 s (happy path, decline then recovery, renewal then cancellation on a Test Clock, idempotent enrolment, real events replayed reversed and duplicated converge). Representative only; not a load test. Recorded phase-7-stripe-sandbox.json not modified"
+    },
+    {
+      "step": "agent_bench_retry",
+      "command": "make pg-up && PRAXIS_TEST_DATABASE_URL=postgresql+psycopg://praxis@127.0.0.1:55432/postgres PRAXIS_AGENT_BENCH_OUT=docs/evidence/phase-16-agent-benchmark.json .venv/bin/pytest -q tests/agent/test_benchmark.py -p no:cacheprovider",
+      "started_utc": "2026-11-05T21:15:30Z",
+      "exit_code": 0,
+      "duration_s": 13,
+      "required_test_s22_items": [
+        7
+      ],
+      "result": "PASS",
+      "result_detail": "9 passed; benchmark 7/7, 0 prohibited executions, 28 adversarial attempts refused, audit completeness 1.0, 0 provider tokens (deterministic triage, NOT an LLM). Report docs/evidence/phase-16-agent-benchmark.json"
+    },
+    {
+      "step": "resilience_retry",
+      "command": "make pg-up pubsub-up && PRAXIS_TEST_DATABASE_URL=postgresql+psycopg://praxis@127.0.0.1:55432/postgres PUBSUB_EMULATOR_HOST=127.0.0.1:8085 PRAXIS_RESILIENCE_OUT=docs/evidence/phase-16-resilience-seed804-rerun.json .venv/bin/pytest -q tests/resilience --no-cov -p no:cacheprovider",
+      "started_utc": "2026-11-05T21:15:43Z",
+      "exit_code": 0,
+      "duration_s": 104,
+      "required_test_s22_items": [
+        10
+      ],
+      "result": "PASS",
+      "result_detail": "18 passed in 100 s; 12/12 PASS against remediation-804.toml (criteria sha256 identical to the recorded run). Every measured outcome equals the recorded seed-804 report except db_timeout wall time (5.14 s vs 5.15 s). Report docs/evidence/phase-16-resilience-seed804-rerun.json; the recorded phase-15-remediation-failures.json was not overwritten"
+    }
+  ],
+  "not_run": [
+    {
+      "item": 8,
+      "what": "100K scale benchmark",
+      "reason": "cited, not re-run (owner delegated the choice): the recorded run peaked at 10,959 MB on a 14.4 GiB host with ~5-6 GiB used by the desktop; recorded PASS 10/10 SLOs in docs/evidence/phase-14.md (predates ADR 0025 am. 1)"
+    },
+    {
+      "item": 9,
+      "what": "1M scale benchmark",
+      "reason": "not feasible on this host (measured DuckDB PK index limit) and not approved"
+    },
+    {
+      "item": 5,
+      "what": "held-out statistical evaluations",
+      "reason": "never re-run (integrity rule); recorded results cited in docs/case-study/experiment-cards.md"
+    }
+  ],
+  "summary": {
+    "steps_run": 11,
+    "exit_0": [
+      "check_ci_targets",
+      "tf_check_clean_copy",
+      "nightly_science",
+      "e2e",
+      "nightly_security",
+      "nightly_perf",
+      "stripe_verify",
+      "agent_bench_retry",
+      "resilience_retry"
+    ],
+    "harness_errors_then_retried": {
+      "agent_bench": "agent_bench_retry (exit 0)",
+      "resilience": "resilience_retry (exit 0)"
+    },
+    "final": "every s22 item that was run exits 0 on its final invocation; item 8 (100K) cited, item 9 (1M) not run",
+    "note": "the two harness errors are kept above as recorded; the retries changed only the environment variable, not the tests, criteria or code"
+  }
+}

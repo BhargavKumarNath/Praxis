@@ -39,6 +39,12 @@ leakage_poison_factor = 10.0          # future rows x10 must not change any pred
 # backtest. A candidate's skill may be at most this x the champion's. The margin is reused
 # from [shadow] max_vwape_ratio_vs_champion; it was not chosen from any result.
 max_skill_ratio_vs_champion = 1.02
+# AMENDMENT 2026-11-05 (ADR 0030; owner-delegated, cost only): a retrain trains and backtests
+# at most the last max_training_days of history (a sliding window). Without it the rolling-
+# origin backtest grows with the square of the live world's age (ADR 0027 amendment 2). 364
+# days = 52 whole weeks keeps a full year of weekly seasonality. Every evaluated world so far
+# is <= 252 days, so no recorded result is affected; only the live loop after ~2027-04 is.
+max_training_days = 364
 
 [shadow]
 # Challenger vs champion on the SAME observations (same snapshots, same matured actuals).

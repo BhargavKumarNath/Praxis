@@ -34,7 +34,7 @@ from praxis.config import get_settings
 from praxis.control.db import make_engine, migrate
 from praxis.control.metric_snapshots import MetricSnapshotStore, SnapshotPublisher, publish_batch
 from praxis.control.store import ControlPlaneStore, snapshot_checksum
-from praxis.data.warehouse import Warehouse
+from praxis.data.warehouse import STREAM_COMPACT_ROWS, Warehouse
 from praxis.logging import configure_logging
 from praxis.simulator.config import load_config
 from praxis.simulator.engine import Engine
@@ -131,7 +131,7 @@ def cmd_run_local(args: argparse.Namespace) -> int:
     events, max_attempts = _sim(args.customers, args.days, args.seed)
     events_list = list(events)
     crash = CrashPlan(seed=args.seed, before_rate=args.crash_rate, after_rate=args.crash_rate)
-    with Warehouse(args.duckdb) as warehouse:
+    with Warehouse(args.duckdb, compact_every=STREAM_COMPACT_ROWS) as warehouse:
         warehouse.migrate()
         pipeline = LocalPipeline(
             store,
@@ -157,6 +157,7 @@ def cmd_run_local(args: argparse.Namespace) -> int:
         # Chaos harness only: exercise the operator redrive so recovery is measured too.
         redriven = redrive_all(store, pipeline.broker, pipeline.topology.events_topic)
         pipeline.drain()
+        warehouse.flush()  # landed rows become visible before the counts below
         snap = store.snapshot()
         expected = expected_state(events_list, max_attempts)
         report = {
@@ -277,7 +278,9 @@ def cmd_consume(args: argparse.Namespace) -> int:
     engine = make_engine(_db_url(args))
     store = ControlPlaneStore(engine)
     metrics = StreamMetrics()
-    warehouse = Warehouse(args.duckdb) if args.role == WAREHOUSE else None
+    warehouse = None
+    if args.role == WAREHOUSE:
+        warehouse = Warehouse(args.duckdb, compact_every=STREAM_COMPACT_ROWS)
     if warehouse is not None:
         warehouse.migrate()
     worker = _worker(args.role, topo, store, warehouse, metrics, PubSubPublisher(args.project))
@@ -292,6 +295,7 @@ def cmd_consume(args: argparse.Namespace) -> int:
     puller.close()
     out: dict[str, Any] = {"role": args.role, "loop": vars(report), "metrics": metrics.snapshot()}
     if warehouse is not None:  # distinct rows stored: duplicates must not add any
+        warehouse.flush()
         out["warehouse_rows"] = warehouse.count("raw.sim_events")
         warehouse.close()
     engine.dispose()
@@ -310,7 +314,7 @@ def cmd_emulator_bench(args: argparse.Namespace) -> int:
     publisher = PubSubPublisher(args.project)
     events, max_attempts = _sim(args.customers, args.days, args.seed)
     events_list = list(events)
-    with Warehouse(args.duckdb) as warehouse:
+    with Warehouse(args.duckdb, compact_every=STREAM_COMPACT_ROWS) as warehouse:
         warehouse.migrate()
         loops: dict[str, Any] = {}
 
@@ -339,6 +343,7 @@ def cmd_emulator_bench(args: argparse.Namespace) -> int:
             t.join()
         consume(WAREHOUSE)
         consume(DLQ_INSPECT)
+        warehouse.flush()  # landed rows become visible before the counts below
         snap = store.snapshot()
         report = {
             "is_synthetic": True,

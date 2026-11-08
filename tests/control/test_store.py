@@ -252,3 +252,15 @@ def test_snapshot_checksum_is_stable(store: ControlPlaneStore) -> None:
     for e in customer_lifecycle():
         store.apply_event(OPS, rec(e))
     assert snapshot_checksum(store.snapshot()) == snapshot_checksum(store.snapshot())
+
+
+def test_snapshot_checksum_is_the_sha256_of_the_sorted_json() -> None:
+    import hashlib
+    import json
+    from datetime import UTC, datetime
+
+    from praxis.control.store import snapshot_checksum
+
+    snap = {"b": {"x": [1, "é", None]}, "a": 2.5, "t": datetime(2026, 1, 1, tzinfo=UTC)}
+    whole = json.dumps(snap, sort_keys=True, default=str).encode()
+    assert snapshot_checksum(snap) == hashlib.sha256(whole).hexdigest()

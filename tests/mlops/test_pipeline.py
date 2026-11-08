@@ -259,3 +259,31 @@ def test_retraining_on_unchanged_data_is_a_no_op(
         out is not None and out["duplicate"] and out["candidate"] == (champion.record.model_version)
     )
     assert registry.store.require(champion.record.model_version).stage == ModelStage.CHAMPION
+
+
+def test_retrain_window_is_bounded(
+    make_registry: Callable[..., ModelRegistry], cfg: Any, world: World, tmp_path: Path
+) -> None:
+    """ADR 0030: a retrain uses at most the last max_training_days of history."""
+    first = world.date(0)
+    short = DemandLifecycle(make_registry(), world.clean, tmp_path / "c", h.forecast_config(), "r")
+    assert cfg.validation.max_training_days == 364
+    assert short.training_start(world.date(125)) is None  # history shorter than the window
+    tight = cfg.model_copy(
+        update={"validation": cfg.validation.model_copy(update={"max_training_days": 120})}
+    )
+    registry = ModelRegistry(make_registry().store, tight, environment=Environment.LOCAL)
+    lc = DemandLifecycle(registry, world.clean, tmp_path / "c2", h.forecast_config(), "r")
+    end = world.date(150)
+    assert lc.training_start(end) == end - timedelta(days=119)
+    assert lc.training_start(first + timedelta(days=50)) is None
+
+
+def test_window_cannot_undercut_the_minimum(cfg: Any) -> None:
+    with pytest.raises(ValueError, match="max_training_days"):
+        type(cfg.validation).model_validate(
+            {
+                **cfg.validation.model_dump(),
+                "max_training_days": cfg.validation.min_training_days - 1,
+            }
+        )

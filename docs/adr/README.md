@@ -29,5 +29,9 @@
 | [0025](0025-crash-isolating-consumer-flow-control.md) | Crash-isolating consumer flow control: slow-start lease window, evidence tiers, repeated redeliveries leased alone; am. 1: lookup + plain-insert warehouse writes (amends 0009) |
 | [0026](0026-gcp-deployment-topology-and-spend-guard.md) | GCP deployment: us-central1 compute + europe-west2 BigQuery, Free Tier e2-micro Postgres (no external IP), Direct VPC egress, private services, jobs, GBP 10 budget + spend guard |
 | [0027](0027-live-loop.md) | The live loop: one synthetic day per real day, daily scheduled tick (world rebuild, warehouse, model lifecycle), registry-served champion, live GCS volume; promotion stays human |
+| [0028](0028-bounded-memory-warehouse-dedupe.md) | Warehouse dedupe without an in-memory index: append-only landing + date-scoped anti-join compaction; M1-budget scale ladder |
+| [0029](0029-llm-provider-for-the-ai-operator.md) | LLM provider for the AI operator: one JSON step per turn, strict schema, bounded retries / repairs / budget, Gemini Interactions client, offline echo mode |
+| [0030](0030-bounded-retrain-window.md) | Bounded retrain window: sliding 364-day training and backtest history (cost bound for the live loop) |
+| [0031](0031-heldout-pricing-evaluation-2026-11.md) | Fresh held-out pricing evaluation (seeds 901-905): registration and result (H1 FAIL, H2 FAIL, H3 PASS) |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

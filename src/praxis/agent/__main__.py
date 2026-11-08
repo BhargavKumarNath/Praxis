@@ -18,9 +18,10 @@ from sqlalchemy import Engine
 
 from praxis.agent.config import load_agent_policy
 from praxis.agent.executor import ToolExecutor
+from praxis.agent.llm import StructuredLLMProvider
 from praxis.agent.provider import Task
 from praxis.agent.requests import RequestError
-from praxis.agent.wiring import TOOLS, ControlPlane, control_plane, operator_for
+from praxis.agent.wiring import PROVIDERS, TOOLS, ControlPlane, control_plane, operator_for
 from praxis.config import get_settings
 from praxis.control.db import make_engine
 from praxis.control.metric_snapshots import publish_batch
@@ -67,11 +68,18 @@ def cmd_investigate(args: argparse.Namespace) -> int:
         decision_id=args.decision_id, note=args.note,
     )  # fmt: skip
     engine = _engine()
-    run = operator_for(_executor(_plane(engine))).investigate(task)
+    settings = get_settings()
+    key = settings.gemini_api_key.get_secret_value() if settings.gemini_api_key else None
+    operator = operator_for(_executor(_plane(engine)), provider=args.provider, api_key=key)
+    run = operator.investigate(task)
     # The ops monitor sees agent_* metrics (alert agent_provider_degraded) only through a
     # snapshot: an investigation is a batch job (ADR 0020).
     publish_batch(engine, "agent")
-    _print(run.as_dict())
+    out = run.as_dict()
+    provider = operator.provider
+    if isinstance(provider, StructuredLLMProvider):  # tokens, latency and the estimated cost
+        out["llm_usage"] = provider.usage.as_dict(provider.cfg.pricing)
+    _print(out)
     return 0 if run.outcome == "completed" and run.grounded else 1
 
 
@@ -130,6 +138,10 @@ def _parser() -> argparse.ArgumentParser:
     inv.add_argument("--model-version")
     inv.add_argument("--decision-id")
     inv.add_argument("--note", default="")
+    inv.add_argument(
+        "--provider", choices=PROVIDERS, default=None,
+        help="override the policy's provider for this run (fallback stays deterministic)",
+    )  # fmt: skip
     inv.set_defaults(fn=cmd_investigate)
     req = sub.add_parser("requests")
     req.add_argument("--limit", type=int, default=50)

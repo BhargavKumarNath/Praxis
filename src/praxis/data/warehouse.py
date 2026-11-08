@@ -1,8 +1,9 @@
 """Local analytical warehouse (DuckDB) with versioned SQL migrations.
 
 DuckDB stands in for BigQuery during development (ADR 0008). Every write here is idempotent:
-signals upsert on ``record_key``, events insert on ``event_id`` and ignore duplicates, batch
-rows upsert on ``batch_id``. Re-running any load leaves the logical content unchanged.
+signals upsert on ``record_key``, events insert on ``event_id`` and ignore duplicates (ADR
+0028: a date-scoped anti-join, not an in-memory index), batch rows upsert on ``batch_id``.
+Re-running any load leaves the logical content unchanged.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import hashlib
 import json
 import re
 import tempfile
+import threading
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -36,23 +38,34 @@ _EVENT_FILE_COLUMNS = (
 )
 
 # One projection (casts, derived event_date, provenance) for every event write path, so the
-# batch loader and both streaming paths below can never disagree about an event.
+# batch loader and the streaming path below can never disagree about an event.
 _EVENT_PROJECTION = (
     "SELECT event_id, event_type, source, schema_version, entity_id, "
     "CAST(occurred_at AS TIMESTAMPTZ), CAST(published_at AS TIMESTAMPTZ), "
     "CAST(CAST(occurred_at AS TIMESTAMPTZ) AS DATE), trace_id, correlation_id, "
     "causation_id, is_synthetic, payload, ?, ? "
 )
-_EVENT_FILE = "FROM read_json(?, format='newline_delimited', columns=" + _EVENT_FILE_COLUMNS + ")"
-_INSERT_EVENTS = (
-    "INSERT INTO raw.sim_events "
-    + _EVENT_PROJECTION
-    + _EVENT_FILE
-    + " ON CONFLICT (event_id) DO NOTHING"
+_EVENT_COLUMNS = (
+    "event_id, event_type, source, schema_version, entity_id, occurred_at, published_at, "
+    "event_date, trace_id, correlation_id, causation_id, is_synthetic, payload, batch_id, "
+    "loaded_at"
 )
-# Streaming writes (ADR 0025): the conflict check is an index lookup, then a plain insert of
-# the new rows only. DuckDB's ON CONFLICT costs ~2 ms per statement, which dominated the
-# small writes that crash-isolating consumers make; the primary key still rejects a race.
+_LAND = "INSERT INTO raw.sim_events_landing (" + _EVENT_COLUMNS + ") "
+_EVENT_FILE = "FROM read_json(?, format='newline_delimited', columns=" + _EVENT_FILE_COLUMNS + ")"
+# ADR 0028: compaction = first landed occurrence of each id, minus ids already stored. The
+# anti-join reads only the stored rows of the landed event dates (an event's date is a pure
+# function of the event), which zone maps prune to those days; no index is held in memory.
+_COMPACT = (
+    "INSERT INTO raw.sim_events (" + _EVENT_COLUMNS + ") "  # noqa: S608 - constant columns
+    "SELECT " + _EVENT_COLUMNS + " FROM ("
+    "  SELECT *, row_number() OVER (PARTITION BY event_id ORDER BY seq) AS occurrence"
+    "  FROM raw.sim_events_landing) AS l "
+    "WHERE occurrence = 1 AND NOT EXISTS ("
+    "  SELECT 1 FROM raw.sim_events AS e"
+    "  WHERE e.event_date BETWEEN ? AND ? AND e.event_date = l.event_date"
+    "  AND e.event_id = l.event_id) "
+    "ORDER BY event_date, occurred_at"
+)
 _EVENT_KEYS = ("event_id", "event_type", "source", "schema_version", "entity_id",
                "occurred_at", "published_at", "trace_id", "correlation_id", "causation_id",
                "is_synthetic", "payload")  # fmt: skip
@@ -63,6 +76,10 @@ _EVENT_VALUE_ROW = (
 # Measured crossover (DuckDB 1.5): bound parameters are cheaper than a temporary NDJSON
 # file up to about 12-16 rows; above that, binding cost grows faster than the file scan.
 _MAX_BOUND_ROWS = 8
+# One lock per warehouse file: DuckDB serialises writers across processes (file lock), this
+# serialises connections of one process, so the check-then-insert of a compaction is atomic.
+_WRITE_LOCKS: dict[str, threading.Lock] = {}
+_WRITE_LOCKS_GUARD = threading.Lock()
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
 
@@ -70,10 +87,31 @@ class MigrationError(RuntimeError):
     pass
 
 
+# ADR 0028 amendment 1: the compaction threshold for long-running streaming writers. Compacting
+# after every micro-batch re-scans the growing table each time (quadratic in the stream: the
+# 1K chaos benchmark fell from 1,800 to 575 ev/s); 50,000 rows is the value already registered
+# for the scale ladder (configs/scale/slo.toml). Writers call ``flush()`` before reading counts.
+STREAM_COMPACT_ROWS = 50_000
+
+
 class Warehouse:
-    def __init__(self, path: Path | None = None, *, read_only: bool = False) -> None:
+    def __init__(
+        self, path: Path | None = None, *, read_only: bool = False, compact_every: int = 0
+    ) -> None:
         """``read_only`` (readers such as the ops collectors) never creates the file and
-        never takes the writer lock; DuckDB refuses it while a writer holds the file."""
+        never takes the writer lock; DuckDB refuses it while a writer holds the file.
+
+        ``compact_every``: streaming writes land and are compacted into ``raw.sim_events``
+        once at least this many rows have landed (0 = on every write, so a write is visible
+        when it returns). A larger value amortises the compaction over many micro-batches
+        (scale replays); landed rows are durable, and ``flush()`` makes them visible."""
+        if compact_every < 0:
+            raise ValueError("compact_every must be >= 0")
+        self._compact_every = compact_every
+        self._landed = 0
+        key = str(path.resolve()) if path is not None else f":memory:{id(self)}"
+        with _WRITE_LOCKS_GUARD:
+            self._lock = _WRITE_LOCKS.setdefault(key, threading.Lock())
         if path is not None and not read_only:
             path.parent.mkdir(parents=True, exist_ok=True)
         if read_only:
@@ -215,68 +253,87 @@ class Warehouse:
         """Idempotently load an NDJSON event file. Returns the number of NEW events."""
         batch_id = str(manifest["batch_id"])
         loaded_at = datetime.now(UTC)
-        before = self.count("raw.sim_events")
-        self._con.execute(
-            _INSERT_EVENTS,
-            [batch_id, loaded_at, str(ndjson)],
-        )
-        self._con.execute(
-            "INSERT INTO raw.sim_batches VALUES (?, ?, ?) ON CONFLICT (batch_id) DO NOTHING",
-            [batch_id, json.dumps(manifest, sort_keys=True), loaded_at],
-        )
-        return self.count("raw.sim_events") - before
+        with self._lock:
+            self._con.execute(
+                _LAND + _EVENT_PROJECTION + _EVENT_FILE, [batch_id, loaded_at, str(ndjson)]
+            )
+            new = self._compact()
+            self._con.execute(
+                "INSERT INTO raw.sim_batches VALUES (?, ?, ?) ON CONFLICT (batch_id) DO NOTHING",
+                [batch_id, json.dumps(manifest, sort_keys=True), loaded_at],
+            )
+        return new
 
     def insert_events(self, events: Iterable[dict[str, Any]], batch_id: str) -> int:
-        """Idempotently insert envelope dicts (streaming path). Returns NEW event count.
+        """Idempotently insert envelope dicts (streaming path). Returns the number of NEW
+        events this call made visible in ``raw.sim_events``.
 
-        Insert-if-absent with the batch loader's projection: ids already in the table are
-        found by a primary-key lookup and skipped, and the first occurrence of an id inside
-        the batch wins, exactly as ``ON CONFLICT (event_id) DO NOTHING`` does. Only new rows
-        are written, by a plain INSERT. If another writer adds one of them in between, the
-        primary key rejects the INSERT and the batch is retried with the loader's
-        ``ON CONFLICT`` statement, so a race can never duplicate an event. The count comes
-        from the write itself: counting the table per batch would make streaming quadratic.
+        The rows land in ``raw.sim_events_landing`` (append only, durable when this returns)
+        and are compacted once ``compact_every`` rows have landed: the first landed
+        occurrence of an id wins and ids already stored are skipped, exactly as
+        ``INSERT ... ON CONFLICT (event_id) DO NOTHING`` behaved (ADR 0028). With a deferred
+        compaction the call returns 0 and ``flush()`` reports the new events later.
         """
         rows: dict[str, dict[str, Any]] = {}
         for event in events:
             rows.setdefault(str(event["event_id"]), event)
         if not rows:
             return 0
-        ids = list(rows)
-        existing = self._con.execute(
-            f"SELECT event_id FROM raw.sim_events WHERE event_id IN ({', '.join('?' * len(ids))})",  # noqa: S608
-            ids,
-        ).fetchall()
-        for (event_id,) in existing:
-            del rows[event_id]
-        if not rows:
-            return 0
-        try:
-            return self._insert_new_events(list(rows.values()), batch_id, conflict=False)
-        except duckdb.ConstraintException:
-            return self._insert_new_events(list(rows.values()), batch_id, conflict=True)
+        with self._lock:
+            self._land(list(rows.values()), batch_id)
+            self._landed += len(rows)
+            if self._landed < self._compact_every:
+                return 0
+            return self._compact()
 
-    def _insert_new_events(
-        self, rows: list[dict[str, Any]], batch_id: str, *, conflict: bool
-    ) -> int:
+    def flush(self) -> int:
+        """Compact every landed row into ``raw.sim_events``. Returns the NEW event count."""
+        with self._lock:
+            return self._compact()
+
+    def duplicate_event_ids(self) -> int:
+        """Stored rows beyond one per ``event_id`` (the uniqueness invariant: always 0)."""
+        row = self._con.execute(
+            "SELECT count(*) - count(DISTINCT event_id) FROM raw.sim_events"
+        ).fetchone()
+        assert row is not None  # noqa: S101
+        return int(row[0])
+
+    def _land(self, rows: list[dict[str, Any]], batch_id: str) -> None:
         loaded_at = datetime.now(UTC)
-        suffix = " ON CONFLICT (event_id) DO NOTHING" if conflict else ""
         if len(rows) <= _MAX_BOUND_ROWS:
             params: list[Any] = [batch_id, loaded_at]
             for row in rows:
                 params.extend(_event_param(row, key) for key in _EVENT_KEYS)
             values = ", ".join([_EVENT_VALUE_ROW] * len(rows))
             source = f"FROM (VALUES {values}) AS v({', '.join(_EVENT_KEYS)})"
-            sql = "INSERT INTO raw.sim_events " + _EVENT_PROJECTION + source + suffix
-            result = self._con.execute(sql, params).fetchone()
-            return int(result[0]) if result else 0
+            self._con.execute(_LAND + _EVENT_PROJECTION + source, params)
+            return
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.ndjson"
             with path.open("w") as fh:
                 for row in rows:
                     fh.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
-            sql = "INSERT INTO raw.sim_events " + _EVENT_PROJECTION + _EVENT_FILE + suffix
-            result = self._con.execute(sql, [batch_id, loaded_at, str(path)]).fetchone()
+            self._con.execute(
+                _LAND + _EVENT_PROJECTION + _EVENT_FILE, [batch_id, loaded_at, str(path)]
+            )
+
+    def _compact(self) -> int:
+        """Move landed rows into ``raw.sim_events`` in one transaction (caller holds the lock)."""
+        span = self._con.execute(
+            "SELECT min(event_date), max(event_date) FROM raw.sim_events_landing"
+        ).fetchone()
+        self._landed = 0
+        if span is None or span[0] is None:
+            return 0
+        self._con.execute("BEGIN")
+        try:
+            result = self._con.execute(_COMPACT, [span[0], span[1]]).fetchone()
+            self._con.execute("DELETE FROM raw.sim_events_landing")
+        except Exception:
+            self._con.execute("ROLLBACK")
+            raise
+        self._con.execute("COMMIT")
         return int(result[0]) if result else 0
 
     # --- helpers ----------------------------------------------------------------------

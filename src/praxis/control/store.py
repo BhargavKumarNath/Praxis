@@ -499,4 +499,9 @@ class ControlPlaneStore:
 
 
 def snapshot_checksum(snapshot: Mapping[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(snapshot, sort_keys=True, default=str).encode()).hexdigest()
+    """SHA-256 of ``json.dumps(snapshot, sort_keys=True, default=str)``, hashed chunk by chunk
+    so a 1M-customer snapshot never exists as one string (ADR 0028); same digest."""
+    digest = hashlib.sha256()
+    for chunk in json.JSONEncoder(sort_keys=True, default=str).iterencode(snapshot):
+        digest.update(chunk.encode())
+    return digest.hexdigest()

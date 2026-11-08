@@ -111,3 +111,101 @@ max_enrol_p99_ms = 100
 customers = 100000
 shards = 8
 oracle_lean = true
+
+# ==========================================================================================
+# M1-budget ladder (ADR 0028). REGISTERED 2026-11-05, before any run of these steps.
+#
+# Question: the largest step that replays CORRECTLY inside the budget of an Apple M1 with
+# 8 GB unified memory (the owner's development machine). It is EMULATED on this 16-thread
+# host, not measured on an M1:
+#   * harness (W1 and W2, every shard process): one cgroup v2 scope, memory.max 4096 MB,
+#     swap 0 (`systemd-run --user --scope -p MemoryMax=4096M -p MemorySwapMax=0`), CPUs
+#     pinned to 8 logical CPUs (`taskset -c 0-7`); exceeding the memory is an OOM kill;
+#   * Postgres: its own container `praxis-pg-m1`, `--memory 1g --memory-swap 1g --cpus 2`;
+#   * 4 GB + 1 GB = 5 GB, leaving ~3 GB of the 8 GB for macOS and a desktop.
+# Changes since the 100K step (each measured on development data before registration):
+#   ADR 0028 warehouse (no in-memory primary-key index; landing + compaction every 50,000
+#   rows), DuckDB memory_limit 256 MB and 1 thread per shard, simulator day sections kept as
+#   columns (byte-identical event stream on 4 worlds), lean W1 oracle (ADR 0022 disclosure).
+# A step passes when every check passes: the always-on correctness checks (oracle, ledger,
+# subscription consistency, no open dead letter, no deadlock, warehouse rows == archive
+# events with 0 duplicate ids), 0 OOM kills in the scope (memory.events; memory.peak counts
+# page cache and cannot exceed memory.max, so it is reported, the OOM count binds), no
+# swap, wall <= 6 h, operational processing p99 <= 50 ms. Throughput is REPORTED, not gated.
+# Steps run in order; the ladder stops at the first failure. Same seeds (sim 1, fault 701).
+# DISCLOSED CHANGE after m1-250k passed and before m1-1m ran (no criterion changed): W1 peak
+# RSS grew ~4.2 KB / customer (559 MB at 100K, 1,148 MB at 250K; 1M projected over budget),
+# traced to day 0 buffering every existing customer's events. Arrival / exposure / conversion
+# / subscription sections now render from columns too (byte-identical stream, 4 worlds), the
+# lean oracle feeds the already-ordered stream without a day buffer (identical 10K and 100K
+# oracle checksums), and snapshot checksums hash incrementally (same digest). W1 at 100K:
+# 559 -> 307 MB. m1-500k's W1 ran before the change; its W2 is unaffected (reads the archive).
+# m1-1m NOT RUN: owner decision 2026-11-06 ("skip the 1M run"). It is neither a pass nor a fail.
+
+[scales.m1-10k]          # development calibration only (no SLO)
+customers = 10000
+shards = 6
+duckdb_threads = 1
+duckdb_memory_limit_mb = 256
+warehouse_compact_rows = 50000
+oracle_lean = true
+
+[scales.m1-100k]
+customers = 100000
+shards = 6
+duckdb_threads = 1
+duckdb_memory_limit_mb = 256
+warehouse_compact_rows = 50000
+oracle_lean = true
+
+[scales.m1-100k.slo]
+max_wall_s = 21600
+max_operational_processing_p99_ms = 50
+max_cgroup_mem_peak_mb = 4096
+max_cgroup_swap_peak_mb = 0
+max_error_rate = 0.0
+
+[scales.m1-250k]
+customers = 250000
+shards = 6
+duckdb_threads = 1
+duckdb_memory_limit_mb = 256
+warehouse_compact_rows = 50000
+oracle_lean = true
+
+[scales.m1-250k.slo]
+max_wall_s = 21600
+max_operational_processing_p99_ms = 50
+max_cgroup_mem_peak_mb = 4096
+max_cgroup_swap_peak_mb = 0
+max_error_rate = 0.0
+
+[scales.m1-500k]
+customers = 500000
+shards = 6
+duckdb_threads = 1
+duckdb_memory_limit_mb = 256
+warehouse_compact_rows = 50000
+oracle_lean = true
+
+[scales.m1-500k.slo]
+max_wall_s = 21600
+max_operational_processing_p99_ms = 50
+max_cgroup_mem_peak_mb = 4096
+max_cgroup_swap_peak_mb = 0
+max_error_rate = 0.0
+
+[scales.m1-1m]
+customers = 1000000
+shards = 6
+duckdb_threads = 1
+duckdb_memory_limit_mb = 256
+warehouse_compact_rows = 50000
+oracle_lean = true
+
+[scales.m1-1m.slo]
+max_wall_s = 21600
+max_operational_processing_p99_ms = 50
+max_cgroup_mem_peak_mb = 4096
+max_cgroup_swap_peak_mb = 0
+max_error_rate = 0.0

@@ -84,6 +84,7 @@ class ScaleRun:
     oracle_lean: bool = False  # True: W1 oracle without id set / non-state events (1M memory)
     duckdb_memory_limit_mb: int | None = None  # per shard; None = DuckDB default (80% of RAM)
     duckdb_threads: int | None = None  # per shard; None = DuckDB default (all cores)
+    warehouse_compact_rows: int = 0  # ADR 0028: landed rows per compaction (0 = every write)
 
     def __post_init__(self) -> None:
         if self.customers < 1 or self.days < 1 or self.shards < 1:
@@ -122,15 +123,20 @@ STATE_EVENT_TYPES = frozenset(
 class _DayOracle:
     """Feeds the validator one day at a time, each day stably sorted by ``occurred_at``.
 
-    ``lean`` keeps no event-id set and buffers only ``STATE_EVENT_TYPES``: a stable sort of a
+    ``lean`` keeps no event-id set and feeds only ``STATE_EVENT_TYPES``: a stable sort of a
     subset keeps that subset's relative order, so the final state is identical, but the
     validator's checks on the other events (and on duplicate ids / causation) are skipped.
+    The simulator emits each day already ordered by ``occurred_at``, so a stable sort is the
+    identity: lean mode feeds every event at once instead of buffering the day (ADR 0028; day 0
+    of 1M customers is ~1.7M state events), and refuses an out-of-order event rather than
+    reorder it differently from the full oracle.
     """
 
     def __init__(self, max_attempts: int, *, lean: bool = False) -> None:
         self.validator = StreamValidator(max_attempts, schema_every=1_000_000, track_ids=not lean)
         self._lean = lean
         self._day = ""
+        self._last = ""
         self._buf: list[dict[str, Any]] = []
 
     def add(self, event: dict[str, Any]) -> None:
@@ -140,8 +146,14 @@ class _DayOracle:
         if day != self._day:
             self.flush()
             self._day = day
-        if not self._lean or event["event_type"] in STATE_EVENT_TYPES:
+        if not self._lean:
             self._buf.append(event)
+        elif event["event_type"] in STATE_EVENT_TYPES:
+            at = str(event["occurred_at"])
+            if at < self._last:
+                raise ValueError(f"simulator stream out of order: {at} after {self._last}")
+            self._last = at
+            self.validator.feed(event)
 
     def flush(self) -> None:
         for event in sorted(self._buf, key=lambda e: str(e["occurred_at"])):
@@ -253,7 +265,8 @@ def run_shard(
     engine = make_engine(db_url, pool_size=run.pg_pool_size)
     store = ControlPlaneStore(engine)
     wh_dir.mkdir(parents=True, exist_ok=True)
-    with Warehouse(wh_dir / f"shard-{shard:02d}.duckdb") as wh:
+    wh_path = wh_dir / f"shard-{shard:02d}.duckdb"
+    with Warehouse(wh_path, compact_every=run.warehouse_compact_rows) as wh:
         if run.duckdb_memory_limit_mb is not None:  # K writers share one host (ADR 0022)
             wh.con.execute(f"SET memory_limit = '{int(run.duckdb_memory_limit_mb)}MB'")
         if run.duckdb_threads is not None:  # one small-batch writer: threads only add overhead
@@ -264,6 +277,7 @@ def run_shard(
         published = pipeline.run(read_shard(shard_file(archive, shard)), chunk=run.chunk)
         elapsed = time.perf_counter() - started
         redriven = _redrive_shard(store, pipeline, shard)
+        wh.flush()  # landed rows become visible; the counts below are of raw.sim_events
         report = {
             "shard": shard,
             "events_published": published,
@@ -273,6 +287,8 @@ def run_shard(
             "peak_rss_mb": round(peak_rss_mb(), 1),
             "dead_letters_redriven": redriven,
             "warehouse_rows": wh.count("raw.sim_events"),
+            "warehouse_duplicate_ids": wh.duplicate_event_ids(),
+            "warehouse_bytes": wh_path.stat().st_size,
             "drain": {k: vars(v) for k, v in pipeline.reports.items()},
             "counters": {
                 role: dict(pipeline.metrics.counters.get(pipeline.subscription(role), {}))
@@ -305,6 +321,42 @@ def pg_stats(engine: Engine) -> dict[str, int]:
     with engine.connect() as conn:
         row = conn.execute(_PG_STATS).one()
     return {k: int(v) for k, v in zip(_PG_FIELDS, row, strict=True)}
+
+
+def cgroup_memory(cgroup_dir: Path | None = None) -> dict[str, float | int | None]:
+    """Memory accounting of this process's cgroup v2 (Linux; empty elsewhere).
+
+    A scale step run inside a memory-limited scope (``make scale-m1``) is bounded by
+    ``memory.max`` with swap off: exceeding it is an OOM kill, never a silent slowdown.
+    ``memory.peak`` covers every shard process in the scope."""
+    try:
+        base = cgroup_dir or (
+            Path("/sys/fs/cgroup")
+            / Path("/proc/self/cgroup")
+            .read_text()
+            .strip()
+            .splitlines()[-1]
+            .split("::", 1)[1]
+            .lstrip("/")
+        )
+
+        def read(name: str) -> str | None:
+            f = base / name
+            return f.read_text().strip() if f.exists() else None
+
+        def mb(raw: str | None) -> float | None:
+            return None if raw in (None, "max") else round(int(raw) / 2**20, 1)
+
+        events = dict(line.split() for line in (read("memory.events") or "").splitlines())
+        return {
+            "cgroup_mem_peak_mb": mb(read("memory.peak")),
+            "cgroup_mem_max_mb": mb(read("memory.max")),
+            "cgroup_swap_peak_mb": mb(read("memory.swap.peak")),
+            "cgroup_swap_max_mb": mb(read("memory.swap.max")),
+            "cgroup_oom_kills": int(events.get("oom_kill", 0)),
+        }
+    except (OSError, IndexError, ValueError):
+        return {}
 
 
 def _mem_used_mb() -> float:
@@ -358,6 +410,7 @@ class ResourceSampler:
 
         mem = peak("mem_used_mb")
         return {
+            **cgroup_memory(),
             "samples": len(self.samples),
             "pg_connections_max": peak("pg_connections"),
             "pg_lock_waits_max": peak("pg_lock_waits"),
@@ -501,6 +554,8 @@ def run_scale(run: ScaleRun, archive: Path, db_url: str, wh_dir: Path) -> dict[s
         "resources": sampler.summary(),
         "postgres": _delta(after, before),
         "warehouse_rows": sum(s["warehouse_rows"] for s in shards),
+        "warehouse_duplicate_ids": sum(s.get("warehouse_duplicate_ids", 0) for s in shards),
+        "warehouse_bytes": sum(s.get("warehouse_bytes", 0) for s in shards),
         "dead_letters_redriven": sum(s["dead_letters_redriven"] for s in shards),
         "drain": _sum_nested(shards, "drain"),
         "counters": _sum_nested(shards, "counters"),
@@ -536,6 +591,11 @@ def _latency(report: Mapping[str, Any], role: str, kind: str, q: str) -> float |
     return None if value is None else float(value)
 
 
+def _rows_equal_archive(report: Mapping[str, Any]) -> bool | None:
+    rows, archived = report.get("warehouse_rows"), report.get("events_in_archive")
+    return None if rows is None or archived is None else rows == archived
+
+
 def evaluate_slo(report: Mapping[str, Any], slo: Mapping[str, Any]) -> dict[str, Any]:
     """Each pre-registered criterion with its measured value and verdict; a missing
     measurement fails its criterion (no data is never a pass)."""
@@ -545,6 +605,9 @@ def evaluate_slo(report: Mapping[str, Any], slo: Mapping[str, Any]) -> dict[str,
         "subscription_inconsistencies": (report["subscription_inconsistencies"], "<=", 0),
         "error_rate": (error_rate(report), "<=", slo.get("max_error_rate", 0.0)),
         "postgres_deadlocks": (report["postgres"]["deadlocks"], "<=", 0),
+        # ADR 0028: every archived event is in the warehouse exactly once
+        "warehouse_rows_equal_archive": (_rows_equal_archive(report), "==", True),
+        "warehouse_duplicate_ids": (report.get("warehouse_duplicate_ids"), "<=", 0),
     }
     limits = {
         "min_events_per_s": ("events_per_s", ">="),
@@ -554,6 +617,15 @@ def evaluate_slo(report: Mapping[str, Any], slo: Mapping[str, Any]) -> dict[str,
     for key, (field_name, op) in limits.items():
         if key in slo:
             measured[field_name] = (report.get(field_name), op, slo[key])
+    if "max_cgroup_mem_peak_mb" in slo:  # the M1-budget ladder: memory of the whole scope
+        peak_mb = report["resources"].get("cgroup_mem_peak_mb")
+        measured["cgroup_mem_peak_mb"] = (peak_mb, "<=", slo["max_cgroup_mem_peak_mb"])
+        swap = report["resources"].get("cgroup_swap_peak_mb")
+        measured["cgroup_swap_peak_mb"] = (swap, "<=", slo.get("max_cgroup_swap_peak_mb", 0))
+        # memory.peak includes reclaimable page cache and cannot exceed memory.max: the binding
+        # check is that the kernel never had to kill a process to stay inside the budget.
+        oom = report["resources"].get("cgroup_oom_kills")
+        measured["cgroup_oom_kills"] = (oom, "<=", 0)
     if "max_host_mem_used_mb" in slo:
         peak = report["resources"]["host_mem_used_peak_mb"]
         measured["host_mem_used_peak_mb"] = (peak, "<=", slo["max_host_mem_used_mb"])

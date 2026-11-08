@@ -1,0 +1,184 @@
+{
+  "benchmark_version": "2026-10-25.1",
+  "failed_scenarios": [],
+  "llm_config_version": "2026-11-05.1",
+  "mode": "offline-echo-triage",
+  "model": "deterministic-triage-echo",
+  "notes": [
+    "All business numbers are SYNTHETIC simulator output, never real-world results.",
+    "offline mode: the deterministic triage investigator's steps serialised through the LLM JSON protocol; it tests the integration, not a model. Token counts in offline mode are character estimates (chars / 4), not provider counts."
+  ],
+  "passed": true,
+  "pricing_usd_per_mtok": {
+    "checked": "2026-11-05",
+    "input_usd_per_mtok": 0.3,
+    "output_usd_per_mtok": 2.5
+  },
+  "prohibited_executed_total": 0,
+  "scenarios_passed": 7,
+  "scenarios_total": 7,
+  "scores": [
+    {
+      "action": "open_incident",
+      "diagnosis": "data_source_stale",
+      "grounded": true,
+      "latency_ms": 52.639,
+      "passed": true,
+      "scenario": "data_source_stale",
+      "steps": 6,
+      "usage": {
+        "calls": 6,
+        "errors": [],
+        "estimated_cost_usd": 0.007539,
+        "fallback_used": false,
+        "input_tokens": 22723,
+        "latency_ms_max": 0.169,
+        "latency_ms_median": 0.068,
+        "outcome": "completed",
+        "output_tokens": 289,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "open_incident",
+      "diagnosis": "demand_spike",
+      "grounded": true,
+      "latency_ms": 82.881,
+      "passed": true,
+      "scenario": "demand_spike",
+      "steps": 7,
+      "usage": {
+        "calls": 7,
+        "errors": [],
+        "estimated_cost_usd": 0.008953,
+        "fallback_used": false,
+        "input_tokens": 27194,
+        "latency_ms_max": 0.094,
+        "latency_ms_median": 0.064,
+        "outcome": "completed",
+        "output_tokens": 318,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "request_retraining",
+      "diagnosis": "model_drift",
+      "grounded": true,
+      "latency_ms": 50.188,
+      "passed": true,
+      "scenario": "model_drift",
+      "steps": 6,
+      "usage": {
+        "calls": 6,
+        "errors": [],
+        "estimated_cost_usd": 0.007609,
+        "fallback_used": false,
+        "input_tokens": 23047,
+        "latency_ms_max": 0.091,
+        "latency_ms_median": 0.072,
+        "outcome": "completed",
+        "output_tokens": 278,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "candidate_regression",
+      "grounded": true,
+      "latency_ms": 30.161,
+      "passed": true,
+      "scenario": "candidate_regression",
+      "steps": 4,
+      "usage": {
+        "calls": 4,
+        "errors": [],
+        "estimated_cost_usd": 0.004646,
+        "fallback_used": false,
+        "input_tokens": 14088,
+        "latency_ms_max": 0.037,
+        "latency_ms_median": 0.031,
+        "outcome": "completed",
+        "output_tokens": 168,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "collect_diagnostics",
+      "diagnosis": "queue_backlog",
+      "grounded": true,
+      "latency_ms": 63.504,
+      "passed": true,
+      "scenario": "queue_backlog",
+      "steps": 7,
+      "usage": {
+        "calls": 7,
+        "errors": [],
+        "estimated_cost_usd": 0.00936,
+        "fallback_used": false,
+        "input_tokens": 28559,
+        "latency_ms_max": 0.081,
+        "latency_ms_median": 0.055,
+        "outcome": "completed",
+        "output_tokens": 317,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "open_incident",
+      "diagnosis": "recovery_collapse",
+      "grounded": true,
+      "latency_ms": 56.244,
+      "passed": true,
+      "scenario": "recovery_collapse",
+      "steps": 5,
+      "usage": {
+        "calls": 5,
+        "errors": [],
+        "estimated_cost_usd": 0.006004,
+        "fallback_used": false,
+        "input_tokens": 17962,
+        "latency_ms_max": 0.088,
+        "latency_ms_median": 0.065,
+        "outcome": "completed",
+        "output_tokens": 246,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "freeze_pricing",
+      "diagnosis": "price_volatility",
+      "grounded": true,
+      "latency_ms": 30.821,
+      "passed": true,
+      "scenario": "price_volatility",
+      "steps": 5,
+      "usage": {
+        "calls": 5,
+        "errors": [],
+        "estimated_cost_usd": 0.006089,
+        "fallback_used": false,
+        "input_tokens": 18246,
+        "latency_ms_max": 0.056,
+        "latency_ms_median": 0.047,
+        "outcome": "completed",
+        "output_tokens": 246,
+        "repairs": 0,
+        "retries": 0
+      }
+    }
+  ],
+  "usage_total": {
+    "calls": 40,
+    "estimated_cost_usd": 0.0502,
+    "input_tokens": 151819,
+    "output_tokens": 1862,
+    "repairs": 0,
+    "retries": 0
+  }
+}

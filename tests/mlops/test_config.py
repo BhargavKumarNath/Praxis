@@ -17,9 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 # Changing either file needs an ADR and the owner's approval (CLAUDE.md s16). Re-pin only then.
 PINNED = {
     "configs/mlops/demand.toml": (
-        # re-pinned 2026-10-25: attempt 2 persistence_days = 2, calibrated on dev seeds 1,
-        # 611, 612, 613 only (ADR 0017 "Calibration", owner-delegated authority)
-        "ee272c33c2e784699e8099784c261693c7ec20137d7f7d991688317f11b144bb"
+        # re-pinned 2026-11-05: max_training_days = 364 (ADR 0030, cost bound for the live
+        # loop; no world evaluated so far is longer than 252 days). Before: ee272c33...
+        "f1131aad5afc2827eba1f215f3a35a7f75e6cc96c76a2d8086fbaddc6b83238e"
     ),
     "configs/mlops/lifecycle_acceptance.toml": (
         # re-pinned 2026-10-25: attempt 2 acceptance (ADR 0017 "Attempt 2")

@@ -47,9 +47,28 @@ Secret values are added out of band and never enter Terraform:
 printf '%s' "$VALUE" | gcloud secrets versions add praxis-dev-<name> --data-file=- --project=$CLOUD_PROJECT
 ```
 Active versions: `database-url`, `postgres-password` and `console-approvers`
-(`owner=<48-hex token>`). The Stripe, task-token and LLM secrets have no version, so no
-Stripe or LLM call is possible. After rotating `postgres-password` you must also change the
+(`owner=<48-hex token>`, no expiry yet). The Stripe, task-token and LLM secrets have no
+version, so no Stripe or LLM call is possible. After rotating `postgres-password` you must also change the
 role's password in Postgres; `initdb` reads the password only on first boot.
+
+**Before deploying an image built after 2026-11-05** (ADR 0021 amendment 1): outside `local`
+every approver token must carry an expiry of at most 90 days (`name=token@YYYY-MM-DD`), or the
+console refuses to start. Rotate first, pipe to pipe (the value is never printed):
+```bash
+gcloud secrets versions access latest --secret=praxis-dev-console-approvers --project=$CLOUD_PROJECT \
+  | .venv/bin/python scripts/console_token.py rotate --name owner --days 90 --legacy-days 7 \
+  | gcloud secrets versions add praxis-dev-console-approvers --data-file=- --project=$CLOUD_PROJECT
+```
+Deploy the new console image straight after: the console deployed before 2026-11-05 rejects this
+format (the same name twice during the overlap) and would fail at its next cold start.
+This adds a new token, gives the old one 7 days of overlap, and drops expired ones. Read the
+new token with `gcloud secrets versions access latest ... | tr , '\n' | tail -1`, and repeat
+before the date (the console logs `console.approver_rotation_due` 14 days ahead).
+
+**LLM operator (optional, ADR 0029):** add a Gemini API key as a version of
+`praxis-dev-llm-api-key` (readable only by the agent identity). Locally, export
+`PRAXIS_GEMINI_API_KEY` and run `make agent-llm-bench` (about USD 0.05) before switching
+`configs/agent/policy.toml` `provider`. Without a key the operator stays deterministic.
 
 ## Use it
 * **Console UI (private):**
@@ -59,12 +78,10 @@ role's password in Postgres; `initdb` reads the password only on first boot.
   after `owner=`). Do not paste it anywhere else.
   * The proxy needs the `cloud-run-proxy` gcloud component (on apt installs:
     `sudo apt-get install google-cloud-cli-cloud-run-proxy`).
-  * **Unverified (2026-11-01):** the component was not installed here, so the browser path
-    is untested. In particular it is unknown whether the proxy replaces the UI's
-    `Authorization: Bearer <approver>` header with its identity token. If approve / reject
-    answer 401 through the proxy, that is the cause: read-only panels still work, and admin
-    writes go through a direct call with `X-Serverless-Authorization` (as in
-    `scripts/cloud_smoke.py`, verified).
+  * **Verified 2026-11-05** (`docs/evidence/final-console-proxy.md`): through the proxy the
+    UI loads, the read panels answer 200, and `GET /api/console/whoami` with the approver token
+    answers `{"approver": "owner"}`. So the proxy passes `Authorization: Bearer <approver>`
+    through, and approve / reject work from the browser (no write was made in the check).
 * **API (private):** `curl -H "X-Serverless-Authorization: Bearer $(gcloud auth print-identity-token)" <url>/v1/ops/health`.
   `/healthz` cannot be reached on Cloud Run: the Google frontend reserves paths ending in
   `z`.

@@ -80,3 +80,28 @@ ever letting the UI set a price or bypass the optimiser. Two constraints shape i
   No new runtime dependency (fonts are self-hosted by `next/font` at build time).
 * Gates: `make frontend-check` now also runs the Vitest suite; `make e2e` (CI job `e2e`) runs
   the Playwright journey on a fresh Postgres; `src/praxis/console/*` has a 95% coverage floor.
+
+## Amendment 1 (2026-11-05): approver tokens expire and rotate
+
+**Why.** Phase 16 left "rotate and expire the console approver tokens" open. A token without an
+expiry stays valid until someone remembers to remove it.
+
+**Change.**
+* An entry may carry an expiry: `name=token@YYYY-MM-DD`. The token stops identifying anyone at
+  00:00 UTC of that date. Comparison stays constant-time over every entry.
+* In every environment except `local`, each token must expire within 90 days. Otherwise
+  `build_approvers` refuses the configuration and the console does not start. A token without
+  an expiry is accepted only in `local`.
+* A name may hold two tokens at once. This is the rotation overlap: add the new token, move the
+  client over, and let the old one expire.
+* `scripts/console_token.py rotate` reads the current value on stdin and writes the new one on
+  stdout. It drops expired tokens, adds a new 48-hex token, gives a legacy token without an
+  expiry an expiry, and can revoke the name's other tokens. Secrets go from pipe to pipe and
+  are never logged or written to a file.
+* At startup the console logs `console.approver_rotation_due` (names only) when a name's newest
+  token ends within 14 days.
+
+**Deployment note.** The deployed secret `praxis-dev-console-approvers` holds `owner=<token>`
+with no expiry. Before an image with this change is deployed, the owner must rotate that
+secret with the script, or the console will refuse to start in `dev`. That is the intended
+fail-closed behaviour.

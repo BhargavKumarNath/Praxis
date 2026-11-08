@@ -1,0 +1,28 @@
+# AI operator LLM provider (ADR 0029). The LLM only PROPOSES the next step as JSON; the
+# executor (permissions from configs/agent/policy.toml), the grounding check and the
+# approval desk decide what happens. Changing anything here needs an ADR 0029 amendment.
+#
+# Model and prices checked against the official Gemini docs on 2026-11-05
+# (aistudio.google.com/docs/pricing, Standard tier, paid; USD per 1M tokens).
+version = "2026-11-05.1"
+
+[provider]
+name = "gemini"
+model = "gemini-3.5-flash-lite"   # current Flash-Lite: lowest cost with JSON-schema output
+endpoint = "https://generativelanguage.googleapis.com/v1beta/interactions"
+api_revision = "2026-05-20"       # Api-Revision header of the Interactions API
+api_key_env = "PRAXIS_GEMINI_API_KEY"
+
+[limits]
+timeout_s = 20.0                  # per HTTP call
+max_attempts = 3                  # transport attempts per step (timeouts, 429, 5xx)
+backoff_s = 1.0                   # first retry delay; doubles per attempt
+max_repairs = 2                   # invalid model outputs re-asked with the validation error
+max_output_tokens = 1024
+max_tokens_per_investigation = 120000  # hard budget: the provider stops, triage takes over
+max_tool_output_chars = 6000      # each tool result is truncated in the prompt (still audited whole)
+
+[pricing]
+input_usd_per_mtok = 0.30
+output_usd_per_mtok = 2.50
+checked = "2026-11-05"

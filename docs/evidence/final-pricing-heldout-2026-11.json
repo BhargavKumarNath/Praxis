@@ -1,0 +1,132 @@
+{
+  "registration": "configs/pricing/evaluation_2026_11.toml",
+  "registration_version": "2026-11-05.1",
+  "is_synthetic": true,
+  "worlds": [
+    {
+      "seed": 901,
+      "passed": false,
+      "failed_checks": [
+        "direction"
+      ],
+      "status_counts": {
+        "change": 4,
+        "frozen": 11,
+        "hold": 25
+      },
+      "changes": 4,
+      "direction": 0.75,
+      "true_delta_gbp_per_day": 63.51794452306685,
+      "oracle_gbp_per_day": 487.6474829608821,
+      "captured_share": 0.1302538139588062,
+      "naive_unconstrained_gbp_per_day": -266532.7111052322,
+      "forecast_artifact": "demand-hybrid-f2da05cc5d9a",
+      "policy_version": "policy-3b6775c87cd1"
+    },
+    {
+      "seed": 902,
+      "passed": true,
+      "failed_checks": [],
+      "status_counts": {
+        "change": 5,
+        "frozen": 19,
+        "hold": 16
+      },
+      "changes": 5,
+      "direction": 1.0,
+      "true_delta_gbp_per_day": 318.69512181027403,
+      "oracle_gbp_per_day": 1029.6731317834663,
+      "captured_share": 0.30951096223931923,
+      "naive_unconstrained_gbp_per_day": -353521.0353417283,
+      "forecast_artifact": "demand-hybrid-698c6fbde5c4",
+      "policy_version": "policy-3b6775c87cd1"
+    },
+    {
+      "seed": 903,
+      "passed": true,
+      "failed_checks": [],
+      "status_counts": {
+        "frozen": 11,
+        "hold": 29
+      },
+      "changes": 0,
+      "direction": null,
+      "true_delta_gbp_per_day": 0.0,
+      "oracle_gbp_per_day": 218.22542213491457,
+      "captured_share": 0.0,
+      "naive_unconstrained_gbp_per_day": -464929.9459434715,
+      "forecast_artifact": "demand-hybrid-5cb264253e42",
+      "policy_version": "policy-3b6775c87cd1"
+    },
+    {
+      "seed": 904,
+      "passed": true,
+      "failed_checks": [],
+      "status_counts": {
+        "frozen": 8,
+        "hold": 32
+      },
+      "changes": 0,
+      "direction": null,
+      "true_delta_gbp_per_day": 0.0,
+      "oracle_gbp_per_day": 158.0220498479431,
+      "captured_share": 0.0,
+      "naive_unconstrained_gbp_per_day": -473397.907108557,
+      "forecast_artifact": "demand-hybrid-55440e1682d9",
+      "policy_version": "policy-3b6775c87cd1"
+    },
+    {
+      "seed": 905,
+      "passed": false,
+      "failed_checks": [
+        "direction",
+        "no_harm"
+      ],
+      "status_counts": {
+        "change": 6,
+        "frozen": 15,
+        "hold": 19
+      },
+      "changes": 6,
+      "direction": 0.16666666666666666,
+      "true_delta_gbp_per_day": -210.9479877555368,
+      "oracle_gbp_per_day": 205.7748435432364,
+      "captured_share": -1.0251398281890247,
+      "naive_unconstrained_gbp_per_day": -387911.7080896247,
+      "forecast_artifact": "demand-hybrid-3fdab807eae5",
+      "policy_version": "policy-3b6775c87cd1"
+    }
+  ],
+  "H1_safety_all_worlds_pass": {
+    "passed": false,
+    "failing_worlds": [
+      901,
+      905
+    ]
+  },
+  "H2_value_vs_static": {
+    "mean_true_delta_gbp_per_day": 34.253015715560814,
+    "ci95_bootstrap": [
+      -113.8652037487087,
+      203.92066199077777
+    ],
+    "bootstrap_share_le_0": 0.3525,
+    "passed": false,
+    "note": "static pricing scores exactly 0; worlds resampled with replacement"
+  },
+  "H3_decisions": {
+    "worlds_with_changes": 3,
+    "required": 3,
+    "passed": true
+  },
+  "pooled": {
+    "changes": 15,
+    "right_direction": 9,
+    "true_delta_gbp_per_day": 171.26507857780408,
+    "oracle_gbp_per_day": 2099.3429302704426,
+    "naive_unconstrained_gbp_per_day": -1946293.3075886136,
+    "harmed_worlds": [
+      905
+    ]
+  }
+}

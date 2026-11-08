@@ -26,6 +26,7 @@ from typing import Any
 from praxis.domain.model_lifecycle import ModelStage, RetrainingStatus
 from praxis.forecasting.artifact import ForecastArtifact
 from praxis.forecasting.config import ForecastConfig
+from praxis.forecasting.warehouse import connect, usage_date_range
 from praxis.mlops.config import MlopsConfig
 from praxis.mlops.monitoring import (
     DECISION_SIGNALS,
@@ -313,13 +314,28 @@ class DemandLifecycle:
     def _train(self, as_of: date, cfg: ForecastConfig) -> Candidate:
         end = as_of - timedelta(days=1)
         return train_candidate(
-            load_data(self.warehouse, end=end),
+            load_data(self.warehouse, end=end, start=self.training_start(end)),
             cfg,
             self.cfg.monitoring,
             self.candidates_root,
             code_revision=self.code_revision,
             now=utc_midnight(end),
         )
+
+    def training_start(self, end: date) -> date | None:
+        """First day of a retrain's sliding window (ADR 0030); ``None`` = the warehouse's
+        first day, when the history is shorter than the window."""
+        start = end - timedelta(days=self.cfg.validation.max_training_days - 1)
+        first = self._first_day()
+        return None if first is None or start <= first else start
+
+    def _first_day(self) -> date | None:
+        con = connect(self.warehouse)
+        try:
+            rng = usage_date_range(con)
+        finally:
+            con.close()
+        return None if rng is None else rng[0]
 
     def _register_and_validate(self, candidate: Candidate, as_of: date) -> dict[str, Any]:
         row = self.registry.register(

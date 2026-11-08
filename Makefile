@@ -1,4 +1,4 @@
-.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch ops-check agent-bench test test-fast pytest-cov \
+.PHONY: data-dev dbt-build data-check bq-verify setup lint typecheck arch ops-check agent-bench agent-llm-protocol agent-llm-bench test test-fast pytest-cov \
 	coverage-gate schemas sim-smoke secrets audit tf-check frontend-check workflow-lint check run \
 	pg-up pg-down pubsub-up pubsub-down pubsub-verify events-local events-bench events-check \
 	forecast-data forecast-signals forecast-backtest forecast-train \
@@ -7,7 +7,7 @@
 	stripe-verify recovery-data recovery-train recovery-evaluate \
 	churn-response customer-train customer-monitor pricing-compare pricing-world churn-archive churn-archive-dev \
 	mlops-data mlops-drill console-api console-web console-demo e2e e2e-browsers \
-	scale-archive scale-run scale-http scale-payments tf-test resilience cloud-destroy \
+	scale-archive scale-run scale-m1 scale-m1-pg scale-http scale-payments tf-test resilience cloud-destroy \
 	_cloud-project cloud-init cloud-images cloud-plan cloud-apply cloud-smoke
 
 # Every quality gate lives here; CI (.github/workflows/*.yml) only calls these targets, so
@@ -80,6 +80,18 @@ agent-bench: pg-up
 	PRAXIS_AGENT_BENCH_OUT=docs/evidence/phase-12-benchmark.json \
 		.venv/bin/pytest -q tests/agent/test_benchmark.py -p no:cacheprovider
 
+# ADR 0029: the same seven scenarios through the LLM JSON protocol. Offline (deterministic echo
+# client, no network): runs in `make test` too; this target writes the report.
+agent-llm-protocol: pg-up
+	PRAXIS_AGENT_LLM_BENCH_OUT=docs/evidence/final-agent-llm-protocol.json \
+		.venv/bin/pytest -q tests/agent/test_llm_bench.py -p no:cacheprovider
+
+# LIVE Gemini run (owner action: needs PRAXIS_GEMINI_API_KEY, spends ~USD 0.05). Never in CI.
+agent-llm-bench: pg-up
+	@test -n "$$PRAXIS_GEMINI_API_KEY" || { echo "PRAXIS_GEMINI_API_KEY is required"; exit 2; }
+	PRAXIS_AGENT_LLM_LIVE=1 PRAXIS_AGENT_LLM_BENCH_OUT=docs/evidence/final-agent-llm-live.json \
+		.venv/bin/pytest -q tests/agent/test_llm_bench.py -p no:cacheprovider
+
 schemas:
 	.venv/bin/python scripts/export_payload_schemas.py --check
 
@@ -116,9 +128,12 @@ test-fast: pg-up
 sim-smoke:
 	.venv/bin/python -m praxis.simulator --customers 10000 --days 28 --seed 42 --validate --schema-every 50
 
-# Terraform via Docker when no local binary is installed.
+# Terraform via Docker when no local binary is installed. The offline gates (tf-check, tf-test)
+# use their own data dir: envs/dev/.terraform belongs to the owner's cloud-* deploys and records
+# the GCS backend, which `terraform test` would otherwise try to reach (needing credentials).
 TF_IMAGE ?= hashicorp/terraform:1.16.5
-TF = $(shell command -v terraform 2>/dev/null || echo docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -v $(CURDIR)/infra/terraform:/work -w /work $(TF_IMAGE))
+TF_OFFLINE_DATA = .terraform-offline
+TF = $(shell command -v terraform >/dev/null 2>&1 && echo env TF_DATA_DIR=$(TF_OFFLINE_DATA) terraform || echo docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -e TF_DATA_DIR=$(TF_OFFLINE_DATA) -v $(CURDIR)/infra/terraform:/work -w /work $(TF_IMAGE))
 tf-check: tf-test
 	cd infra/terraform && $(TF) fmt -recursive -check
 	cd infra/terraform && $(TF) -chdir=envs/dev init -backend=false -input=false >/dev/null
@@ -664,6 +679,45 @@ scale-run: _scale-db
 	PRAXIS_LOG_LEVEL=ERROR .venv/bin/python -m praxis.streaming --database-url $(SCALE_DB) \
 		scale-run --scale $(SCALE) --archive $(SCALE_DIR)/archive --warehouse-dir $(SCALE_DIR)/wh \
 		--report $(SCALE_DIR)/w2.json >/dev/null
+
+# --- M1-budget ladder (ADR 0028): the same archive + replay inside an emulated Apple M1 8 GB
+# budget. The harness runs in one cgroup v2 scope (4 GB, no swap: an overrun is an OOM kill)
+# on 8 logical CPUs; Postgres in its own container (1 GB, no swap, 2 CPUs) on $(M1_PG_PORT).
+# Linux + systemd only. `make scale-m1 SCALE=m1-100k`. Exit 1 on any failed criterion.
+M1_PG_CONTAINER ?= praxis-pg-m1
+M1_PG_PORT ?= 55433
+M1_CPUS ?= 0-7
+M1_SCOPE = systemd-run --user --scope --quiet -p MemoryMax=4096M -p MemorySwapMax=0 \
+	taskset -c $(M1_CPUS)
+M1_ADMIN = postgresql+psycopg://praxis@127.0.0.1:$(M1_PG_PORT)/postgres
+M1_DB = postgresql+psycopg://praxis@127.0.0.1:$(M1_PG_PORT)/$(SCALE_DB_NAME)
+
+scale-m1-pg:
+	@docker start $(M1_PG_CONTAINER) >/dev/null 2>&1 || docker run -d --name $(M1_PG_CONTAINER) \
+		--memory 1g --memory-swap 1g --cpus 2 \
+		-p 127.0.0.1:$(M1_PG_PORT):5432 -e POSTGRES_USER=praxis -e POSTGRES_HOST_AUTH_METHOD=trust \
+		$(PG_IMAGE) >/dev/null
+	@# `docker start` after a host reboot restored memory.max but left memory.swap.max at "max"
+	@# (seen 2026-11-08, m1-500k): re-apply both caps and refuse to run without them.
+	@docker update --memory 1g --memory-swap 1g $(M1_PG_CONTAINER) >/dev/null
+	@.venv/bin/python scripts/container_memory.py $(M1_PG_CONTAINER) | .venv/bin/python -c \
+		"import json, sys; d = json.load(sys.stdin); \
+		sys.exit(0 if (d['memory.max'], d['memory.swap.max']) == (1024.0, 0.0) else f'not capped: {d}')"
+	@.venv/bin/python scripts/wait_for.py --postgres $(M1_ADMIN)
+	@.venv/bin/python -c "from sqlalchemy import create_engine, text; \
+	e = create_engine('$(M1_ADMIN)', isolation_level='AUTOCOMMIT'); c = e.connect(); \
+	c.execute(text('DROP DATABASE IF EXISTS $(SCALE_DB_NAME) WITH (FORCE)')); \
+	c.execute(text('CREATE DATABASE $(SCALE_DB_NAME)'))"
+	.venv/bin/python -m praxis.streaming --database-url $(M1_DB) migrate
+
+scale-m1: scale-m1-pg
+	rm -rf $(SCALE_DIR)/archive $(SCALE_DIR)/wh
+	PRAXIS_LOG_LEVEL=ERROR $(M1_SCOPE) .venv/bin/python -m praxis.streaming scale-archive \
+		--scale $(SCALE) --out $(SCALE_DIR)/archive --report $(SCALE_DIR)/w1.json >/dev/null
+	PRAXIS_LOG_LEVEL=ERROR $(M1_SCOPE) .venv/bin/python -m praxis.streaming \
+		--database-url $(M1_DB) scale-run --scale $(SCALE) --archive $(SCALE_DIR)/archive \
+		--warehouse-dir $(SCALE_DIR)/wh --report $(SCALE_DIR)/w2.json >/dev/null
+	.venv/bin/python scripts/container_memory.py $(M1_PG_CONTAINER) > $(SCALE_DIR)/pg-memory.json
 
 # W3: k6 (pinned image) against the core API (:$(API_PORT)) and console (:$(CONSOLE_PORT)),
 # both started on $(SCALE_DB) beforehand (`make run`-style uvicorn, `make console-api`).

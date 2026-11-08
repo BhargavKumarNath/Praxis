@@ -1,0 +1,274 @@
+{
+  "control_plane_checksum": "da27a79f8c15d08eed11aefc8137c40fcb74cd4a26a554986acd947a5092e59a",
+  "counters": {
+    "monitoring": {
+      "deliveries": 1071617,
+      "duplicate_deliveries": 97583,
+      "status_duplicate": 97583,
+      "status_observed": 974034,
+      "type_churn.observed": 337,
+      "type_conversion.observed": 1531,
+      "type_customer.created": 10000,
+      "type_invoice.created": 7526,
+      "type_payment.attempted": 8310,
+      "type_payment.failed": 955,
+      "type_payment.succeeded": 7355,
+      "type_price.exposed": 33496,
+      "type_request.completed": 187230,
+      "type_service.metric_observed": 3360,
+      "type_subscription.changed": 994,
+      "type_subscription.started": 9364,
+      "type_usage.observed": 703576,
+      "unique_events_observed": 974034
+    },
+    "operational": {
+      "deliveries": 51391,
+      "redeliveries": 459,
+      "status_applied": 46132,
+      "status_duplicate": 4800
+    },
+    "warehouse": {
+      "batches": 51248,
+      "deliveries": 1584682,
+      "redeliveries": 512667,
+      "status_applied": 1072015
+    }
+  },
+  "cpu_cores_used_avg": 3.48,
+  "cpu_s_total": 711.5,
+  "customers_projected": 10000,
+  "dead_letters_open": {},
+  "dead_letters_redriven": 0,
+  "drain": {
+    "dlq-inspect": {
+      "acks": 0,
+      "crashes": 0,
+      "deliveries": 0,
+      "nacks": 0,
+      "rounds": 204
+    },
+    "monitoring": {
+      "acks": 1071617,
+      "crashes": 0,
+      "deliveries": 1071617,
+      "nacks": 0,
+      "rounds": 11042
+    },
+    "operational": {
+      "acks": 50932,
+      "crashes": 459,
+      "deliveries": 51391,
+      "nacks": 0,
+      "rounds": 103445
+    },
+    "warehouse": {
+      "acks": 1072015,
+      "crashes": 9501,
+      "deliveries": 1586437,
+      "nacks": 0,
+      "rounds": 176975
+    }
+  },
+  "events_in_archive": 974034,
+  "events_per_s": 4757.4,
+  "events_published": 974034,
+  "invoices_projected": 7526,
+  "is_synthetic": true,
+  "latency": {
+    "monitoring": {
+      "end_to_end": {
+        "count": 1071617,
+        "max_ms": 11345.474,
+        "p50_ms": 5474.318,
+        "p95_ms": 8121.911,
+        "p99_ms": 10030.563
+      },
+      "processing": {
+        "count": 1071617,
+        "max_ms": 127.67,
+        "p50_ms": 0.065,
+        "p95_ms": 0.093,
+        "p99_ms": 0.133
+      }
+    },
+    "operational": {
+      "end_to_end": {
+        "count": 50932,
+        "max_ms": 6374.263,
+        "p50_ms": 706.165,
+        "p95_ms": 4854.139,
+        "p99_ms": 5890.88
+      },
+      "processing": {
+        "count": 50932,
+        "max_ms": 282.91,
+        "p50_ms": 3.282,
+        "p95_ms": 10.504,
+        "p99_ms": 13.179
+      }
+    },
+    "warehouse": {
+      "end_to_end": {
+        "count": 1072015,
+        "max_ms": 10626.708,
+        "p50_ms": 2192.793,
+        "p95_ms": 5853.529,
+        "p99_ms": 7376.798
+      },
+      "processing": {
+        "count": 1072015,
+        "max_ms": 282.758,
+        "p50_ms": 0.135,
+        "p95_ms": 3.425,
+        "p99_ms": 4.789
+      }
+    }
+  },
+  "ledger_entries": 7355,
+  "ledger_matches_oracle": true,
+  "ledger_total_minor": 481423288,
+  "matches_oracle": true,
+  "mismatched_entities": {
+    "customers": 0,
+    "invoices": 0
+  },
+  "observed_checksum": "8a3d03ade33b545396630961ba44bf49896b57e8e37f7b3a76cc5b52ca18d9c0",
+  "oracle_checksum": "8a3d03ade33b545396630961ba44bf49896b57e8e37f7b3a76cc5b52ca18d9c0",
+  "pending": {
+    "customer_orphans": 0,
+    "customer_pending": 0,
+    "invoice_orphans": 0,
+    "invoice_pending": 0
+  },
+  "postgres": {
+    "blks_hit": 2052539,
+    "blks_read": 15,
+    "db_size_bytes_after": 60285455,
+    "db_size_bytes_before": 9098931,
+    "deadlocks": 0,
+    "temp_bytes": 0,
+    "tup_deleted": 50,
+    "tup_fetched": 181246,
+    "tup_inserted": 184227,
+    "tup_updated": 21809,
+    "xact_commit": 102488,
+    "xact_rollback": 55
+  },
+  "resources": {
+    "cgroup_mem_max_mb": 4096.0,
+    "cgroup_mem_peak_mb": 2027.6,
+    "cgroup_oom_kills": 0,
+    "cgroup_swap_max_mb": 0.0,
+    "cgroup_swap_peak_mb": 0.0,
+    "host_mem_used_baseline_mb": 5215.7,
+    "host_mem_used_peak_mb": 7257.0,
+    "load1_max": 8.259765625,
+    "pg_connections_max": 7.0,
+    "pg_lock_waits_max": 0.0,
+    "samples": 42
+  },
+  "run": {
+    "batch_size": 100,
+    "batch_wait_s": 1.0,
+    "chunk": 5000,
+    "crash_rate": 0.005,
+    "customers": 10000,
+    "days": 28,
+    "duckdb_memory_limit_mb": 256,
+    "duckdb_threads": 1,
+    "duplicate_rate": 0.1,
+    "fault_seed": 701,
+    "max_delay_s": 600.0,
+    "oracle_lean": true,
+    "pg_pool_size": 2,
+    "reorder": true,
+    "shards": 6,
+    "sim_seed": 1,
+    "warehouse_compact_rows": 50000
+  },
+  "scale": "m1-10k",
+  "shard_elapsed_s_max": 202.949,
+  "shard_peak_rss_mb_max": 440.6,
+  "shard_peak_rss_mb_sum": 2564.5,
+  "shards": [
+    {
+      "cpu_s": 117.013,
+      "dead_letters_redriven": 0,
+      "elapsed_s": 196.353,
+      "elapsed_with_redrive_s": 196.39,
+      "events_published": 162034,
+      "peak_rss_mb": 428.6,
+      "shard": 0,
+      "warehouse_bytes": 25964544,
+      "warehouse_duplicate_ids": 0,
+      "warehouse_rows": 162034
+    },
+    {
+      "cpu_s": 119.876,
+      "dead_letters_redriven": 0,
+      "elapsed_s": 202.949,
+      "elapsed_with_redrive_s": 202.998,
+      "events_published": 162335,
+      "peak_rss_mb": 421.6,
+      "shard": 1,
+      "warehouse_bytes": 24653824,
+      "warehouse_duplicate_ids": 0,
+      "warehouse_rows": 162335
+    },
+    {
+      "cpu_s": 118.396,
+      "dead_letters_redriven": 0,
+      "elapsed_s": 198.806,
+      "elapsed_with_redrive_s": 198.845,
+      "events_published": 162340,
+      "peak_rss_mb": 440.6,
+      "shard": 2,
+      "warehouse_bytes": 30420992,
+      "warehouse_duplicate_ids": 0,
+      "warehouse_rows": 162340
+    },
+    {
+      "cpu_s": 119.156,
+      "dead_letters_redriven": 0,
+      "elapsed_s": 199.695,
+      "elapsed_with_redrive_s": 199.732,
+      "events_published": 162692,
+      "peak_rss_mb": 423.6,
+      "shard": 3,
+      "warehouse_bytes": 27013120,
+      "warehouse_duplicate_ids": 0,
+      "warehouse_rows": 162692
+    },
+    {
+      "cpu_s": 119.103,
+      "dead_letters_redriven": 0,
+      "elapsed_s": 201.159,
+      "elapsed_with_redrive_s": 201.196,
+      "events_published": 162132,
+      "peak_rss_mb": 427.0,
+      "shard": 4,
+      "warehouse_bytes": 27013120,
+      "warehouse_duplicate_ids": 0,
+      "warehouse_rows": 162132
+    },
+    {
+      "cpu_s": 117.996,
+      "dead_letters_redriven": 0,
+      "elapsed_s": 196.866,
+      "elapsed_with_redrive_s": 196.905,
+      "events_published": 162501,
+      "peak_rss_mb": 423.1,
+      "shard": 5,
+      "warehouse_bytes": 24391680,
+      "warehouse_duplicate_ids": 0,
+      "warehouse_rows": 162501
+    }
+  ],
+  "slo": null,
+  "subscription_inconsistencies": 0,
+  "wall_s": 204.739,
+  "warehouse_bytes": 159457280,
+  "warehouse_duplicate_ids": 0,
+  "warehouse_rows": 974034,
+  "workload": "W2 sharded replay through the production consumers (memory transport)"
+}

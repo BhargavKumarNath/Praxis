@@ -67,6 +67,8 @@ class Validation(_Cfg):
     require_backtest_acceptance: bool
     require_clean_code_revision: bool
     min_training_days: int = Field(ge=28)
+    # ADR 0030: retrains use at most this many trailing days (sliding window; cost bound)
+    max_training_days: int = Field(ge=28)
     min_training_rows: int = Field(ge=1)
     latency_repeats: int = Field(ge=3)
     latency_budget_ms_p95: float = Field(gt=0)
@@ -74,6 +76,12 @@ class Validation(_Cfg):
     max_artifact_mb: float = Field(gt=0)
     leakage_poison_factor: float = Field(gt=1)
     max_skill_ratio_vs_champion: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _window(self) -> Validation:
+        if self.max_training_days < self.min_training_days:
+            raise ValueError("max_training_days must be >= min_training_days")
+        return self
 
 
 class Shadow(_Cfg):

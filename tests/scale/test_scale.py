@@ -254,3 +254,13 @@ def test_lean_oracle_gives_the_same_state() -> None:
     lean.flush()
     assert oracle_state(full.validator) == oracle_state(lean.validator)
     assert lean.validator._seen_ids == set() and len(full.validator._seen_ids) == len(events)
+
+
+def test_lean_oracle_refuses_an_out_of_order_state_event() -> None:
+    lean = _DayOracle(4, lean=True)
+    lean.add({"occurred_at": "2026-01-01T10:00:00Z", "event_type": "price.exposed"})
+    first = {"occurred_at": "2026-01-01T09:00:00Z", "event_type": "customer.created",
+             "entity_id": "c1", "payload": {}}  # fmt: skip
+    lean._last = "2026-01-01T09:30:00Z"
+    with pytest.raises(ValueError, match="out of order"):
+        lean.add(first)

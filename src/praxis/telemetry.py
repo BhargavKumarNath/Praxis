@@ -97,6 +97,15 @@ METRICS: dict[str, MetricSpec] = dict(
         _spec("agent_investigations_total", "counter", "Agent runs", "provider", "outcome"),
         # one per investigation step whose provider raised ProviderUnavailable (Phase 15)
         _spec("agent_provider_failures_total", "counter", "Agent provider outages", "provider"),
+        # LLM provider (ADR 0029): provider = "llm:<client>:<model>" from configs/agent/llm.toml
+        _spec("agent_llm_tokens_total", "counter", "LLM tokens (input / output)", "kind"),
+        _spec("agent_llm_errors_total", "counter", "LLM transport / API errors", "provider"),
+        _spec(
+            "agent_llm_invalid_outputs_total",
+            "counter",
+            "LLM replies failing the schema",
+            "provider",
+        ),
     ]
 )
 

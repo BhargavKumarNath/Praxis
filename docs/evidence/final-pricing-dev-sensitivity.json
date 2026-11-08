@@ -1,0 +1,100 @@
+{
+ "base": {
+  "worlds": 23,
+  "total_delta": 526.4,
+  "changes": 12,
+  "right": 10,
+  "direction": 0.833,
+  "harm_worlds": [],
+  "failed": [
+   [
+    102,
+    [
+     "direction"
+    ]
+   ]
+  ]
+ },
+ "p80": {
+  "worlds": 23,
+  "total_delta": 2462.6,
+  "changes": 43,
+  "right": 39,
+  "direction": 0.907,
+  "harm_worlds": [
+   123
+  ],
+  "failed": [
+   [
+    102,
+    [
+     "direction"
+    ]
+   ],
+   [
+    123,
+    [
+     "no_harm",
+     "direction"
+    ]
+   ]
+  ]
+ },
+ "rn": {
+  "worlds": 23,
+  "total_delta": 526.4,
+  "changes": 12,
+  "right": 10,
+  "direction": 0.833,
+  "harm_worlds": [],
+  "failed": [
+   [
+    102,
+    [
+     "direction"
+    ]
+   ]
+  ]
+ },
+ "step10": {
+  "worlds": 23,
+  "total_delta": 770.8,
+  "changes": 12,
+  "right": 10,
+  "direction": 0.833,
+  "harm_worlds": [],
+  "failed": [
+   [
+    102,
+    [
+     "direction"
+    ]
+   ]
+  ]
+ },
+ "robust3": {
+  "worlds": 23,
+  "total_delta": 979.8,
+  "changes": 18,
+  "right": 15,
+  "direction": 0.833,
+  "harm_worlds": [
+   111
+  ],
+  "failed": [
+   [
+    102,
+    [
+     "direction"
+    ]
+   ],
+   [
+    111,
+    [
+     "no_harm",
+     "direction"
+    ]
+   ]
+  ]
+ }
+}

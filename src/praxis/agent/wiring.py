@@ -12,6 +12,7 @@ from praxis.agent.audit import AuditStore, PostgresAuditStore
 from praxis.agent.config import AgentPolicy
 from praxis.agent.evidence import READ_TOOLS
 from praxis.agent.executor import ToolExecutor
+from praxis.agent.llm import GeminiInteractionsClient, StructuredLLMProvider, load_llm_config
 from praxis.agent.operator import Operator
 from praxis.agent.provider import LLMProvider
 from praxis.agent.requests import ApprovalDesk, PostgresRequestStore
@@ -35,16 +36,33 @@ class UnknownProvider(ValueError):
     """The configured provider has no adapter in this build."""
 
 
-def provider_for(name: str, policy: AgentPolicy) -> LLMProvider:
+PROVIDERS = (TriageProvider.name, "gemini")
+
+
+def provider_for(name: str, policy: AgentPolicy, *, api_key: str | None = None) -> LLMProvider:
+    """``gemini`` without a key is still a provider: it raises ``ProviderUnavailable`` on
+    its first turn, so the run falls back to triage and the fallback is audited."""
     if name == TriageProvider.name:
         return TriageProvider(policy.triage)
-    raise UnknownProvider(f"no adapter for provider {name!r} (only {TriageProvider.name})")
+    if name == "gemini":
+        cfg = load_llm_config()
+        if not api_key:
+            return StructuredLLMProvider(
+                None, cfg, unavailable_reason=f"{cfg.provider.api_key_env} is not set"
+            )
+        return StructuredLLMProvider(GeminiInteractionsClient(cfg, api_key), cfg)
+    raise UnknownProvider(f"no adapter for provider {name!r} (known: {', '.join(PROVIDERS)})")
 
 
-def operator_for(executor: ToolExecutor) -> Operator:
+def operator_for(
+    executor: ToolExecutor, *, provider: str | None = None, api_key: str | None = None
+) -> Operator:
+    """``provider`` overrides the policy's provider for one run (CLI ``--provider``); the
+    fallback is always the policy's (deterministic) fallback."""
     policy = executor.policy
     fallback = provider_for(policy.agent.fallback, policy) if policy.agent.fallback else None
-    return Operator(executor, provider_for(policy.agent.provider, policy), fallback=fallback)
+    chosen = provider_for(provider or policy.agent.provider, policy, api_key=api_key)
+    return Operator(executor, chosen, fallback=fallback)
 
 
 @dataclass(frozen=True)

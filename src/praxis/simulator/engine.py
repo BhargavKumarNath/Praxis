@@ -20,6 +20,7 @@ to score pricing decisions against counterfactual truth; observing never changes
 
 from __future__ import annotations
 
+import heapq
 from collections import defaultdict
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -121,6 +122,15 @@ class _DayCtx:
     u_time: F64 | None = None
 
 
+def _order(d: Draft) -> tuple[int, str, str]:
+    return d.ts, d.entity_id, d.uid
+
+
+def _drain(reversed_drafts: list[Draft]) -> Iterator[Draft]:
+    while reversed_drafts:
+        yield reversed_drafts.pop()
+
+
 def _uniform_from_hash(salt: str, ids: list[str]) -> F64:
     return np.array([assignment_uniform(salt, cid) for cid in ids], dtype=np.float64)
 
@@ -145,6 +155,13 @@ class Engine:
         self.factory = EventFactory(self.run_id)
 
         self.prod_ids = [p.id for p in config.products]
+        if len(self.prod_ids) > 10:
+            raise ValueError("at most 10 products: usage events order by a one-digit index")
+        # rank of each customer id in string order (the day sort's entity order)
+        self._id_rank = np.empty(population.n, dtype=np.int64)
+        self._id_rank[np.argsort(np.array(population.ids, dtype=object), kind="stable")] = (
+            np.arange(population.n)
+        )
         self.region_ids = [r.id for r in config.regions]
         self.ref_price = np.array([p.ref_price_micros for p in config.products], dtype=np.float64)
         self.weights = self.infra.weights
@@ -182,6 +199,149 @@ class Engine:
             )
             for iv, treated in zip(config.pricing.interventions, self._treated, strict=True)
         ]
+
+    # ------------------------------------------------------------ bulk sections
+    def _by_customer(self, idx: I64) -> list[int]:
+        """Positions of ``idx`` in the day sort's entity order (customer id string order)."""
+        order: list[int] = np.argsort(self._id_rank[idx], kind="stable").tolist()
+        return order
+
+    def _created_section(self, ts: int, arrivals: I64) -> Iterator[Draft]:
+        pop, cfg = self.pop, self.cfg
+        for j in self._by_customer(arrivals):
+            i = int(arrivals[j])
+            cid = pop.ids[i]
+            yield Draft(
+                ts,
+                cid,
+                f"cust:{cid}",
+                "customer.created",
+                {
+                    "region_id": self.region_ids[pop.region[i]],
+                    "industry": cfg.industries[pop.industry[i]].id,
+                    "tier": TIERS[pop.tier[i]],
+                    "preferred_payment_method": PAYMENT_METHODS[pop.method[i]],
+                    "is_existing": not bool(pop.is_new[i]),
+                    "tenure_days": int(pop.tenure_days[i]),
+                },
+                f"life:{cid}",
+            )
+
+    def _price_section(
+        self, ts: int, day: int, ci: I64, cp: I64, unit: I64, list_price: I64
+    ) -> Iterator[Draft]:
+        pop, ivs = self.pop, self.cfg.pricing.interventions
+        for k in np.lexsort((cp, self._id_rank[ci])).tolist():
+            i, p = int(ci[k]), int(cp[k])
+            cid = pop.ids[i]
+            exp_id: str | None = None
+            arm: str | None = None
+            for m, iv in enumerate(ivs):
+                if iv.start_day <= day < iv.end_day and self.prod_ids[p] == iv.product:
+                    exp_id = iv.id
+                    arm = "treatment" if self._treated[m][i] else "control"
+            yield Draft(
+                ts,
+                cid,
+                f"price:{cid}:{day}:{p}",
+                "price.exposed",
+                {
+                    "product": self.prod_ids[p],
+                    "unit_price_micros": int(unit[k]),
+                    "list_price_micros": int(list_price[p]),
+                    "experiment_id": exp_id,
+                    "arm": arm,
+                },
+                f"life:{cid}",
+            )
+
+    def _conversion_section(
+        self, ts: int, new: I64, converted: NDArray[np.bool_], price_idx: F64
+    ) -> Iterator[Draft]:
+        pop = self.pop
+        for j in self._by_customer(new):
+            cid = pop.ids[int(new[j])]
+            yield Draft(
+                ts,
+                cid,
+                f"conv:{cid}",
+                "conversion.observed",
+                {
+                    "converted": bool(converted[j]),
+                    "price_index_milli": max(1, round(float(price_idx[j]) * 1000)),
+                },
+                f"life:{cid}",
+                f"cust:{cid}",
+            )
+
+    def _subscription_section(self, ts: int, subscribed: I64) -> Iterator[Draft]:
+        pop, cfg = self.pop, self.cfg
+        for j in self._by_customer(subscribed):
+            i = int(subscribed[j])
+            cid = pop.ids[i]
+            yield Draft(
+                ts,
+                cid,
+                f"sub:{cid}",
+                "subscription.started",
+                {
+                    "tier": TIERS[pop.tier[i]],
+                    "products": [self.prod_ids[p] for p in np.flatnonzero(pop.mix[i] > 0).tolist()],
+                    "origin": "new" if pop.is_new[i] else "existing",
+                    "base_fee_minor": self.tier_fee[pop.tier[i]],
+                    "billing_period_days": cfg.billing.period_days,
+                },
+                f"life:{cid}",
+                f"cust:{cid}",
+            )
+
+    def _usage_section(
+        self, ts: int, day: int, ui: I64, up: I64, served: I64, requested: I64, prices: I64
+    ) -> Iterator[Draft]:
+        """One ``usage.observed`` per served (customer, product), ordered as the day sort
+        orders them: by customer id string, then by ``uid`` (product index, one digit)."""
+        order = np.lexsort((up, self._id_rank[ui]))
+        pop = self.pop
+        for k in order.tolist():
+            i, p = int(ui[k]), int(up[k])
+            cid = pop.ids[i]
+            yield Draft(
+                ts,
+                cid,
+                f"use:{cid}:{day}:{p}",
+                "usage.observed",
+                {
+                    "product": self.prod_ids[p],
+                    "region_id": self.region_ids[pop.region[i]],
+                    "units": int(served[k]),
+                    "throttled_units": int(requested[k] - served[k]),
+                    "unit_price_micros": int(prices[k]),
+                },
+                f"use:{cid}:{day}",
+            )
+
+    def _request_section(
+        self, ts: int, day: int, idx: I64, req: I64, errs: I64, p50: F64, p95: F64
+    ) -> Iterator[Draft]:
+        """One ``request.completed`` per customer with served requests, by customer id."""
+        pop = self.pop
+        for j in np.argsort(self._id_rank[idx], kind="stable").tolist():
+            i = int(idx[j])
+            cid = pop.ids[i]
+            yield Draft(
+                ts,
+                cid,
+                f"req:{cid}:{day}",
+                "request.completed",
+                {
+                    "region_id": self.region_ids[pop.region[i]],
+                    "request_count": int(req[j]),
+                    "error_count": int(errs[j]),
+                    "latency_p50_ms": round(float(p50[j]), 2),
+                    "latency_p95_ms": round(float(p95[j]), 2),
+                },
+                f"use:{cid}:{day}",
+            )
 
     # ------------------------------------------------------------- equations
     def expected_demand(self, view: DayView, prices: I64) -> F64:
@@ -408,33 +568,19 @@ class Engine:
             ts0 = self.epoch0 + day * 86400
             drafts: list[Draft] = []
             add = drafts.append
+            sections: list[Iterator[Draft]] = []
             dow = (self.start_dow + day) % 7
             prices = self._prices(day)
             ratio = prices / self.ref_price[None, :]
             price_idx = (pop.mix * ratio).sum(axis=1)
 
             # ---- 1. arrivals -------------------------------------------------
+            # Arrival, exposure, conversion and subscription events are emitted from columns
+            # (ADR 0028): day 0 creates every existing customer at once, which as objects was
+            # the simulator's peak memory. State changes stay eager; only rendering is lazy.
             arrivals = np.flatnonzero((state == UNBORN) & (pop.created_day == day))
             state[arrivals] = PROSPECT
-            for i in arrivals.tolist():
-                cid = pop.ids[i]
-                add(
-                    Draft(
-                        ts0 + T_CREATED,
-                        cid,
-                        f"cust:{cid}",
-                        "customer.created",
-                        {
-                            "region_id": self.region_ids[pop.region[i]],
-                            "industry": cfg.industries[pop.industry[i]].id,
-                            "tier": TIERS[pop.tier[i]],
-                            "preferred_payment_method": PAYMENT_METHODS[pop.method[i]],
-                            "is_existing": not bool(pop.is_new[i]),
-                            "tenure_days": int(pop.tenure_days[i]),
-                        },
-                        f"life:{cid}",
-                    )
-                )
+            sections.append(self._created_section(ts0 + T_CREATED, arrivals))
 
             # ---- price exposure (arrivals + changes + experiment starts) ---------
             exposable = ((state == PROSPECT) | (state == ACTIVE))[:, None] & (pop.mix > 0)
@@ -445,30 +591,10 @@ class Engine:
                     changed[:, self.prod_ids.index(iv.product)] |= exposable[
                         :, self.prod_ids.index(iv.product)
                     ]
-            for i, p in np.argwhere(changed).tolist():
-                cid = pop.ids[i]
-                exp_id: str | None = None
-                arm: str | None = None
-                for k, iv in enumerate(ivs):
-                    if iv.start_day <= day < iv.end_day and self.prod_ids[p] == iv.product:
-                        exp_id = iv.id
-                        arm = "treatment" if self._treated[k][i] else "control"
-                add(
-                    Draft(
-                        ts0 + T_PRICE,
-                        cid,
-                        f"price:{cid}:{day}:{p}",
-                        "price.exposed",
-                        {
-                            "product": self.prod_ids[p],
-                            "unit_price_micros": int(prices[i, p]),
-                            "list_price_micros": int(list_price[p]),
-                            "experiment_id": exp_id,
-                            "arm": arm,
-                        },
-                        f"life:{cid}",
-                    )
-                )
+            ci, cp = np.nonzero(changed)
+            sections.append(
+                self._price_section(ts0 + T_PRICE, day, ci, cp, prices[ci, cp], list_price)
+            )
             last_price[changed] = prices[changed]
 
             # ---- conversion / subscription start -----------------------------------
@@ -478,48 +604,17 @@ class Engine:
                 * price_idx ** (beh.conversion_price_beta * pop.elasticity),
                 *beh.conversion_clip,
             )
-            for i in arrivals.tolist():
-                cid = pop.ids[i]
-                if pop.is_new[i]:
-                    converted = bool(u_conv[i] < conv_p[i])
-                    add(
-                        Draft(
-                            ts0 + T_CONVERSION,
-                            cid,
-                            f"conv:{cid}",
-                            "conversion.observed",
-                            {
-                                "converted": converted,
-                                "price_index_milli": max(1, round(float(price_idx[i]) * 1000)),
-                            },
-                            f"life:{cid}",
-                            f"cust:{cid}",
-                        )
-                    )
-                    if not converted:
-                        state[i] = LOST
-                        continue
-                    state[i] = CONVERTED
-                add(
-                    Draft(
-                        ts0 + T_SUBSCRIPTION,
-                        cid,
-                        f"sub:{cid}",
-                        "subscription.started",
-                        {
-                            "tier": TIERS[pop.tier[i]],
-                            "products": [
-                                self.prod_ids[p] for p in np.flatnonzero(pop.mix[i] > 0).tolist()
-                            ],
-                            "origin": "new" if pop.is_new[i] else "existing",
-                            "base_fee_minor": self.tier_fee[pop.tier[i]],
-                            "billing_period_days": cfg.billing.period_days,
-                        },
-                        f"life:{cid}",
-                        f"cust:{cid}",
-                    )
-                )
-                state[i] = ACTIVE
+            new = arrivals[pop.is_new[arrivals].astype(bool)]
+            converted = u_conv[new] < conv_p[new]
+            sections.append(
+                self._conversion_section(ts0 + T_CONVERSION, new, converted, price_idx[new])
+            )
+            state[new[~converted]] = LOST
+            subscribed = np.sort(
+                np.concatenate([arrivals[~pop.is_new[arrivals].astype(bool)], new[converted]])
+            )
+            sections.append(self._subscription_section(ts0 + T_SUBSCRIPTION, subscribed))
+            state[subscribed] = ACTIVE
 
             # ---- 2. billing: retries then invoices ---------------------------------
             rng_b = rng_for(self.seed, STREAM_BILLING, day)
@@ -590,24 +685,17 @@ class Engine:
             served = rng_d.binomial(requested, np.clip(ok, 0.0, 1.0)).astype(np.int64)
             accrued += (served * prices).sum(axis=1)
 
-            for i, p in np.argwhere(served > 0).tolist():
-                cid = pop.ids[i]
-                add(
-                    Draft(
-                        ts0 + T_USAGE,
-                        cid,
-                        f"use:{cid}:{day}:{p}",
-                        "usage.observed",
-                        {
-                            "product": self.prod_ids[p],
-                            "region_id": self.region_ids[pop.region[i]],
-                            "units": int(served[i, p]),
-                            "throttled_units": int(requested[i, p] - served[i, p]),
-                            "unit_price_micros": int(prices[i, p]),
-                        },
-                        f"use:{cid}:{day}",
-                    )
+            # Usage and request events are the bulk of a day (several per active customer).
+            # They are kept as columns and rendered while the day is emitted, in exactly the
+            # (ts, entity_id, uid) order the sort below gives every other event (ADR 0028:
+            # a day of 1M customers no longer holds millions of Python objects).
+            used = np.argwhere(served > 0)
+            ui, up = used[:, 0], used[:, 1]
+            sections.append(
+                self._usage_section(
+                    ts0 + T_USAGE, day, ui, up, served[ui, up], requested[ui, up], prices[ui, up]
                 )
+            )
             if self.request_col is not None:
                 col = served[:, self.request_col]
                 idx = np.flatnonzero(col > 0)
@@ -616,24 +704,9 @@ class Engine:
                 jitter = np.exp(rng_d.normal(0.0, 0.1, idx.size))
                 p50 = svc_day.mean_p50[pop.region[idx]] * jitter
                 p95 = svc_day.mean_p95[pop.region[idx]] * jitter
-                for j, i in enumerate(idx.tolist()):
-                    cid = pop.ids[i]
-                    add(
-                        Draft(
-                            ts0 + T_REQUEST,
-                            cid,
-                            f"req:{cid}:{day}",
-                            "request.completed",
-                            {
-                                "region_id": self.region_ids[pop.region[i]],
-                                "request_count": int(req[j]),
-                                "error_count": int(errs[j]),
-                                "latency_p50_ms": round(float(p50[j]), 2),
-                                "latency_p95_ms": round(float(p95[j]), 2),
-                            },
-                            f"use:{cid}:{day}",
-                        )
-                    )
+                sections.append(
+                    self._request_section(ts0 + T_REQUEST, day, idx, req, errs, p50, p95)
+                )
 
             # ---- 4. voluntary churn and tier changes -----------------------------------
             rng_c = rng_for(self.seed, STREAM_CHURN, day)
@@ -732,6 +805,7 @@ class Engine:
                         )
                     )
 
-            drafts.sort(key=lambda d: (d.ts, d.entity_id, d.uid))
-            for d in drafts:
+            drafts.sort(key=_order)
+            drafts.reverse()  # pop from the end: each draft is freed once it is emitted
+            for d in heapq.merge(_drain(drafts), *sections, key=_order):
                 yield self.factory.build(d)

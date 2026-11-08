@@ -1,0 +1,42 @@
+{
+  "archive_bytes": 871148712,
+  "cpu_s": 164.172,
+  "elapsed_s": 164.124,
+  "events": 9737517,
+  "events_per_s": 59330.2,
+  "events_per_shard": [
+    1622357,
+    1624381,
+    1622877,
+    1621251,
+    1623389,
+    1623262
+  ],
+  "is_synthetic": true,
+  "oracle_checksum": "40600e56f64e14d78823bb715ac55233ec7b4b8090a6edc60b8dcf8c619c620c",
+  "oracle_customers": 100000,
+  "oracle_invoices": 75237,
+  "oracle_ledger_entries": 73494,
+  "oracle_ledger_total_minor": 4902803039,
+  "peak_rss_mb": 559.2,
+  "run": {
+    "batch_size": 100,
+    "batch_wait_s": 1.0,
+    "chunk": 5000,
+    "crash_rate": 0.005,
+    "customers": 100000,
+    "days": 28,
+    "duckdb_memory_limit_mb": 256,
+    "duckdb_threads": 1,
+    "duplicate_rate": 0.1,
+    "fault_seed": 701,
+    "max_delay_s": 600.0,
+    "oracle_lean": true,
+    "pg_pool_size": 2,
+    "reorder": true,
+    "shards": 6,
+    "sim_seed": 1,
+    "warehouse_compact_rows": 50000
+  },
+  "workload": "W1 simulate + shard archive + oracle"
+}

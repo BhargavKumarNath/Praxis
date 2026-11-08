@@ -95,6 +95,10 @@ class Settings(BaseSettings):
     # "name=token,name2=token2". Unset = the console's admin actions answer 503 (read-only).
     console_approvers: SecretStr | None = None
 
+    # AI operator LLM (ADR 0029): the Gemini API key. Unset = the LLM provider is unavailable
+    # and the operator runs on its deterministic fallback (audited as a fallback).
+    gemini_api_key: SecretStr | None = None
+
     # Spend guard (deployment, ADR 0026): the budget's actual gross cost (GBP) at which the
     # guard unlinks billing from the project, and the one budget whose notifications count.
     # Unset = the guard only reports (never acts).
