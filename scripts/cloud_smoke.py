@@ -228,9 +228,8 @@ def api(url: str, token: str, champion: str | None) -> None:
 
 
 def console(url: str, token: str) -> None:
-    approver = gcloud(
-        "secrets", "versions", "access", "latest", f"--secret=praxis-{ENV}-console-approvers"
-    ).split("=", 1)[1]
+    secret = f"--secret=praxis-{ENV}-console-approvers"
+    approver = newest_approver_token(gcloud("secrets", "versions", "access", "latest", secret))
     status, body = http(f"{url}/", token=token)
     check("console UI", "200 (Next app)", status, status == 200 and "<html" in body.lower())
     status, _ = http(f"{url}/api/console/whoami", token=token)
@@ -256,9 +255,24 @@ def console(url: str, token: str) -> None:
     check("console read model (Postgres over private VPC)", "200", status, status == 200)
 
 
+def newest_approver_token(raw: str) -> str:
+    """The first entry's token from ``name=token@YYYY-MM-DD,...`` (ADR 0021 amendment 1).
+    ``console_token.py rotate`` writes the new token first and the old one after it."""
+    _, _, rest = raw.split(",", 1)[0].strip().partition("=")
+    return rest.rpartition("@")[0] if "@" in rest else rest
+
+
+def registry_champion(console_url: str, token: str) -> str | None:
+    """The champion in the model registry, read through the console's read model. A named
+    approver may promote after the morning tick, so the tick's report can be stale."""
+    status, body = http(f"{console_url}/api/console/mlops", token=token)
+    panel = json.loads(body).get("panels", {}).get("versions", {}) if status == 200 else {}
+    return (panel.get("data") or {}).get("champions", {}).get("demand_forecaster")
+
+
 def live() -> str | None:
     """The live loop (ADR 0027): triggers, today's tick, the private volume. Returns the
-    champion the last tick operated with (what the API must serve)."""
+    champion the last tick operated with (reported; the API is checked against the registry)."""
     triggers = json.loads(gcloud("scheduler", "jobs", "list", f"--location={REGION}",
                                  "--format=json"))  # fmt: skip
     observed = {t["name"].rsplit("/", 1)[-1]: [t.get("schedule"), t.get("state")]
@@ -453,7 +467,14 @@ def main() -> int:
         f"{status} {body}",
         status == 200 and '"ignore"' in body,
     )
-    champion = live()
+    tick_champion = live()
+    champion = registry_champion(urls["console"], token)
+    check(
+        "registry champion readable (console read model)",
+        "a model version",
+        {"registry": champion, "last_tick": tick_champion},
+        champion is not None,
+    )
     api(urls["api"], token, champion)
     console(urls["console"], token)
     events()

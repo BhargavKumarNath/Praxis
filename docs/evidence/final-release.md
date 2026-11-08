@@ -187,10 +187,7 @@ Logs are in `data/final-make-check*.log` and `data/final-gates/` (gitignored).
      ([final-promotion-review.md](final-promotion-review.md)).
    - The session's attempt to send the approval was blocked by its permission policy, so the
      owner sent it: **APPROVED and executed** by the owner on 2026-11-08 at 17:30:45 UTC (console POST, approver `owner`). Registry decision `promote-af5ee1e9c5b242b7ade67cbe26f29859`: `demand-hybrid-84d53ff98b99` -> champion, `demand-hybrid-aa245daf9e08` -> retired. **Done.**
-2. **Rotate the console approver secret together with the next console deploy, not before
-   it.** The deployed console's old parser rejects the rotated format (a duplicate `owner`
-   during the overlap) and would fail at its next cold start. The order is: rotate, then
-   `cloud-images`, `cloud-plan`, review, `cloud-apply`.
+2. **Console approver rotation and redeploy.** **Done 2026-11-08** (commit `5602da1`): approver secret rotated (version 2: `owner` 90-day token plus the old one for 7 days), then images `app@sha256:acb81272…` / `console-web@sha256:46124650…` applied (0 added, 6 changed, 0 destroyed; revisions `00009`). `make cloud-smoke` run 1: 45/49, all 4 failures in the smoke script (stale token parser; expected champion read from the 03:10 tick, before the 17:30 promotion), kept as [deployment-smoke-2026-11-08-run1-failed.json](deployment-smoke-2026-11-08-run1-failed.json). Script fixed (pass conditions unchanged; expected champion now read from the registry), run 2: **50/50** ([deployment-smoke-2026-11-08-run2.json](deployment-smoke-2026-11-08-run2.json)).
 3. **Live Gemini benchmark:** needs `PRAXIS_GEMINI_API_KEY`, about USD 0.05
    (`make agent-llm-bench`).
 4. **Optional:** re-run `make scale-m1 SCALE=m1-500k` with the fixed caps (about 3.3 h) to
