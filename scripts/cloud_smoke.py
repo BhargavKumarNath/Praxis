@@ -267,7 +267,8 @@ def registry_champion(console_url: str, token: str) -> str | None:
     approver may promote after the morning tick, so the tick's report can be stale."""
     status, body = http(f"{console_url}/api/console/mlops", token=token)
     panel = json.loads(body).get("panels", {}).get("versions", {}) if status == 200 else {}
-    return (panel.get("data") or {}).get("champions", {}).get("demand_forecaster")
+    champion = (panel.get("data") or {}).get("champions", {}).get("demand_forecaster")
+    return champion if isinstance(champion, str) else None
 
 
 def live() -> str | None:
