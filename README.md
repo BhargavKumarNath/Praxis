@@ -28,9 +28,11 @@ inside an emulated 8 GB budget. A separate 100K-customer run
 sustained 4,494.6 events/s with an operational p99 of 21.3 ms.
 ([scale evidence](docs/evidence/final-scale.md))
 
-**Decision console:** [praxis-dev-console-hrmtvtbctq-uc.a.run.app](https://praxis-dev-console-hrmtvtbctq-uc.a.run.app)
-(private: access is restricted to the owner's Google identity, so other visitors get a 403.
-Screenshots of every view are in [docs/dashboard.md](docs/dashboard.md).)
+**Live decision console:** [praxis-dev-console-public-hrmtvtbctq-uc.a.run.app](https://praxis-dev-console-public-hrmtvtbctq-uc.a.run.app)
+This is a public, read-only view of the running deployment, fed by the daily live loop. Approving
+requests is switched off here and lives on a separate private console. The first load after a
+quiet period can take a few seconds while the service starts from zero.
+[How the console works](docs/dashboard.md)
 
 [![The Praxis decision console, executive view](docs/evidence/phase-13/executive-1440-light.png)](docs/dashboard.md)
 
