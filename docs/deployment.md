@@ -196,12 +196,29 @@ APIs stay enabled. Billing, the state bucket and the snapshots are outside Terra
 
 A recreate is `make cloud-plan cloud-apply`, then the secrets, migrations and smoke.
 
+## Public read-only console (ADR 0032)
+
+`console-public` is a copy of the console that anyone can view. It holds no approver secret, so
+approve, reject and lift-freeze answer 503 there; approvals stay on the private console. It is
+off by default. To turn it on, add `console_public = true` to `deploy.auto.tfvars`, then:
+
+```bash
+make cloud-plan     # review: only additions for console-public (its service account, the
+                    # service, its IAM grants); nothing replaced or destroyed
+make cloud-apply
+gcloud run services describe praxis-dev-console-public --region us-central1 \
+  --project $CLOUD_PROJECT --format="value(status.url)"
+```
+
+To take it down again, set `console_public = false` and plan / apply.
+
 ## Security posture
 
 Enforced and tested (`tests/security/` pins the route inventory and the Terraform posture):
 
-- **Nothing public.** No `allUsers` binding, no external IP, NAT or load balancer. Anonymous
-  requests get 403 on all three services. Postgres has a private IP only.
+- **Nothing public by default.** No external IP, NAT or load balancer, and Postgres has a
+  private IP only. Anonymous requests get 403 on the API, the console and the spend guard. The
+  one opt-in exception is the read-only console copy below (ADR 0032).
 - **Least privilege.** One service account per process with resource-level grants. The only
   project-level grant is the spend guard's `roles/billing.projectManager`. No service-account
   keys.

@@ -181,5 +181,6 @@ flowchart LR
 ```
 
 Cloud Run reaches the database over Direct VPC egress. There is no external IP, NAT or load
-balancer. Each process has its own service account with resource-level grants only, and
+balancer. Every service is private, except an optional read-only copy of the console that
+anyone may view (ADR 0032); it holds no approver secret. Each process has its own service account with resource-level grants only, and
 secrets live in Secret Manager, never in Terraform state.

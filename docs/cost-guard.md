@@ -28,7 +28,7 @@ service that unlinks billing from the project when reported spend reaches GBP 8 
 | Cloud event production capped at 2,000 customer-days per run, never scheduled | Yes |
 | Scheduler runs only the daily live tick and the daily ops tick, no retries; the live job is capped at 4 hours | Yes |
 | Registry keeps 3 image versions, snapshots kept 7 days | Yes |
-| Nothing public, so unauthenticated requests are refused before they are billed | Yes |
+| Nothing public by default, so unauthenticated requests are refused before they are billed. The opt-in read-only console copy (ADR 0032) is the exception, capped at one instance | Yes |
 
 ## What it costs
 

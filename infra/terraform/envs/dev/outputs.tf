@@ -41,8 +41,9 @@ output "database" {
 
 output "services" {
   value = {
-    api     = var.deploy_services ? { uri = module.api[0].uri, public = module.api[0].public, max_instances = module.api[0].max_instances } : null
-    console = var.deploy_services ? { uri = module.console[0].uri, public = module.console[0].public, max_instances = module.console[0].max_instances } : null
+    api            = var.deploy_services ? { uri = module.api[0].uri, public = module.api[0].public, max_instances = module.api[0].max_instances } : null
+    console        = var.deploy_services ? { uri = module.console[0].uri, public = module.console[0].public, max_instances = module.console[0].max_instances } : null
+    console_public = length(module.console_public) > 0 ? { uri = module.console_public[0].uri, public = module.console_public[0].public, max_instances = module.console_public[0].max_instances } : null
   }
 }
 

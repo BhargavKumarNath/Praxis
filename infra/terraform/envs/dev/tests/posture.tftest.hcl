@@ -30,12 +30,12 @@ run "create" {
   command = apply
 
   assert {
-    condition     = length(output.service_accounts) == 9
-    error_message = "one service account per process (api, console, streaming, ops, agent, db, guard, live, scheduler)"
+    condition     = length(output.service_accounts) == 10
+    error_message = "one service account per process (api, console, console-public, streaming, ops, agent, db, guard, live, scheduler)"
   }
   assert {
-    condition     = !output.services.api.public && !output.services.console.public
-    error_message = "nothing is public until the Stripe integration is switched on (api_public)"
+    condition     = !output.services.api.public && !output.services.console.public && output.services.console_public == null
+    error_message = "nothing is public by default: api_public and console_public are owner opt-ins"
   }
   assert {
     condition     = output.database.machine_type == "e2-micro" && !output.database.has_external_ip
@@ -94,6 +94,27 @@ run "the_api_can_be_opened_for_stripe" {
   assert {
     condition     = output.services.api.public && !output.services.console.public
     error_message = "api_public opens the API only, never the console"
+  }
+}
+
+run "the_read_only_console_copy_can_be_public" {
+  command = plan
+
+  variables {
+    console_public = true
+  }
+
+  assert {
+    condition     = output.services.console_public.public && !output.services.console.public && !output.services.api.public
+    error_message = "console_public opens only the read-only copy, never the approving console or the API"
+  }
+  assert {
+    condition     = output.services.console_public.max_instances == 1
+    error_message = "the public console copy is capped at one instance"
+  }
+  assert {
+    condition     = !contains(output.secret_grants, "console-approvers/console-public") && contains(output.secret_grants, "database-url/console-public") && length([for g in output.secret_grants : g if endswith(g, "/console-public")]) == 1
+    error_message = "the public copy reads only the database URL, never the approver secret"
   }
 }
 

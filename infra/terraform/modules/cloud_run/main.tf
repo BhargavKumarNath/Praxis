@@ -3,8 +3,9 @@
 # Cost (docs/cost-guard.md): min instances 0 (no idle charge), request-based billing
 # (`cpu_idle = true`: CPU is billed only while a request is in flight), and a hard
 # max-instance cap validated here AND in praxis.config (Settings.cloud_run_max_instances <= 10).
-# Security: the console is never public; `public = true` is refused for it by validation
-# and only the API (Stripe must reach the webhook) may be invoked by allUsers.
+# Security: the approving console is never public; `public = true` is refused by validation
+# for every service except the API (Stripe must reach the webhook) and the read-only
+# console-public copy, which holds no approver secret (ADR 0032).
 resource "google_cloud_run_v2_service" "service" {
   name                = "${var.prefix}-${var.environment}-${var.name}"
   project             = var.project_id

@@ -72,9 +72,10 @@ module "storage" {
   force_destroy = true
   live_writers  = { live = module.identity.members["live"] }
   live_readers = {
-    api     = module.identity.members["api"]
-    console = module.identity.members["console"]
-    ops     = module.identity.members["ops"]
+    api            = module.identity.members["api"]
+    console        = module.identity.members["console"]
+    ops            = module.identity.members["ops"]
+    console-public = module.identity.members["console-public"]
   }
   labels     = local.labels
   depends_on = [module.apis]
@@ -221,6 +222,38 @@ module "console" {
     secret_env = {
       PRAXIS_DATABASE_URL      = module.identity.secret_ids["database-url"]
       PRAXIS_CONSOLE_APPROVERS = module.identity.secret_ids["console-approvers"]
+    }
+  }]
+  labels = local.labels
+}
+
+# A public, read-only copy of the console (ADR 0032). Same images; no approver secret, so the
+# console API's admin routes answer 503 and nobody can approve, reject or lift a freeze through
+# it. Viewing is open to anyone. Capped at one instance; scales to zero.
+module "console_public" {
+  count           = var.deploy_services && var.console_public ? 1 : 0
+  source          = "../../modules/cloud_run"
+  project_id      = var.project_id
+  environment     = local.environment
+  location        = var.region
+  name            = "console-public"
+  image           = var.web_image
+  service_account = module.identity.emails["console-public"]
+  max_instances   = 1
+  memory          = "512Mi"
+  public          = var.console_public
+  vpc_egress      = local.vpc_egress
+  gcs_volume      = local.live_ro
+  env             = merge(local.common_env, local.live_env, { PRAXIS_SERVICE_NAME = "praxis-console-public" })
+  sidecars = [{
+    name    = "console-api"
+    image   = var.app_image
+    port    = 8001
+    command = ["uvicorn"]
+    args    = ["--factory", "praxis.console.app:create_console_app", "--host", "0.0.0.0", "--port", "8001"]
+    memory  = "1Gi"
+    secret_env = {
+      PRAXIS_DATABASE_URL = module.identity.secret_ids["database-url"]
     }
   }]
   labels = local.labels

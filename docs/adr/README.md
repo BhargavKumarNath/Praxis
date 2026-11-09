@@ -33,5 +33,6 @@
 | [0029](0029-llm-provider-for-the-ai-operator.md) | LLM provider for the AI operator: one JSON step per turn, strict schema, bounded retries / repairs / budget, Gemini Interactions client, offline echo mode |
 | [0030](0030-bounded-retrain-window.md) | Bounded retrain window: sliding 364-day training and backtest history (cost bound for the live loop) |
 | [0031](0031-heldout-pricing-evaluation-2026-11.md) | Fresh held-out pricing evaluation (seeds 901-905): registration and result (H1 FAIL, H2 FAIL, H3 PASS) |
+| [0032](0032-public-read-only-console.md) | A public, read-only copy of the decision console (opt-in, no approver secret, one instance) |
 
 Add a new ADR whenever an architectural decision changes system behaviour.

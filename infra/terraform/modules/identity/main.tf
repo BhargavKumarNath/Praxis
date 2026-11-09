@@ -8,19 +8,20 @@
 # add`), so no secret ever reaches the Terraform state.
 locals {
   services = {
-    api       = "Praxis API (forecasts, Stripe webhooks, retry callbacks)"
-    console   = "Praxis decision console (read model, approvals)"
-    streaming = "Praxis event consumers"
-    ops       = "Praxis ops monitor"
-    agent     = "Praxis AI operator (no secrets except the LLM key)"
-    db        = "Praxis control-plane Postgres VM (its password, its image)"
-    guard     = "Praxis spend guard (unlinks billing at the spend ceiling)"
-    live      = "Praxis live tick (synthetic world, warehouse, model lifecycle; ADR 0027)"
-    scheduler = "Praxis scheduler (may only start the live and ops jobs)"
+    api            = "Praxis API (forecasts, Stripe webhooks, retry callbacks)"
+    console        = "Praxis decision console (read model, approvals)"
+    console-public = "Praxis public read-only console (no approver secret; ADR 0032)"
+    streaming      = "Praxis event consumers"
+    ops            = "Praxis ops monitor"
+    agent          = "Praxis AI operator (no secrets except the LLM key)"
+    db             = "Praxis control-plane Postgres VM (its password, its image)"
+    guard          = "Praxis spend guard (unlinks billing at the spend ceiling)"
+    live           = "Praxis live tick (synthetic world, warehouse, model lifecycle; ADR 0027)"
+    scheduler      = "Praxis scheduler (may only start the live and ops jobs)"
   }
   # Which process may read which secret. Nothing else can.
   secret_readers = {
-    database-url          = ["api", "console", "streaming", "ops", "agent", "live"]
+    database-url          = ["api", "console", "console-public", "streaming", "ops", "agent", "live"]
     stripe-webhook-secret = ["api"]
     stripe-api-key        = ["api"]
     task-token            = ["api"]

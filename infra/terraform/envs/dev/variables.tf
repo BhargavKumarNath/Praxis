@@ -45,6 +45,12 @@ variable "api_public" {
   default     = false
 }
 
+variable "console_public" {
+  description = "Deploy console-public: a read-only copy of the console that anyone may view (ADR 0032). It holds no approver secret, so every admin route answers 503."
+  type        = bool
+  default     = false
+}
+
 variable "stripe_enabled" {
   description = "Wire the Stripe webhook / retry-task secrets into the API (their versions must exist)."
   type        = bool

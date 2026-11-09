@@ -110,12 +110,12 @@ variable "secret_env" {
 }
 
 variable "public" {
-  description = "Grant run.invoker to allUsers. Only the API may (Stripe webhooks)."
+  description = "Grant run.invoker to allUsers. Only the API (Stripe webhooks) and the read-only console copy may (ADR 0032)."
   type        = bool
   default     = false
   validation {
-    condition     = !(var.public && var.name == "console")
-    error_message = "The decision console is never public (ADR 0021, ADR 0024)."
+    condition     = !var.public || contains(["api", "console-public"], var.name)
+    error_message = "Only the API and the read-only console-public service may be public; the approving console never is (ADR 0021, 0024, 0032)."
   }
 }
 

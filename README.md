@@ -22,6 +22,18 @@ requests, but any guarded action still waits for a person.
 The whole system runs locally, and it is deployed privately on Google Cloud, where a daily
 loop operates a synthetic world one simulated day per real day.
 
+**Scale:** **48.7 million events** from 500K virtual customers were replayed through the
+pipeline into a final state that matched the oracle exactly, with no out-of-memory kills
+inside an emulated 8 GB budget. A separate 100K-customer run
+sustained 4,494.6 events/s with an operational p99 of 21.3 ms.
+([scale evidence](docs/evidence/final-scale.md))
+
+**Decision console:** [praxis-dev-console-hrmtvtbctq-uc.a.run.app](https://praxis-dev-console-hrmtvtbctq-uc.a.run.app)
+(private: access is restricted to the owner's Google identity, so other visitors get a 403.
+Screenshots of every view are in [docs/dashboard.md](docs/dashboard.md).)
+
+[![The Praxis decision console, executive view](docs/evidence/phase-13/executive-1440-light.png)](docs/dashboard.md)
+
 > **Every customer, price, payment, churn figure and revenue number here is synthetic**,
 > produced by the Praxis simulator. None of it is a real company's result. Real external data
 > (FRED, EIA, Open-Meteo, NESO) and Stripe **Sandbox** behaviour are labelled wherever they

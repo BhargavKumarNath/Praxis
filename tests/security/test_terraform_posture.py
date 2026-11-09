@@ -51,6 +51,12 @@ def test_only_the_api_cloud_run_module_can_be_public() -> None:
     assert "default     = false" in variables.split('variable "api_public"')[1].split("}")[0]
     console = dev[dev.index('module "console"') :]
     assert "public " not in console.split("labels")[0]
+    # ADR 0032: the only other public service is the read-only console copy, opt-in and
+    # off by default, and it never receives the approver secret.
+    copy = dev[dev.index('module "console_public"') :].split("labels")[0]
+    assert "public          = var.console_public" in copy
+    assert "console-approvers" not in copy and "PRAXIS_CONSOLE_APPROVERS" not in copy
+    assert "default     = false" in variables.split('variable "console_public"')[1].split("}")[0]
 
 
 def test_services_scale_to_zero_with_a_cap() -> None:
@@ -101,7 +107,8 @@ def test_database_is_free_tier_and_private() -> None:
 
 
 def test_live_volume_is_private_and_least_privilege() -> None:
-    """ADR 0027: only the live job writes the live bucket; three processes read it."""
+    """ADR 0027: only the live job writes the live bucket; four processes read it (ADR 0032
+    added the read-only public console)."""
     storage = (ROOT / "modules/storage/main.tf").read_text()
     live = storage[storage.index('resource "google_storage_bucket" "live"') :]
     assert 'public_access_prevention    = "enforced"' in live.split("\n}")[0]
@@ -110,12 +117,12 @@ def test_live_volume_is_private_and_least_privilege() -> None:
     assert roles == ["roles/storage.objectUser", "roles/storage.objectViewer"]
     dev = (ROOT / "envs/dev/main.tf").read_text()
     block = dev[dev.index("live_writers") : dev.index("labels     = local.labels")]
-    assert block.count("module.identity.members") == 4
+    assert block.count("module.identity.members") == 5
     assert 'live_writers  = { live = module.identity.members["live"] }' in block
-    for reader in ("api", "console", "ops"):
-        assert f'{reader:<7} = module.identity.members["{reader}"]' in block
+    for reader in ("api", "console", "ops", "console-public"):
+        assert re.search(rf'{reader}\s+= module.identity.members\["{reader}"\]', block)
     # every reader mounts it read-only; only the live job mounts it read-write
-    assert dev.count("gcs_volume      = local.live_ro") == 3
+    assert dev.count("gcs_volume      = local.live_ro") == 4
     assert dev.count("gcs_volume      = local.live_rw") == 1
 
 
