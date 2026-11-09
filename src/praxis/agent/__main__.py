@@ -69,7 +69,8 @@ def cmd_investigate(args: argparse.Namespace) -> int:
     )  # fmt: skip
     engine = _engine()
     settings = get_settings()
-    key = settings.gemini_api_key.get_secret_value() if settings.gemini_api_key else None
+    secret = settings.anthropic_api_key if args.provider == "anthropic" else settings.gemini_api_key
+    key = secret.get_secret_value() if secret else None
     operator = operator_for(_executor(_plane(engine)), provider=args.provider, api_key=key)
     run = operator.investigate(task)
     # The ops monitor sees agent_* metrics (alert agent_provider_degraded) only through a

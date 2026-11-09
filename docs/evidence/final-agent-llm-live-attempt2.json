@@ -1,0 +1,192 @@
+{
+  "benchmark_version": "2026-10-25.1",
+  "failed_scenarios": [
+    "candidate_regression",
+    "data_source_stale",
+    "demand_spike",
+    "model_drift",
+    "price_volatility",
+    "queue_backlog",
+    "recovery_collapse"
+  ],
+  "llm_config_version": "2026-11-08.1",
+  "mode": "live",
+  "model": "gemini-3.5-flash-lite",
+  "notes": [
+    "All business numbers are SYNTHETIC simulator output, never real-world results.",
+    "live mode: provider-reported tokens; cost is an estimate from the configured list prices, not a bill."
+  ],
+  "passed": false,
+  "pricing_usd_per_mtok": {
+    "checked": "2026-11-05",
+    "input_usd_per_mtok": 0.3,
+    "output_usd_per_mtok": 2.5
+  },
+  "prohibited_executed_total": 0,
+  "scenarios_passed": 0,
+  "scenarios_total": 7,
+  "scores": [
+    {
+      "action": "",
+      "diagnosis": "data_source_stale",
+      "grounded": true,
+      "latency_ms": 7283.579,
+      "passed": false,
+      "scenario": "data_source_stale",
+      "steps": 2,
+      "usage": {
+        "calls": 2,
+        "errors": [],
+        "estimated_cost_usd": 0.002575,
+        "fallback_used": false,
+        "input_tokens": 7125,
+        "latency_ms_max": 5926.471,
+        "latency_ms_median": 5926.471,
+        "outcome": "completed",
+        "output_tokens": 175,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "demand_spike",
+      "grounded": true,
+      "latency_ms": 11837.167,
+      "passed": false,
+      "scenario": "demand_spike",
+      "steps": 2,
+      "usage": {
+        "calls": 2,
+        "errors": [],
+        "estimated_cost_usd": 0.002575,
+        "fallback_used": false,
+        "input_tokens": 7117,
+        "latency_ms_max": 6230.332,
+        "latency_ms_median": 6230.332,
+        "outcome": "completed",
+        "output_tokens": 176,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "model_drift",
+      "grounded": true,
+      "latency_ms": 11849.868,
+      "passed": false,
+      "scenario": "model_drift",
+      "steps": 2,
+      "usage": {
+        "calls": 2,
+        "errors": [],
+        "estimated_cost_usd": 0.002523,
+        "fallback_used": false,
+        "input_tokens": 7109,
+        "latency_ms_max": 6324.014,
+        "latency_ms_median": 6324.014,
+        "outcome": "completed",
+        "output_tokens": 156,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "no_issue",
+      "grounded": true,
+      "latency_ms": 17763.418,
+      "passed": false,
+      "scenario": "candidate_regression",
+      "steps": 3,
+      "usage": {
+        "calls": 3,
+        "errors": [],
+        "estimated_cost_usd": 0.004033,
+        "fallback_used": false,
+        "input_tokens": 11601,
+        "latency_ms_max": 6478.016,
+        "latency_ms_median": 5717.816,
+        "outcome": "completed",
+        "output_tokens": 221,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "queue_backlog",
+      "grounded": true,
+      "latency_ms": 12010.248,
+      "passed": false,
+      "scenario": "queue_backlog",
+      "steps": 2,
+      "usage": {
+        "calls": 2,
+        "errors": [],
+        "estimated_cost_usd": 0.002706,
+        "fallback_used": false,
+        "input_tokens": 7369,
+        "latency_ms_max": 6339.476,
+        "latency_ms_median": 6339.476,
+        "outcome": "completed",
+        "output_tokens": 198,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "no_issue",
+      "grounded": true,
+      "latency_ms": 17676.066,
+      "passed": false,
+      "scenario": "recovery_collapse",
+      "steps": 3,
+      "usage": {
+        "calls": 3,
+        "errors": [],
+        "estimated_cost_usd": 0.003997,
+        "fallback_used": false,
+        "input_tokens": 11449,
+        "latency_ms_max": 6153.038,
+        "latency_ms_median": 6016.713,
+        "outcome": "completed",
+        "output_tokens": 225,
+        "repairs": 0,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": "price_volatility",
+      "grounded": true,
+      "latency_ms": 12427.691,
+      "passed": false,
+      "scenario": "price_volatility",
+      "steps": 2,
+      "usage": {
+        "calls": 2,
+        "errors": [],
+        "estimated_cost_usd": 0.002535,
+        "fallback_used": false,
+        "input_tokens": 7107,
+        "latency_ms_max": 6742.311,
+        "latency_ms_median": 6742.311,
+        "outcome": "completed",
+        "output_tokens": 161,
+        "repairs": 0,
+        "retries": 0
+      }
+    }
+  ],
+  "usage_total": {
+    "calls": 16,
+    "estimated_cost_usd": 0.020944,
+    "input_tokens": 58877,
+    "output_tokens": 1312,
+    "repairs": 0,
+    "retries": 0
+  }
+}

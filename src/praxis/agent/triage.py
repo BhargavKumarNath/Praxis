@@ -5,6 +5,7 @@ reference investigator of the incident benchmark. It reads only STRUCTURED tool 
 (alert rule ids, numbers, flags), never free text, so text in incidents, task notes,
 customer metadata or tool output cannot steer it.
 
+The procedure is ``praxis.agent.playbook`` (the same text an LLM provider is given).
 Order: gather evidence (health, then the tools the firing alerts point at), diagnose, read
 the runbook, take at most one playbook action, answer citing the successful call ids.
 """
@@ -15,13 +16,15 @@ from collections import Counter
 from typing import Any
 
 from praxis.agent.config import TriageSection
+from praxis.agent.playbook import (
+    DATA_RULES,
+    FORECAST_RULES,
+    INCIDENT_DIAGNOSES,
+    MAX_ATTEMPTS,
+    QUEUE_RULES,
+)
 from praxis.agent.provider import Conversation, Final, Step, Task, ToolCall
 from praxis.agent.tools import ROUTES
-
-DATA_RULES = {"source_stale", "data_contract_failure"}
-QUEUE_RULES = {"queue_backlog_high", "dlq_backlog_high", "consumer_lag_slo_breach"}
-FORECAST_RULES = {"calibration_regression", "business_kpi_shock", "forecast_stale"}
-MAX_ATTEMPTS = 2  # a failed tool is retried once, then the investigation goes on without it
 
 Plan = list[tuple[str, dict[str, Any]]]
 
@@ -104,13 +107,12 @@ def diagnose(task: Task, done: dict[str, dict[str, Any]], cfg: TriageSection) ->
     return next((name for hit, name in rules if hit), "no_issue")
 
 
-def _live_incident(done: dict[str, dict[str, Any]], rules: set[str]) -> str | None:
+def _live_incident(done: dict[str, dict[str, Any]], rules: frozenset[str]) -> str | None:
     incidents = _data(done, "get_system_health").get("incidents", [])
     return next((i["incident_id"] for i in incidents if i.get("rule_id") in rules), None)
 
 
 Action = tuple[str, dict[str, Any]]
-INCIDENT_DIAGNOSES = {"data_source_stale", "demand_spike", "recovery_collapse"}
 
 
 def _queue_action(done: dict[str, dict[str, Any]], summary: str) -> Action:

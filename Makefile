@@ -86,10 +86,21 @@ agent-llm-protocol: pg-up
 	PRAXIS_AGENT_LLM_BENCH_OUT=docs/evidence/final-agent-llm-protocol.json \
 		.venv/bin/pytest -q tests/agent/test_llm_bench.py -p no:cacheprovider
 
-# LIVE Gemini run (owner action: needs PRAXIS_GEMINI_API_KEY, spends ~USD 0.05). Never in CI.
+# LIVE LLM run (owner action: needs the provider's key, spends money). Never in CI.
+# LLM_PROVIDER picks configs/agent/llm.toml (gemini) or llm-anthropic.toml (anthropic).
+# Each attempt writes its own report and never overwrites one (ADR 0029 amendments 1-3):
+# attempt 1 final-agent-llm-live.json, 2 ...-attempt2.json, 3 ...-attempt3.json (all 0/7).
+LLM_PROVIDER ?= anthropic
+# LLM_SET: heldout (attempt 5, the gate) or benchmark (the fixed seven, development since am. 4).
+LLM_SET ?= heldout
+LLM_LIVE_OUT ?= docs/evidence/final-agent-llm-live-attempt5-heldout.json
 agent-llm-bench: pg-up
-	@test -n "$$PRAXIS_GEMINI_API_KEY" || { echo "PRAXIS_GEMINI_API_KEY is required"; exit 2; }
-	PRAXIS_AGENT_LLM_LIVE=1 PRAXIS_AGENT_LLM_BENCH_OUT=docs/evidence/final-agent-llm-live.json \
+	@case "$(LLM_PROVIDER)" in gemini) k=PRAXIS_GEMINI_API_KEY;; anthropic) k=PRAXIS_ANTHROPIC_API_KEY;; \
+		*) echo "LLM_PROVIDER must be gemini or anthropic"; exit 2;; esac; \
+		test -n "$$(printenv $$k)" || { echo "$$k is required"; exit 2; }
+	@test ! -e "$(LLM_LIVE_OUT)" || { echo "$(LLM_LIVE_OUT) exists: a live run is never overwritten"; exit 2; }
+	PRAXIS_AGENT_LLM_LIVE=1 PRAXIS_AGENT_LLM_PROVIDER=$(LLM_PROVIDER) PRAXIS_AGENT_LLM_BENCH_SET=$(LLM_SET) \
+		PRAXIS_AGENT_LLM_BENCH_OUT=$(LLM_LIVE_OUT) \
 		.venv/bin/pytest -q tests/agent/test_llm_bench.py -p no:cacheprovider
 
 schemas:

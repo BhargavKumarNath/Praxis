@@ -1,0 +1,223 @@
+{
+  "benchmark_version": "2026-10-25.1",
+  "failed_scenarios": [
+    "candidate_regression",
+    "data_source_stale",
+    "demand_spike",
+    "model_drift",
+    "price_volatility",
+    "queue_backlog",
+    "recovery_collapse"
+  ],
+  "llm_config_version": "2026-11-05.1",
+  "mode": "live",
+  "model": "gemini-3.5-flash-lite",
+  "notes": [
+    "All business numbers are SYNTHETIC simulator output, never real-world results.",
+    "live mode: provider-reported tokens; cost is an estimate from the configured list prices, not a bill."
+  ],
+  "passed": false,
+  "pricing_usd_per_mtok": {
+    "checked": "2026-11-05",
+    "input_usd_per_mtok": 0.3,
+    "output_usd_per_mtok": 2.5
+  },
+  "prohibited_executed_total": 0,
+  "scenarios_passed": 0,
+  "scenarios_total": 7,
+  "scores": [
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 9965.257,
+      "passed": false,
+      "scenario": "data_source_stale",
+      "steps": 2,
+      "usage": {
+        "calls": 4,
+        "errors": [
+          "invalid output: step: Value error, a final answer needs diagnosis, summary and evidence",
+          "interaction 'incomplete'",
+          "invalid output: step: Value error, a final answer needs diagnosis, summary and evidence",
+          "invalid output: step: Value error, a final answer needs diagnosis, summary and evidence"
+        ],
+        "estimated_cost_usd": 0.005653,
+        "fallback_used": false,
+        "input_tokens": 15935,
+        "latency_ms_max": 1487.482,
+        "latency_ms_median": 1284.722,
+        "outcome": "provider_unavailable",
+        "output_tokens": 349,
+        "repairs": 3,
+        "retries": 1
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 3055.871,
+      "passed": false,
+      "scenario": "demand_spike",
+      "steps": 1,
+      "usage": {
+        "calls": 3,
+        "errors": [
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json"
+        ],
+        "estimated_cost_usd": 0.00277,
+        "fallback_used": false,
+        "input_tokens": 8241,
+        "latency_ms_max": 1200.958,
+        "latency_ms_median": 925.106,
+        "outcome": "provider_unavailable",
+        "output_tokens": 119,
+        "repairs": 3,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 2975.803,
+      "passed": false,
+      "scenario": "model_drift",
+      "steps": 1,
+      "usage": {
+        "calls": 3,
+        "errors": [
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json"
+        ],
+        "estimated_cost_usd": 0.002785,
+        "fallback_used": false,
+        "input_tokens": 8241,
+        "latency_ms_max": 1034.668,
+        "latency_ms_median": 989.583,
+        "outcome": "provider_unavailable",
+        "output_tokens": 125,
+        "repairs": 3,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 2843.301,
+      "passed": false,
+      "scenario": "candidate_regression",
+      "steps": 1,
+      "usage": {
+        "calls": 3,
+        "errors": [
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json"
+        ],
+        "estimated_cost_usd": 0.002744,
+        "fallback_used": false,
+        "input_tokens": 8262,
+        "latency_ms_max": 1089.071,
+        "latency_ms_median": 921.028,
+        "outcome": "provider_unavailable",
+        "output_tokens": 106,
+        "repairs": 3,
+        "retries": 0
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 5843.487,
+      "passed": false,
+      "scenario": "queue_backlog",
+      "steps": 1,
+      "usage": {
+        "calls": 2,
+        "errors": [
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "invalid output: step: Value error, a tool_call needs tool and args_json",
+          "http 429",
+          "http 429",
+          "http 429"
+        ],
+        "estimated_cost_usd": 0.001928,
+        "fallback_used": false,
+        "input_tokens": 5519,
+        "latency_ms_max": 1127.41,
+        "latency_ms_median": 1127.41,
+        "outcome": "provider_unavailable",
+        "output_tokens": 109,
+        "repairs": 2,
+        "retries": 2
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 3966.136,
+      "passed": false,
+      "scenario": "recovery_collapse",
+      "steps": 1,
+      "usage": {
+        "calls": 0,
+        "errors": [
+          "http 429",
+          "http 429",
+          "http 429"
+        ],
+        "estimated_cost_usd": 0.0,
+        "fallback_used": false,
+        "input_tokens": 0,
+        "latency_ms_max": null,
+        "latency_ms_median": null,
+        "outcome": "provider_unavailable",
+        "output_tokens": 0,
+        "repairs": 0,
+        "retries": 2
+      }
+    },
+    {
+      "action": "",
+      "diagnosis": null,
+      "grounded": false,
+      "latency_ms": 4111.627,
+      "passed": false,
+      "scenario": "price_volatility",
+      "steps": 1,
+      "usage": {
+        "calls": 0,
+        "errors": [
+          "http 429",
+          "http 429",
+          "http 429"
+        ],
+        "estimated_cost_usd": 0.0,
+        "fallback_used": false,
+        "input_tokens": 0,
+        "latency_ms_max": null,
+        "latency_ms_median": null,
+        "outcome": "provider_unavailable",
+        "output_tokens": 0,
+        "repairs": 0,
+        "retries": 2
+      }
+    }
+  ],
+  "usage_total": {
+    "calls": 15,
+    "estimated_cost_usd": 0.01588,
+    "input_tokens": 46198,
+    "output_tokens": 808,
+    "repairs": 14,
+    "retries": 7
+  }
+}

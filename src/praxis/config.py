@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     # AI operator LLM (ADR 0029): the Gemini API key. Unset = the LLM provider is unavailable
     # and the operator runs on its deterministic fallback (audited as a fallback).
     gemini_api_key: SecretStr | None = None
+    # The Anthropic API key (ADR 0029 amendment 3), same rules as the Gemini key.
+    anthropic_api_key: SecretStr | None = None
 
     # Spend guard (deployment, ADR 0026): the budget's actual gross cost (GBP) at which the
     # guard unlinks billing from the project, and the one budget whose notifications count.

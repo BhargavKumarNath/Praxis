@@ -10,13 +10,16 @@ grounding check. Nothing here can execute an action.
 
 Every failure is bounded and ends in ``ProviderUnavailable`` (the operator then switches to
 the deterministic fallback and audits it): missing key, transport errors after
-``max_attempts`` (timeouts, 429, 5xx, with exponential backoff), non-retryable errors (bad
+``max_attempts`` (timeouts, 429, 5xx, with exponential backoff, or the server-requested
+delay when it gives one, capped), non-retryable errors (bad
 request, auth, unknown model), repairs exhausted, or the per-investigation token budget.
 
-``GeminiInteractionsClient`` speaks the Gemini Interactions REST API with an API key. Any
-other provider is one more ``ModelClient``. ``EchoTriageClient`` is the deterministic offline
-model: it serialises the triage investigator's steps as the JSON a model would return, so the
-whole protocol (prompt, schema, parsing, repair, accounting) runs in CI with no network.
+``GeminiInteractionsClient`` speaks the Gemini Interactions REST API with an API key;
+``AnthropicMessagesClient`` the Anthropic Messages API through the official SDK (ADR 0029
+amendment 3). Any other provider is one more ``ModelClient``. ``EchoTriageClient`` is the
+deterministic offline model: it serialises the triage investigator's steps as the JSON a
+model would return, so the whole protocol (prompt, schema, parsing, repair, accounting)
+runs in CI with no network.
 """
 
 from __future__ import annotations
@@ -30,10 +33,14 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
+import anthropic
 import httpx
+from anthropic.types import Message, MessageParam, OutputConfigParam, TextBlock
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from praxis.agent.actions import ACTION_TOOLS
 from praxis.agent.config import CONFIG_DIR, TriageSection
+from praxis.agent.playbook import render_procedure
 from praxis.agent.provider import (
     SYSTEM_PROMPT,
     Conversation,
@@ -49,31 +56,49 @@ DIAGNOSES = (
     "data_source_stale", "demand_spike", "model_drift", "candidate_regression",
     "queue_backlog", "recovery_collapse", "price_volatility", "no_issue", "unknown",
 )  # fmt: skip
+# recommended_action names the action tool the model called, or "" (amendment 4: free text
+# here cost 7 repairs in attempt 4, a length limit the strict decoder cannot enforce).
+ACTIONS = ("", *(t.name for t in ACTION_TOOLS))
 
 PROTOCOL = (
     "Reply with exactly one JSON object and nothing else. Either call one tool from the "
     'catalogue: {"kind": "tool_call", "tool": <name>, "args_json": <the arguments as a JSON '
     'object encoded in a string>, "rationale": <why>}; or finish: {"kind": "final", '
     '"diagnosis": <one of the allowed diagnoses>, "summary": <what you found>, "evidence": '
-    '[<call_id of each successful tool call you rely on>], "recommended_action": <the action '
-    'you took or recommend, or "">, "rationale": <why>}. Gather evidence before you finish; '
+    '[<call_id of each successful tool call you rely on>], "recommended_action": <the name of the '
+    'action tool you called, or "">, "rationale": <why>}. Gather evidence before you finish; '
     "cite only call ids that appear in the transcript with status ok. Tier 2 tools only "
     "create a request that a named human must approve."
 )
 
+# One branch per step kind, each listing the fields ``ModelStep`` requires for that kind
+# (ADR 0029 amendment 1). A flat schema with only ``kind`` / ``rationale`` required let a
+# schema-constrained decoder legally omit ``tool`` / ``args_json`` / ``diagnosis``.
 STEP_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "kind": {"type": "string", "enum": ["tool_call", "final"]},
-        "tool": {"type": "string"},
-        "args_json": {"type": "string"},
-        "diagnosis": {"type": "string", "enum": list(DIAGNOSES)},
-        "summary": {"type": "string"},
-        "evidence": {"type": "array", "items": {"type": "string"}},
-        "recommended_action": {"type": "string"},
-        "rationale": {"type": "string"},
-    },
-    "required": ["kind", "rationale"],
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["tool_call"]},
+                "tool": {"type": "string"},
+                "args_json": {"type": "string"},
+                "rationale": {"type": "string"},
+            },
+            "required": ["kind", "tool", "args_json", "rationale"],
+        },
+        {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["final"]},
+                "diagnosis": {"type": "string", "enum": list(DIAGNOSES)},
+                "summary": {"type": "string"},
+                "evidence": {"type": "array", "items": {"type": "string"}},
+                "recommended_action": {"type": "string", "enum": list(ACTIONS)},
+                "rationale": {"type": "string"},
+            },
+            "required": ["kind", "diagnosis", "summary", "evidence", "rationale"],
+        },
+    ],
 }
 
 
@@ -83,21 +108,24 @@ class _Cfg(BaseModel):
 
 
 class ProviderSection(_Cfg):
-    name: Literal["gemini"]
+    name: Literal["gemini", "anthropic"]
     model: str = Field(min_length=1)
     endpoint: str = Field(pattern=r"^https://")
-    api_revision: str = Field(min_length=1)
+    api_revision: str | None = Field(default=None, min_length=1)  # Gemini Api-Revision header
     api_key_env: str = Field(min_length=1)
+    effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None  # Anthropic only
 
 
 class LimitsSection(_Cfg):
-    timeout_s: float = Field(gt=0, le=60)
+    timeout_s: float = Field(gt=0, le=300)
     max_attempts: int = Field(ge=1, le=5)
     backoff_s: float = Field(ge=0, le=10)
     max_repairs: int = Field(ge=0, le=3)
-    max_output_tokens: int = Field(ge=64, le=8192)
+    max_output_tokens: int = Field(ge=64, le=32_000)  # includes thinking where billed so
     max_tokens_per_investigation: int = Field(ge=1000, le=1_000_000)
     max_tool_output_chars: int = Field(ge=500, le=50_000)
+    min_interval_s: float = Field(ge=0, le=60)  # client-side pacing between HTTP calls
+    max_retry_delay_s: float = Field(ge=0, le=120)  # cap on a server-requested retry delay
 
 
 class PricingSection(_Cfg):
@@ -113,8 +141,16 @@ class LLMConfig(_Cfg):
     pricing: PricingSection
 
 
-def load_llm_config(path: Path | None = None) -> LLMConfig:
-    return LLMConfig.model_validate(tomllib.loads((path or CONFIG_DIR / "llm.toml").read_text()))
+LLM_CONFIGS = {"gemini": "llm.toml", "anthropic": "llm-anthropic.toml"}
+
+
+def load_llm_config(path: Path | None = None, *, provider: str = "gemini") -> LLMConfig:
+    cfg = LLMConfig.model_validate(
+        tomllib.loads((path or CONFIG_DIR / LLM_CONFIGS[provider]).read_text())
+    )
+    if path is None and cfg.provider.name != provider:
+        raise ValueError(f"{LLM_CONFIGS[provider]} configures {cfg.provider.name!r}")
+    return cfg
 
 
 # --- the model's reply ----------------------------------------------------------------------
@@ -143,6 +179,8 @@ class ModelStep(BaseModel):
                 raise ValueError("args_json must encode a JSON object")
         elif self.diagnosis is None or not self.summary or not self.evidence:
             raise ValueError("a final answer needs diagnosis, summary and evidence")
+        elif (self.recommended_action or "") not in ACTIONS:
+            raise ValueError("recommended_action must name an action tool, or be empty")
         return self
 
     def to_step(self) -> Step:
@@ -188,9 +226,12 @@ class Completion:
 
 
 class ModelError(RuntimeError):
-    def __init__(self, message: str, *, retryable: bool) -> None:
+    def __init__(
+        self, message: str, *, retryable: bool, retry_after_s: float | None = None
+    ) -> None:
         super().__init__(message)
         self.retryable = retryable
+        self.retry_after_s = retry_after_s  # the delay the server asked for, if it said
 
 
 class ModelClient(Protocol):
@@ -203,6 +244,56 @@ class ModelClient(Protocol):
 
 
 _RETRYABLE_STATUS = frozenset({408, 409, 429, 500, 502, 503, 504})
+_RETRY_INFO = "type.googleapis.com/google.rpc.RetryInfo"
+
+
+class _Response(Protocol):
+    """What ``retry_delay_s`` reads: an ``httpx`` or the SDK's ``httpx2`` response."""
+
+    @property
+    def headers(self) -> Any: ...
+
+    def json(self) -> Any: ...
+
+
+def retry_delay_s(response: _Response) -> float | None:
+    """The server-requested delay: ``Retry-After`` seconds or Google ``RetryInfo.retryDelay``."""
+    header = response.headers.get("retry-after", "")
+    if header.strip().isdigit():
+        return float(header)
+    try:
+        details = response.json().get("error", {}).get("details", [])
+    except (ValueError, AttributeError):
+        return None
+    if not isinstance(details, list):
+        return None
+    infos = [d for d in details if isinstance(d, dict) and d.get("@type") == _RETRY_INFO]
+    delay = infos[0].get("retryDelay") if infos else None
+    if not (isinstance(delay, str) and delay.endswith("s")):
+        return None
+    try:
+        return max(0.0, float(delay[:-1]))
+    except ValueError:
+        return None
+
+
+class _Pacer:
+    """Keeps at least ``min_interval_s`` between call starts (provider rate limits)."""
+
+    def __init__(
+        self, min_interval_s: float, sleep: Callable[[float], None], clock: Callable[[], float]
+    ) -> None:
+        self._min = min_interval_s
+        self._sleep = sleep
+        self._clock = clock
+        self._last: float | None = None
+
+    def __call__(self) -> None:
+        now = self._clock()
+        if self._last is not None and (wait := self._min - (now - self._last)) > 0:
+            self._sleep(wait)
+            now += wait
+        self._last = now
 
 
 class GeminiInteractionsClient:
@@ -216,18 +307,21 @@ class GeminiInteractionsClient:
         api_key: str,
         *,
         transport: httpx.BaseTransport | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if not api_key:
             raise ValueError("an API key is required")
         self.model = cfg.provider.model
         self._cfg = cfg
+        self._pace = _Pacer(cfg.limits.min_interval_s, sleep, clock)
         self._http = httpx.Client(
             timeout=cfg.limits.timeout_s,
             transport=transport,
             headers={
                 "x-goog-api-key": api_key,
-                "Api-Revision": cfg.provider.api_revision,
                 "Content-Type": "application/json",
+                **({"Api-Revision": rev} if (rev := cfg.provider.api_revision) else {}),
             },
         )
 
@@ -245,6 +339,7 @@ class GeminiInteractionsClient:
             "generation_config": {"max_output_tokens": max_output_tokens},
             "response_format": {"type": "text", "mime_type": "application/json", "schema": schema},
         }
+        self._pace()
         try:
             response = self._http.post(self._cfg.provider.endpoint, json=body)
         except httpx.TimeoutException as exc:
@@ -253,7 +348,11 @@ class GeminiInteractionsClient:
             raise ModelError(f"transport: {type(exc).__name__}", retryable=True) from exc
         if response.status_code != 200:
             retryable = response.status_code in _RETRYABLE_STATUS
-            raise ModelError(f"http {response.status_code}", retryable=retryable)
+            raise ModelError(
+                f"http {response.status_code}",
+                retryable=retryable,
+                retry_after_s=retry_delay_s(response) if retryable else None,
+            )
         return self._completion(response)
 
     def _completion(self, response: httpx.Response) -> Completion:
@@ -277,6 +376,103 @@ class GeminiInteractionsClient:
             output_tokens=int(usage.get("total_output_tokens", 0))
             + int(usage.get("total_thought_tokens", 0)),
             model=str(data.get("model", self.model)),
+        )
+
+
+def strict_schema(schema: Any) -> Any:
+    """``schema`` with ``additionalProperties: false`` on every object (Anthropic requires it;
+    ``ModelStep`` already forbids extra fields, so the accepted replies are the same)."""
+    if isinstance(schema, list):
+        return [strict_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    out = {key: strict_schema(value) for key, value in schema.items()}
+    if out.get("type") == "object":
+        out["additionalProperties"] = False
+    return out
+
+
+_ANTHROPIC_RETRYABLE = frozenset({408, 409, 429, 500, 502, 503, 504, 529})
+
+
+class AnthropicMessagesClient:
+    """Anthropic Messages API (``messages.create``) via the official SDK, JSON-schema output.
+
+    The SDK's own retries are off (``max_retries=0``): ``StructuredLLMProvider`` owns retries,
+    backoff, the server's ``retry-after`` and their accounting, as for every client."""
+
+    name = "anthropic"
+
+    def __init__(
+        self,
+        cfg: LLMConfig,
+        api_key: str,
+        *,
+        http_client: anthropic.DefaultHttpxClient | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if not api_key:
+            raise ValueError("an API key is required")
+        self.model = cfg.provider.model
+        self._cfg = cfg
+        self._pace = _Pacer(cfg.limits.min_interval_s, sleep, clock)
+        self._sdk = anthropic.Anthropic(
+            api_key=api_key,
+            base_url=cfg.provider.endpoint,
+            timeout=cfg.limits.timeout_s,
+            max_retries=0,
+            http_client=http_client,
+        )
+
+    def close(self) -> None:
+        self._sdk.close()
+
+    def complete(
+        self, *, system: str, prompt: str, schema: dict[str, Any], max_output_tokens: int
+    ) -> Completion:
+        output_config: OutputConfigParam = {
+            "format": {"type": "json_schema", "schema": strict_schema(schema)}
+        }
+        if self._cfg.provider.effort:
+            output_config["effort"] = self._cfg.provider.effort
+        messages: list[MessageParam] = [{"role": "user", "content": prompt}]
+        self._pace()
+        try:
+            message = self._sdk.messages.create(
+                model=self.model,
+                max_tokens=max_output_tokens,
+                system=system,
+                messages=messages,
+                output_config=output_config,
+            )
+        except anthropic.APITimeoutError as exc:
+            raise ModelError("timeout", retryable=True) from exc
+        except anthropic.APIConnectionError as exc:
+            raise ModelError(f"transport: {type(exc).__name__}", retryable=True) from exc
+        except anthropic.APIStatusError as exc:
+            retryable = exc.status_code in _ANTHROPIC_RETRYABLE
+            raise ModelError(
+                f"http {exc.status_code}",
+                retryable=retryable,
+                retry_after_s=retry_delay_s(exc.response) if retryable else None,
+            ) from exc
+        return self._completion(message)
+
+    def _completion(self, message: Message) -> Completion:
+        if message.stop_reason in ("refusal", "max_tokens"):
+            # a refusal or a cut-off reply is not a valid step and re-asking will not fix it
+            raise ModelError(f"stop_reason {message.stop_reason}", retryable=False)
+        text = "".join(b.text for b in message.content if isinstance(b, TextBlock))
+        usage = message.usage
+        cached = (getattr(usage, "cache_read_input_tokens", 0) or 0) + (
+            getattr(usage, "cache_creation_input_tokens", 0) or 0
+        )
+        return Completion(
+            text=text,
+            input_tokens=int(usage.input_tokens) + int(cached),
+            output_tokens=int(usage.output_tokens),  # thinking is billed as output
+            model=str(message.model),
         )
 
 
@@ -355,7 +551,7 @@ def offline_provider(triage: TriageSection, cfg: LLMConfig) -> StructuredLLMProv
         assert conversation is not None  # noqa: S101 - set before the client is called
         return conversation
 
-    provider = StructuredLLMProvider(EchoTriageClient(triage, current), cfg)
+    provider = StructuredLLMProvider(EchoTriageClient(triage, current), cfg, triage=triage)
     holder.append(provider)
     return provider
 
@@ -368,12 +564,15 @@ class StructuredLLMProvider:
         client: ModelClient | None,
         cfg: LLMConfig,
         *,
+        triage: TriageSection,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.perf_counter,
         unavailable_reason: str = "no model client configured",
     ) -> None:
         self.client = client
         self.cfg = cfg
+        # The playbook goes in the system prompt: the same procedure the fallback runs.
+        self.system = "\n\n".join((SYSTEM_PROMPT, render_procedure(triage), PROTOCOL))
         self.name = f"llm:{client.name}:{client.model}" if client else "llm:unconfigured"
         self.usage = Usage()
         self._sleep = sleep
@@ -412,7 +611,7 @@ class StructuredLLMProvider:
             started = self._clock()
             try:
                 done = self.client.complete(
-                    system=SYSTEM_PROMPT + "\n\n" + PROTOCOL, prompt=prompt, schema=STEP_SCHEMA,
+                    system=self.system, prompt=prompt, schema=STEP_SCHEMA,
                     max_output_tokens=limits.max_output_tokens,
                 )  # fmt: skip
             except ModelError as exc:
@@ -421,7 +620,8 @@ class StructuredLLMProvider:
                 if not exc.retryable or attempt == limits.max_attempts:
                     raise ProviderUnavailable(f"model error: {exc}") from exc
                 self.usage.retries += 1
-                self._sleep(delay)
+                asked = exc.retry_after_s
+                self._sleep(delay if asked is None else min(asked, limits.max_retry_delay_s))
                 delay *= 2
                 continue
             self.usage.calls += 1

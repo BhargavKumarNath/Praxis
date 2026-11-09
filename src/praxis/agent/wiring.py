@@ -12,7 +12,13 @@ from praxis.agent.audit import AuditStore, PostgresAuditStore
 from praxis.agent.config import AgentPolicy
 from praxis.agent.evidence import READ_TOOLS
 from praxis.agent.executor import ToolExecutor
-from praxis.agent.llm import GeminiInteractionsClient, StructuredLLMProvider, load_llm_config
+from praxis.agent.llm import (
+    AnthropicMessagesClient,
+    GeminiInteractionsClient,
+    ModelClient,
+    StructuredLLMProvider,
+    load_llm_config,
+)
 from praxis.agent.operator import Operator
 from praxis.agent.provider import LLMProvider
 from praxis.agent.requests import ApprovalDesk, PostgresRequestStore
@@ -36,21 +42,27 @@ class UnknownProvider(ValueError):
     """The configured provider has no adapter in this build."""
 
 
-PROVIDERS = (TriageProvider.name, "gemini")
+LLM_CLIENTS: dict[str, type[GeminiInteractionsClient] | type[AnthropicMessagesClient]] = {
+    "gemini": GeminiInteractionsClient,
+    "anthropic": AnthropicMessagesClient,
+}
+PROVIDERS = (TriageProvider.name, *LLM_CLIENTS)
 
 
 def provider_for(name: str, policy: AgentPolicy, *, api_key: str | None = None) -> LLMProvider:
-    """``gemini`` without a key is still a provider: it raises ``ProviderUnavailable`` on
-    its first turn, so the run falls back to triage and the fallback is audited."""
+    """An LLM provider without a key is still a provider: it raises ``ProviderUnavailable``
+    on its first turn, so the run falls back to triage and the fallback is audited."""
     if name == TriageProvider.name:
         return TriageProvider(policy.triage)
-    if name == "gemini":
-        cfg = load_llm_config()
+    if name in LLM_CLIENTS:
+        cfg = load_llm_config(provider=name)
         if not api_key:
             return StructuredLLMProvider(
-                None, cfg, unavailable_reason=f"{cfg.provider.api_key_env} is not set"
-            )
-        return StructuredLLMProvider(GeminiInteractionsClient(cfg, api_key), cfg)
+                None, cfg, triage=policy.triage,
+                unavailable_reason=f"{cfg.provider.api_key_env} is not set",
+            )  # fmt: skip
+        client: ModelClient = LLM_CLIENTS[name](cfg, api_key)
+        return StructuredLLMProvider(client, cfg, triage=policy.triage)
     raise UnknownProvider(f"no adapter for provider {name!r} (known: {', '.join(PROVIDERS)})")
 
 

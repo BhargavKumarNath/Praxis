@@ -2,13 +2,13 @@
 # executor (permissions from configs/agent/policy.toml), the grounding check and the
 # approval desk decide what happens. Changing anything here needs an ADR 0029 amendment.
 #
-# Model and prices checked against the official Gemini docs on 2026-11-05
+# Model and prices checked against the official Gemini docs on 2026-11-08
 # (aistudio.google.com/docs/pricing, Standard tier, paid; USD per 1M tokens).
-version = "2026-11-05.1"
+version = "2026-11-08.2"   # am. 1: anyOf schema, pacing, retry delay; am. 2: 3.8 Flash
 
 [provider]
 name = "gemini"
-model = "gemini-3.5-flash-lite"   # current Flash-Lite: lowest cost with JSON-schema output
+model = "gemini-3.8-flash"        # stable Flash, structured output (am. 2; was 3.5-flash-lite)
 endpoint = "https://generativelanguage.googleapis.com/v1beta/interactions"
 api_revision = "2026-05-20"       # Api-Revision header of the Interactions API
 api_key_env = "PRAXIS_GEMINI_API_KEY"
@@ -21,8 +21,11 @@ max_repairs = 2                   # invalid model outputs re-asked with the vali
 max_output_tokens = 1024
 max_tokens_per_investigation = 120000  # hard budget: the provider stops, triage takes over
 max_tool_output_chars = 6000      # each tool result is truncated in the prompt (still audited whole)
+min_interval_s = 6.0              # >= 6 s between call starts (<= 10 RPM): free-tier limits are
+                                  # shown only in AI Studio, not in the docs; conservative pace
+max_retry_delay_s = 60.0          # a 429's RetryInfo / Retry-After delay is honoured up to this cap
 
 [pricing]
-input_usd_per_mtok = 0.30
-output_usd_per_mtok = 2.50
-checked = "2026-11-05"
+input_usd_per_mtok = 0.75        # listed through 2026-12-31; re-check before relying on it
+output_usd_per_mtok = 3.75
+checked = "2026-11-08"

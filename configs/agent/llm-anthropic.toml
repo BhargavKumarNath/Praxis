@@ -1,0 +1,32 @@
+# AI operator LLM provider: Anthropic (ADR 0029 amendment 3). Same role as llm.toml (Gemini):
+# the LLM only PROPOSES the next step as JSON; the executor (permissions from
+# configs/agent/policy.toml), the grounding check and the approval desk decide what happens.
+# Changing anything here needs an ADR 0029 amendment.
+#
+# Model and prices checked 2026-11-09 against Anthropic's model table (USD per 1M tokens).
+version = "2026-11-09.1"
+
+[provider]
+name = "anthropic"
+model = "claude-opus-5-5"         # current Opus; thinking is always on (adaptive)
+endpoint = "https://api.anthropic.com"
+api_key_env = "PRAXIS_ANTHROPIC_API_KEY"
+effort = "high"                   # multi-step investigation: high, not the model's medium default
+
+[limits]
+# Same as llm.toml 2026-11-08.2 except the two marked: a thinking model needs room to think
+# (thinking counts towards max_tokens) and more time per call.
+timeout_s = 120.0                 # [changed] per HTTP call (Gemini: 20)
+max_attempts = 3
+backoff_s = 1.0
+max_repairs = 2
+max_output_tokens = 16000         # [changed] includes thinking (Gemini: 1024)
+max_tokens_per_investigation = 120000  # thinking tokens count towards it
+max_tool_output_chars = 6000
+min_interval_s = 6.0
+max_retry_delay_s = 60.0
+
+[pricing]
+input_usd_per_mtok = 4.00
+output_usd_per_mtok = 20.00
+checked = "2026-11-09"

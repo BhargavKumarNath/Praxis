@@ -15,10 +15,12 @@ from typing import Any
 import httpx
 import pytest
 
-from praxis.agent.config import AgentPolicy
+from praxis.agent.config import AgentPolicy, load_agent_policy
 from praxis.agent.executor import ToolExecutor
 from praxis.agent.llm import (
+    ACTIONS,
     DIAGNOSES,
+    PROTOCOL,
     STEP_SCHEMA,
     Completion,
     EchoTriageClient,
@@ -30,9 +32,19 @@ from praxis.agent.llm import (
     load_llm_config,
     parse_step,
     render_prompt,
+    retry_delay_s,
 )
 from praxis.agent.operator import Operator
-from praxis.agent.provider import Conversation, Final, ProviderUnavailable, Task, ToolCall
+from praxis.agent.playbook import DATA_RULES, FORECAST_RULES, QUEUE_RULES, render_procedure
+from praxis.agent.provider import (
+    SYSTEM_PROMPT,
+    Conversation,
+    Final,
+    ProviderUnavailable,
+    Task,
+    ToolCall,
+)
+from praxis.agent.tools import ROUTES
 from praxis.agent.triage import TriageProvider
 from praxis.agent.wiring import TOOLS, operator_for, provider_for
 from praxis.telemetry import Telemetry
@@ -41,6 +53,7 @@ from tests.agent.test_injection import HOSTILE
 
 DAY = date(2026, 8, 20)
 CFG = load_llm_config()
+TRIAGE = load_agent_policy().triage
 
 
 def _cfg(**limits: Any) -> LLMConfig:
@@ -66,11 +79,13 @@ class Scripted:
     def __init__(self, replies: Sequence[str | ModelError]) -> None:
         self.replies = list(replies)
         self.prompts: list[str] = []
+        self.systems: list[str] = []
 
     def complete(self, *, system: str, prompt: str, schema: dict[str, Any],
                  max_output_tokens: int) -> Completion:  # fmt: skip
         assert schema is STEP_SCHEMA and "untrusted DATA" in system
         self.prompts.append(prompt)
+        self.systems.append(system)
         reply = self.replies.pop(0)
         if isinstance(reply, ModelError):
             raise reply
@@ -96,7 +111,7 @@ def _conv() -> Conversation:
 
 def _provider(client: Any, **limits: Any) -> tuple[StructuredLLMProvider, list[float]]:
     slept: list[float] = []
-    return StructuredLLMProvider(client, _cfg(**limits), sleep=slept.append), slept
+    return StructuredLLMProvider(client, _cfg(**limits), triage=TRIAGE, sleep=slept.append), slept
 
 
 # --- parsing -------------------------------------------------------------------------------
@@ -132,9 +147,70 @@ def test_invalid_outputs_are_rejected_with_a_reason(text: str, reason: str) -> N
         parse_step(text)
 
 
+def _branch(kind: str) -> dict[str, Any]:
+    return next(b for b in STEP_SCHEMA["anyOf"] if b["properties"]["kind"]["enum"] == [kind])
+
+
 def test_schema_enumerates_the_allowed_diagnoses() -> None:
-    assert STEP_SCHEMA["properties"]["diagnosis"]["enum"] == list(DIAGNOSES)
-    assert STEP_SCHEMA["required"] == ["kind", "rationale"]
+    assert _branch("final")["properties"]["diagnosis"]["enum"] == list(DIAGNOSES)
+
+
+def test_recommended_action_names_an_action_tool_or_nothing() -> None:
+    """ADR 0029 am. 4: free text here cost 7 repairs in live attempt 4."""
+    enum = _branch("final")["properties"]["recommended_action"]["enum"]
+    assert enum == list(ACTIONS) and enum[0] == ""
+    assert set(enum[1:]) == {t["name"] for t in (t.schema() for t in TOOLS) if t["tier"] >= 1}
+    full = json.loads(_final(["c1"]))
+    for ok in ("", "open_incident", None):
+        assert isinstance(parse_step(json.dumps({**full, "recommended_action": ok})), Final)
+    with pytest.raises(InvalidModelOutput):
+        parse_step(json.dumps({**full, "recommended_action": "Open an incident and page ops"}))
+
+
+def test_the_system_prompt_carries_the_playbook() -> None:
+    """The LLM gets the procedure the fallback runs: every runbook route, every alert rule
+    the triage reads, and the policy's thresholds."""
+    provider, _ = _provider(Scripted([]))
+    system = provider.system
+    assert system.startswith(SYSTEM_PROMPT) and system.endswith(PROTOCOL)
+    procedure = render_procedure(TRIAGE)
+    assert procedure in system
+    for diagnosis, (_, runbook) in ROUTES.items():
+        if diagnosis != "unknown":
+            assert f"{diagnosis} -> {runbook}" in procedure
+    for rule in DATA_RULES | QUEUE_RULES | FORECAST_RULES | {"model_drift", "price_volatility"}:
+        assert rule in procedure
+    assert f"window_days = {TRIAGE.recovery_window_days}" in procedure
+    assert f"at least {TRIAGE.recovery_min_resolved} resolved" in procedure
+    assert f"{TRIAGE.recovery_collapse_ratio} x the previous" in procedure
+    for diagnosis in DIAGNOSES:
+        assert diagnosis in procedure
+
+
+def test_the_provider_sends_its_system_prompt() -> None:
+    client = Scripted([_tool("get_system_health")])
+    provider, _ = _provider(client)
+    provider.next_step(_conv())
+    assert client.systems == [provider.system]
+
+
+def test_each_schema_branch_requires_what_the_validator_requires() -> None:
+    """ADR 0029 am. 1: a schema-valid reply that omits a field ``ModelStep`` needs is a
+    protocol bug (live attempt 1: replies were only ``kind`` + ``rationale``)."""
+    assert len(STEP_SCHEMA["anyOf"]) == 2
+    tool, final = _branch("tool_call"), _branch("final")
+    assert set(tool["required"]) == {"kind", "tool", "args_json", "rationale"}
+    assert set(final["required"]) == {"kind", "diagnosis", "summary", "evidence", "rationale"}
+    for branch in (tool, final):
+        assert set(branch["required"]) <= set(branch["properties"])
+        assert branch["type"] == "object"
+    # dropping any one required field from a valid reply makes ModelStep reject it
+    for branch, text in ((tool, _tool("get_system_health")), (final, _final(["c1"]))):
+        full = json.loads(text)
+        parse_step(text)
+        for name in set(branch["required"]) - {"kind"}:
+            with pytest.raises(InvalidModelOutput):
+                parse_step(json.dumps({k: v for k, v in full.items() if k != name}))
 
 
 # --- the provider loop ---------------------------------------------------------------------
@@ -168,6 +244,19 @@ def test_transient_errors_retry_with_exponential_backoff() -> None:
     assert provider.usage.errors == ["timeout", "http 429"]
 
 
+def test_a_server_requested_delay_is_honoured_and_capped() -> None:
+    client = Scripted(
+        [
+            ModelError("http 429", retryable=True, retry_after_s=7.0),
+            ModelError("http 429", retryable=True, retry_after_s=500.0),
+            _tool("get_system_health"),
+        ]
+    )
+    provider, slept = _provider(client, max_attempts=3, backoff_s=0.5, max_retry_delay_s=60.0)
+    assert provider.next_step(_conv()) == ToolCall("get_system_health", {})
+    assert slept == [7.0, 60.0]
+
+
 def test_retries_are_bounded() -> None:
     provider, slept = _provider(
         Scripted([ModelError("timeout", retryable=True)] * 3), max_attempts=3
@@ -196,7 +285,7 @@ def test_token_budget_stops_the_provider() -> None:
 def test_usage_reports_tokens_latency_and_estimated_cost() -> None:
     clock = iter([0.0, 0.25])
     provider = StructuredLLMProvider(Scripted([_tool("get_system_health")]), CFG,
-                                     clock=lambda: next(clock))  # fmt: skip
+                                     triage=TRIAGE, clock=lambda: next(clock))  # fmt: skip
     provider.next_step(_conv())
     usage = provider.usage.as_dict(CFG.pricing)
     expected = (100 * CFG.pricing.input_usd_per_mtok + 20 * CFG.pricing.output_usd_per_mtok) / 1e6
@@ -288,7 +377,7 @@ def test_echo_triage_client_reproduces_triage_through_the_protocol(
             conv[:] = [conversation]
             return super().next_step(conversation)
 
-    provider = Recording(EchoTriageClient(policy.triage, lambda: conv[0]), CFG)
+    provider = Recording(EchoTriageClient(policy.triage, lambda: conv[0]), CFG, triage=TRIAGE)
     run = _operator(memory_world, provider, policy).investigate(Task("daily_check", DAY))
     assert run.outcome == "completed" and run.grounded and not run.fallback_used
     assert run.final is not None and run.final.diagnosis == "data_source_stale"
@@ -349,6 +438,58 @@ def test_gemini_errors_are_classified(response: httpx.Response, retryable: bool)
     with pytest.raises(ModelError) as err:
         client.complete(system="s", prompt="p", schema=STEP_SCHEMA, max_output_tokens=64)
     assert err.value.retryable is retryable
+
+
+_RETRY_INFO = {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
+    {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": []},
+    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "23s"},
+]}}  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("response", "delay"),
+    [
+        (httpx.Response(429, json=_RETRY_INFO), 23.0),
+        (httpx.Response(429, headers={"Retry-After": "5"}), 5.0),
+        (httpx.Response(429), None),
+        (httpx.Response(429, content=b"<html>"), None),
+        (httpx.Response(429, json={"error": {"details": "x"}}), None),
+        (httpx.Response(429, json={"error": {"details": [
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "soon"}]}}), None),
+        (httpx.Response(429, json=[1]), None),
+    ],
+)  # fmt: skip
+def test_retry_delay_is_read_from_the_response(
+    response: httpx.Response, delay: float | None
+) -> None:
+    assert retry_delay_s(response) == delay
+
+
+def test_gemini_429_carries_the_server_delay_but_a_400_does_not() -> None:
+    for status, expected in ((429, 23.0), (400, None)):
+        client = _gemini(lambda _r, s=status: httpx.Response(s, json=_RETRY_INFO))
+        with pytest.raises(ModelError) as err:
+            client.complete(system="s", prompt="p", schema=STEP_SCHEMA, max_output_tokens=64)
+        assert err.value.retry_after_s == expected
+
+
+def test_gemini_client_paces_calls() -> None:
+    now = [100.0]
+    slept: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        now[0] += seconds
+
+    client = GeminiInteractionsClient(
+        _cfg(min_interval_s=6.0), "secret-key",
+        transport=httpx.MockTransport(lambda _r: _ok(_tool("get_system_health"))),
+        sleep=sleep, clock=lambda: now[0],
+    )  # fmt: skip
+    for advance in (0.0, 2.0, 10.0):
+        now[0] += advance
+        client.complete(system="s", prompt="p", schema=STEP_SCHEMA, max_output_tokens=64)
+    assert slept == [4.0]  # 1st call free; 2nd comes 2 s later, waits 4 s; 3rd is 10 s on
 
 
 def test_gemini_timeout_is_retryable_and_never_leaks_the_key() -> None:
