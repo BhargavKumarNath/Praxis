@@ -3,6 +3,8 @@
 Status: Accepted (2026-11-01, Phase 15). Extends ADR 0021 (console never public). Declared
 in Terraform only: nothing was applied; any apply is an owner decision (docs/cost-guard.md).
 
+Later changes: amended or extended by [ADR 0032](0032-public-read-only-console.md).
+
 > **Amended by ADR 0026 (deployment, 2026-11-01):** applied to `praxis-dev-510522`. The budget
 > is GBP 10 (the owner's ceiling, validated <= 10) with alerts at GBP 2 / 5 / 8 / 10 on gross
 > cost, plus a spend guard that unlinks billing at GBP 8. The API is private by default

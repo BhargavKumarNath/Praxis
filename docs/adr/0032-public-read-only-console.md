@@ -1,7 +1,8 @@
 # ADR 0032: A public, read-only copy of the decision console
 
 Status: Accepted (2026-11-09, owner decision: "we need to make it public", option "public
-read-only copy"). Applied 2026-11-09 with owner approval: plan 5 added, 0 changed, 0 destroyed.
+read-only copy"). Amends ADR 0021 and ADR 0024 (the console is never public). Applied
+2026-11-09 with owner approval: plan 5 added, 0 changed, 0 destroyed.
 Verified anonymously the same day: the console page and every view's data answered 200, and
 `whoami` and an approve POST answered 503 `admin_not_configured`.
 

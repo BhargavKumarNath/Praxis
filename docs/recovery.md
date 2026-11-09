@@ -1,8 +1,8 @@
 # Payment recovery
 
 When a payment fails, Praxis decides when to retry. A survival model estimates the chance an
-invoice is cured by each day, the planner schedules up to three retries by expected value, and
-Cloud Tasks runs them. If the model is missing, stale or broken, a fixed schedule decides and
+invoice is cured by each day, the planner schedules up to two retries (three charges in all) by
+expected value, and Cloud Tasks runs them. If the model is missing, stale or broken, a fixed schedule decides and
 the reason is recorded. Decision: ADR 0015. Results: [results.md](results.md#payment-recovery).
 
 ```text

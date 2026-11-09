@@ -3,6 +3,8 @@
 Status: Accepted (2026-11-01, Phase 15 remediation). Amends ADR 0009 ("Acks", and the
 measured crash-collateral finding). Evidence: `docs/evidence/phase-15-remediation.md`.
 
+Later changes: amended or extended by [ADR 0028](0028-bounded-memory-warehouse-dedupe.md).
+
 ## Context
 Pub/Sub counts a delivery attempt for every lease that ends without an ack. A nack, an
 expired lease and a crashed process all count the same way. When a process dies, every

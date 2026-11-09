@@ -3,6 +3,8 @@
 Status: Accepted (Phase 4), amends ADR 0010. Decided by the project owner on 2026-10-04,
 **before the evaluation world (seed 42) was run**.
 
+Later changes: amended or extended by [ADR 0023](0023-resilience-suite-and-two-window-alerting.md).
+
 ## Context
 ADR 0010 pre-registered LightGBM (point + quantiles) as the candidate and required it to
 beat every baseline. On the development world (same scenario, seed 1, 1,000 customers,

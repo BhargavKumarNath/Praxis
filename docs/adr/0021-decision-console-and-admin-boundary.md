@@ -4,6 +4,8 @@ Status: Accepted (2026-10-27, Phase 13). Adds the top import layer `praxis.conso
 contract "The decision console cannot set prices, execute payments or reach ground truth".
 Changes no threshold, floor or existing contract.
 
+Later changes: amended or extended by [ADR 0024](0024-cloud-security-and-cost-posture.md), [ADR 0026](0026-gcp-deployment-topology-and-spend-guard.md), [ADR 0032](0032-public-read-only-console.md).
+
 ## Context
 Phase 13 needs a dashboard that reads real system state across the control plane (Postgres),
 the warehouse (DuckDB) and the fleet metrics (`SystemReader`, ADR 0020); marks stale and

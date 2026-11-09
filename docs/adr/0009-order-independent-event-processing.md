@@ -2,6 +2,8 @@
 
 Status: Accepted (Phase 3)
 
+Later changes: amended or extended by [ADR 0022](0022-scale-protocol-sharded-consumers-and-batching.md), [ADR 0025](0025-crash-isolating-consumer-flow-control.md), [ADR 0028](0028-bounded-memory-warehouse-dedupe.md).
+
 ## Context
 Pub/Sub delivers at least once, possibly late, duplicated or out of order (ADR 0001). A
 consumer can die after committing a side effect and before acking. Databases have brief

@@ -2,6 +2,8 @@
 
 Status: Accepted (Phase 2)
 
+Later changes: amended or extended by [ADR 0028](0028-bounded-memory-warehouse-dedupe.md).
+
 ## Context
 Phase 2 needs raw -> staging -> marts -> feature views, external signal ingestion and dbt
 tests. The target warehouse is BigQuery, but no cloud resources exist and the budget is

@@ -19,7 +19,7 @@ public APIs ──> raw archive (data/raw/<source>/<batch>.body + .meta.json, ap
 
 ```bash
 make data-dev       # simulate, load, ingest external signals, dbt build, freshness report
-make dbt-build      # dbt only: 92 models and their tests on a 1K x 56-day world
+make dbt-build      # dbt only: build and test every model on the current warehouse
 make data-check     # the data tests, including dbt integration and negative controls
 make bq-verify BQ_PROJECT=<project>   # the same build on the BigQuery sandbox (28 checks)
 python -m praxis.data {migrate|ingest|replay|load-sim|freshness} --help

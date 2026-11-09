@@ -5,6 +5,8 @@ or the held-out shadow world. The policy (`configs/pricing/policy.toml`), the sh
 (`configs/simulator/scenarios/pricing_shadow.toml`) and the shadow acceptance
 (`configs/pricing/shadow_acceptance.toml`) are hash-pinned in `tests/pricing/test_config.py`.
 
+Later changes: amended or extended by [ADR 0016](0016-customer-value-and-long-horizon-guardrails.md).
+
 ## Context
 Phases 4 and 5 produce a demand forecast and causal tier elasticities. Phase 6 must turn them
 into a commercial decision that is safe, explainable and auditable (project_plan Phase 6,

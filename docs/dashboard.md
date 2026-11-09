@@ -4,6 +4,10 @@ The console shows what Praxis is doing and lets a named person decide the few th
 person. It reads only real state: Postgres, the warehouse and the fleet metrics. Its only writes
 are approving or rejecting a request and lifting a price freeze. Decision: ADR 0021.
 
+A public, read-only copy of the deployed console runs at
+[praxis-dev-console-public-hrmtvtbctq-uc.a.run.app](https://praxis-dev-console-public-hrmtvtbctq-uc.a.run.app)
+(ADR 0032). Its approval routes are switched off.
+
 ![The executive view](evidence/phase-13/executive-1440-light.png)
 
 More screenshots, including dark mode and phone width, are in
@@ -31,6 +35,11 @@ deterministic triage to request a price freeze, a 300-customer `run-local` world
 journeys on the synthetic gateway, eight shadow pricing cycles, and the seed-1 forecaster. The
 demo force-promotes that forecaster as an audited override, and the MLOps view shows it as
 forced.
+
+The demo reads seed-1 model artifacts from `data/`, so run `make pricing-dev` first. The
+Makefile names those artifacts by version id (`DEMO_FC` and the paths in the `console-demo`
+recipe). Version ids include the code revision, so on a fresh checkout set them to the ids
+your own `pricing-dev` run printed.
 
 ## Views
 
@@ -69,7 +78,7 @@ The console is meant to read like an instrument panel. The data and its trust st
 only loud things on the screen.
 
 - **Type.** Newsreader for view titles only, Inter for everything else with tabular figures,
-  IBM Plex Mono for identifiers. Nothing smaller than 12 px.
+  IBM Plex Mono for identifiers.
 - **Colour.** One accent (teal) and four semantic colours: ok, degraded, stale, synthetic. A
   state is a short word and a small dot; whole panels never turn amber. No gradients or shadows.
 - **Layout.** A 4 px grid, a navigation rail and a 12-column content area; at phone width
@@ -79,7 +88,7 @@ only loud things on the screen.
 - **Charts.** Hand-built SVG, one y-axis, horizontal gridlines only, the latest value labelled
   at the line's end, uncertainty drawn as a band, missing days drawn as gaps. Every chart has a
   table equivalent.
-- **Motion.** Only a 120 ms fade on refresh and a 160 ms disclosure, both off under
+- **Motion.** Only a 120 ms fade when data refreshes, turned off under
   `prefers-reduced-motion`.
 
 Colour tokens are defined once in `frontend/src/app/globals.css` for light and dark themes.

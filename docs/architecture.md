@@ -160,6 +160,7 @@ flowchart LR
         subgraph "Cloud Run (min 0, capped)"
             API["API (private)"]
             CON["Console UI + API (private)"]
+            PUB["Console copy (public, read-only)"]
             GUARD["Spend guard"]
             JOBS["Jobs: ops, streaming, live"]
         end
@@ -176,6 +177,7 @@ flowchart LR
     SCHED --> JOBS
     API --> VM
     CON --> VM
+    PUB --> VM
     JOBS --> VM
     JOBS --> GCS
 ```

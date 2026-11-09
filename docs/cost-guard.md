@@ -22,7 +22,7 @@ service that unlinks billing from the project when reported spend reaches GBP 8 
 | --- | --- |
 | Budget of GBP 10 (gross cost), email at GBP 2, 5, 8 and 10 actual and 100 % forecast | Notification only |
 | Spend guard unlinks billing at GBP 8 actual | Yes, on reported cost, which lags by hours |
-| Cloud Run min 0, request-based CPU, max instances 2 / 1 / 1, 30 s timeout; jobs 1 task, no retries | Yes |
+| Cloud Run min 0, request-based CPU, max instances 2 / 1 / 1 / 1 (API, console, public console, spend guard), 30 s timeout; jobs 1 task, no retries | Yes |
 | Database is the Free Tier e2-micro VM in us-central1 with 20 GB of disk | Yes (module validation) |
 | BigQuery query quota of 10 GiB per day | Yes, approximately (Google allows overshoot) |
 | Cloud event production capped at 2,000 customer-days per run, never scheduled | Yes |

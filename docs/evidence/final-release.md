@@ -282,3 +282,21 @@ For a resume, the defensible claims are:
 - a cost-capped GCP deployment that runs a daily synthetic loop.
 
 Do **not** claim real revenue, profitable pricing, M1 or cloud scale, or millions of customers.
+
+## Addendum (2026-11-09): what changed after this report
+
+This report is kept as written on 2026-11-08. Three of its statements are now out of date:
+
+- **"No live LLM has been evaluated"** no longer holds. ADR 0029 amendment 4 ran Claude Opus 5.5
+  once on ten pre-registered held-out scenarios: 10 / 10, 0 prohibited executions
+  ([final-agent-llm-live-attempt5-heldout.json](final-agent-llm-live-attempt5-heldout.json)).
+  It shows procedure execution on unseen faults, not unscripted diagnosis. The deployed
+  operator still runs deterministic triage by default.
+- **The console secret rotation** was done on 2026-11-08, together with the console redeploy
+  (section 9, item 2).
+- **The console is now viewable publicly** through a read-only copy that holds no approver
+  secret (ADR 0032).
+
+The other limitations stand: the held-out pricing evaluation failed, 1M was not run, and the
+scale results are single-host emulations, not M1 or cloud measurements.
+

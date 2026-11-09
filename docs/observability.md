@@ -40,8 +40,10 @@ stored on the decision record and in the logs.
 There are 16 alert rules across service, data, model and business categories, each with a
 runbook. An alert fires only if its condition holds both cumulatively and since the last tick,
 so a cumulative ratio can clear once the fault is gone. `make ops-check` fails if an alert's
-runbook is missing or incomplete. Two runbooks (`pubsub-backlog`, `agent-failure`) are executed
-end to end in tests; the rest are checked for structure.
+runbook is missing or incomplete. The resilience suite injects the failure behind
+seven of the nine runbooks and checks the alert fires and clears (the other two alerts are
+covered by unit tests); two runbooks (`pubsub-backlog`,
+`agent-failure`) also have their full procedure executed in a test.
 
 ## Incidents
 

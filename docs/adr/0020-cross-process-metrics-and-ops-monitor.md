@@ -5,6 +5,8 @@ ADR 0018 ("the reader is in-process"; unfed data / business / backlog gauges; no
 and of ADR 0019 (the agent's static "not wired" labels). Alert thresholds in `configs/ops/`
 are unchanged and still pinned.
 
+Later changes: amended or extended by [ADR 0027](0027-live-loop.md).
+
 ## Context
 ADR 0018 evaluated SLOs and alerts on ONE process's in-memory metrics. Praxis runs as several
 processes (API, event consumers, pricing cycle, MLOps pipeline), so no process could see the

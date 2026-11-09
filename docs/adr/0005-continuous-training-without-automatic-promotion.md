@@ -2,6 +2,8 @@
 
 Status: Accepted (Phase 0)
 
+Later changes: amended or extended by [ADR 0017](0017-model-registry-continuous-training-and-safe-promotion.md).
+
 ## Context
 Drift is evidence for investigation, not proof that retraining helps. Auto-replacing a
 production model on a drift signal can amplify a regression.

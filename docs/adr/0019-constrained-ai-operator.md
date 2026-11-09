@@ -5,6 +5,8 @@ Status: Accepted (Phase 12). Written 2026-10-25. `configs/agent/policy.toml` and
 benchmark run and are pinned by `tests/agent/test_config.py`. Changing either needs an
 amendment to this ADR and the owner's approval.
 
+Later changes: amended or extended by [ADR 0020](0020-cross-process-metrics-and-ops-monitor.md), [ADR 0023](0023-resilience-suite-and-two-window-alerting.md), [ADR 0029](0029-llm-provider-for-the-ai-operator.md).
+
 ## Context
 ADR 0004 limits the LLM to observing, investigating, explaining and orchestrating, and
 CLAUDE.md s7 lists what it may never do. Phase 12 must turn that into an enforced design with

@@ -4,6 +4,8 @@ Status: Accepted (2026-11-01, production deployment; owner-authorised, GBP 10/mo
 GBP 0-5 target). Extends ADR 0024 (identities, caps, budget) and ADR 0021 (private console).
 Evidence: `docs/evidence/deployment-preflight.md`, `docs/evidence/deployment.md`.
 
+Later changes: amended or extended by [ADR 0027](0027-live-loop.md).
+
 ## Context
 ADR 0024 declared identities, secrets, Pub/Sub, BigQuery, Cloud Tasks and two Cloud Run
 services, but never deployed them. Four things were missing for a working deployment:

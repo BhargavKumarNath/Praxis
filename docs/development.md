@@ -24,7 +24,7 @@ Nothing in `.env` is needed for the test suite. Keys are only used by the opt-in
 ## The gate
 
 `make check` runs exactly what CI runs on every push, and must exit 0 before work counts as
-done. It takes about 30-40 minutes because the tests run against real Postgres and the Pub/Sub
+done. It takes roughly 25-40 minutes because the tests run against real Postgres and the Pub/Sub
 emulator.
 
 | Target | What it checks |

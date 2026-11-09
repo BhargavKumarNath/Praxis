@@ -82,8 +82,8 @@ why the long-horizon guardrails exist.
 
 ### Payment recovery
 
-A mixture-cure survival model plans up to three retries by expected value. Against the fixed
-schedule (retry after 3 days, then 7, then suspend) on 445 held-out episodes, it recovered more
+A mixture-cure survival model plans up to two retries (three charges in all) by expected value.
+Against the fixed schedule (retry after 3 days, then 7, then suspend) on 445 held-out episodes, it recovered more
 (61.1 % vs 54.6 %), made fewer failed retries (0.84 vs 1.22 per episode) and restricted
 customers for fewer days (2.1 vs 5.3), at the cost of slower recovery (9.8 vs 6.9 days). The
 gate passed after an owner-approved amendment to the calibration check; the raw ECE of 0.034
@@ -161,7 +161,8 @@ nightly performance gate caught before it shipped.
 
 ## Deployment
 
-The GCP deployment has 93 resources (plus 13 for the live loop), all private. The cloud smoke
+The first GCP deployment had 93 resources; with the live loop and the public read-only console
+the state holds 110 (2026-11-09). The cloud smoke
 test passed 46 / 46 on the first deployment and 50 / 50 after the 2026-11-08 redeploy; the live
 smoke passed 49 / 49. Every earlier failed run is kept. The live loop has ticked daily since
 2026-11-04. One tick timed out during a retrain, and the next tick finished the same days

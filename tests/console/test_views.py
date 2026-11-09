@@ -115,7 +115,7 @@ def test_cost_is_an_estimate_with_its_sources(console: Console) -> None:
     data = cost["data"]
     assert data["kind"] == "estimate" and "not a metered cost" in data["label"]
     assert data["sources"] and data["as_of"]
-    assert "Cost if the Terraform stack were applied" in data["not_estimated"]
+    assert "Public console traffic" in data["not_estimated"]  # unestimated, never shown as 0
 
 
 def test_missing_warehouse_is_unavailable_with_a_reason(console: Console) -> None:

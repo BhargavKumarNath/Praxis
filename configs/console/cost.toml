@@ -3,41 +3,56 @@
 # There is no cost metric in Praxis: nothing reads a billing export. This file is a manual
 # estimate with its sources, and the console labels it as such. Update it (and `as_of`)
 # whenever a resource is provisioned or a phase records a cost; never present it as metered.
-version = "2026-10-27.1"
-as_of = "2026-10-27"
+version = "2026-11-09.1"
+as_of = "2026-11-09"
 kind = "estimate"           # never "metered": no billing data is read
 currency = "GBP"
-budget_note = "Target about GBP 0 to 5 per month (CLAUDE.md s14). Budget alerts are notifications, not caps."
+budget_note = "Budget GBP 10 per month; a spend guard unlinks billing at GBP 8 (ADR 0026). The only measured figure: Google's budget notification reported GBP 0.65 for November to date on 2026-11-05."
 sources = [
-    "docs/cost-guard.md (provisioning state per resource)",
-    "docs/evidence/phase-*.md, section 'Cloud cost incurred' (GBP 0 recorded for every phase)",
+    "docs/evidence/deployment-preflight.md (per-resource estimate from list prices, 2026-11-01)",
+    "docs/adr/0027-live-loop.md (live loop job cost)",
+    "docs/evidence/final-cost-verification.md (budget notification)",
+    "docs/cost-guard.md",
 ]
 
-# Monthly estimate per resource at the current state. `monthly_gbp` is null when it has not
-# been estimated; the console then shows the reason instead of a number.
+# Monthly estimate per resource for the deployed dev environment (praxis-dev-510522).
+# Ranges are entered at their upper end. `monthly_gbp` is null when it has not been
+# estimated; the console then shows the reason instead of a number.
 [[item]]
 resource = "Postgres control plane"
-state = "local Docker container (make pg-up)"
+state = "e2-micro VM in us-central1, 20 GB of disk, private IP only"
 monthly_gbp = 0
-basis = "runs on the developer machine; no cloud database is provisioned"
+basis = "Free Tier: one e2-micro and 30 GB-months of disk per billing account"
 
 [[item]]
-resource = "Pub/Sub topics and subscriptions"
-state = "declared in Terraform, never applied; local emulator only"
-monthly_gbp = 0
-basis = "nothing provisioned"
+resource = "Daily disk snapshots (7-day retention)"
+state = "deployed"
+monthly_gbp = 0.05
+basis = "under 1 GB incremental (deployment preflight)"
 
 [[item]]
-resource = "Cloud Run services and the ops monitor job"
-state = "not provisioned"
-monthly_gbp = 0
-basis = "nothing provisioned"
+resource = "Artifact Registry images"
+state = "deployed; keeps 3 versions"
+monthly_gbp = 0.12
+basis = "0.6 to 1.2 GiB; the account's free 0.5 GB is used by another project"
 
 [[item]]
-resource = "BigQuery sandbox project"
-state = "sandbox, billing disabled (verified in Phase 2)"
+resource = "Cloud Run services (API, console, public console, spend guard)"
+state = "deployed; scale to zero, capped at 2 / 1 / 1 / 1 instances"
 monthly_gbp = 0
-basis = "Google caps a sandbox project at zero spend"
+basis = "owner use and smoke tests sit inside the request-based free tier"
+
+[[item]]
+resource = "Live loop job and scheduler"
+state = "daily tick at 03:10 UTC, ops tick at 03:50 UTC"
+monthly_gbp = 2.88
+basis = "about USD 0.5 to 3 a month, mostly the weekly retrain (ADR 0027), at GBP 0.96 per USD"
+
+[[item]]
+resource = "Pub/Sub, BigQuery, Cloud Storage, Secret Manager, Cloud Tasks, logging"
+state = "deployed"
+monthly_gbp = 0
+basis = "dev-size use inside each free tier; BigQuery queries capped at 10 GiB a day"
 
 [[item]]
 resource = "GitHub Actions (CI and nightly)"
@@ -46,6 +61,6 @@ monthly_gbp = 0
 basis = "public repository on standard GitHub-hosted runners"
 
 [[item]]
-resource = "Cost if the Terraform stack were applied"
-state = "not estimated"
-basis = "needs current GCP pricing (CLAUDE.md s21) and is an owner decision before provisioning"
+resource = "Public console traffic"
+state = "public since 2026-11-09 (ADR 0032)"
+basis = "depends on visitors; capped at one instance, and the spend guard is the backstop"

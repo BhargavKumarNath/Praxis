@@ -69,7 +69,7 @@ checked against the answer it was trying to recover. Model code is never allowed
 | Control plane | Postgres with 8 Alembic migrations; trigger-enforced state machines and decision checks |
 | Events | Versioned JSON Schema envelope plus 13 payload schemas |
 | Operations | 6 SLOs, 16 alert rules, 9 runbooks, 31 architecture decision records |
-| Cloud | 93 Terraform-managed GCP resources (plus 13 for the live loop), all private |
+| Cloud | 110 Terraform-managed GCP resources (2026-11-09); everything private except a read-only public console |
 | Largest scale run | 500K virtual customers, 48.7M events, final state equal to the oracle |
 | Frontend | Next.js 16 and TypeScript, ~4.6K lines, hand-built SVG charts |
 

@@ -32,8 +32,11 @@ served    ~ Binomial(requested, throttle_ratio_region(t) * available_rp(t))
   a bad service day lowers the next day's demand in proportion to the customer's sensitivity.
 - Churn hazard depends on tier, price, service quality and payment failures. A final failed
   retry causes involuntary churn.
-- Billing runs every 30 days. The first attempt succeeds with the customer's reliability, and
-  retries on days +3 and +7 succeed with `0.35 + 0.5 * reliability`.
+- Billing runs every 30 days. In the default world the first attempt succeeds with the
+  customer's reliability, and retries on days +3 and +7 succeed with
+  `0.35 + 0.5 * reliability`. The recovery scenario replaces that rule: each failure gets a
+  latent cure time, a retry succeeds only at or after it, and retry gaps are randomised so the
+  effect of timing can be estimated.
 - Elasticity is a log-log slope applied causally, which is what makes it recoverable by a
   randomised experiment.
 

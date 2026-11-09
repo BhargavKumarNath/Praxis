@@ -7,6 +7,8 @@ Amended by ADR 0020 (2026-10-25): metrics now cross processes (control-plane sna
 data / backlog / KPI inputs are fed, and `python -m praxis.ops run` schedules the tick. The
 first four limitations below are resolved there; the thresholds are unchanged.
 
+Later changes: amended or extended by [ADR 0022](0022-scale-protocol-sharded-consumers-and-batching.md), [ADR 0023](0023-resilience-suite-and-two-window-alerting.md).
+
 ## Context
 Phases 0-10 left "in-process metrics, Phase 11 exports through OpenTelemetry" notes in
 `StreamMetrics`, `PricingMetrics` and `LatencySample`. Phase 11 must make Praxis operable as

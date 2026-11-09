@@ -10,6 +10,7 @@ and [deployment.md](evidence/deployment.md).
 ```text
 owner (gcloud identity) ──IAM──> Cloud Run: praxis-dev-api        (private, max 2)
                         ──IAM──> Cloud Run: praxis-dev-console    (UI + console-API sidecar, private, max 1)
+anyone ─────────────────> Cloud Run: praxis-dev-console-public (read-only copy, no approver secret, max 1)
                         ──exec─> Cloud Run jobs: praxis-dev-ops / praxis-dev-streaming
 Cloud Scheduler 03:10 / 03:50 UTC ──> jobs praxis-dev-live (daily tick) / praxis-dev-ops
 praxis-dev-live ──rw──> gs://praxis-dev-live-<project> (/mnt/live) <──ro── api, console, ops

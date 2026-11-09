@@ -24,7 +24,9 @@ None on pricing, payments, recovery or MLOps. The core system does not import `p
 (import-linter layer contract plus `tests/agent/test_availability.py`). Only investigation,
 explanation and request creation are lost. When a provider is configured, the deterministic
 triage fallback keeps investigations running (`[agent] fallback` in `configs/agent/policy.toml`).
-Today no live LLM provider is configured, and triage is both the provider and the fallback.
+The pinned policy runs triage as both the provider and the fallback. A live LLM (Anthropic or
+Gemini, ADR 0029) runs only when a run selects it with `--provider`, and triage is then its
+fallback.
 
 ## Diagnose
 

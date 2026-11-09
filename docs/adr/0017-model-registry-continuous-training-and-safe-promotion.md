@@ -11,6 +11,8 @@ amendment is written into the file it changed. Attempt 1 FAILED on held-out seed
 world `configs/simulator/scenarios/mlops_steady.toml`) PASSED 12 / 12 on fresh held-out
 seed 621 (2026-10-25).
 
+Later changes: amended or extended by [ADR 0023](0023-resilience-suite-and-two-window-alerting.md), [ADR 0027](0027-live-loop.md), [ADR 0030](0030-bounded-retrain-window.md).
+
 Extends ADR 0005 (retraining may be automatic; promotion is a separate, gated action).
 
 ## Context
