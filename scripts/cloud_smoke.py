@@ -40,7 +40,8 @@ REGION = os.environ.get("CLOUD_REGION", "us-central1")
 ENV = "dev"
 OUT = Path(os.environ.get("SMOKE_OUT", "docs/evidence/deployment-smoke.json"))
 SECRET_READERS = {  # mirrors infra/terraform/modules/identity (pinned by tests/security)
-    "database-url": {"api", "console", "streaming", "ops", "agent", "live"},
+    # console-public: the read-only console copy (ADR 0032)
+    "database-url": {"api", "console", "console-public", "streaming", "ops", "agent", "live"},
     "stripe-webhook-secret": {"api"},
     "stripe-api-key": {"api"},
     "task-token": {"api"},
