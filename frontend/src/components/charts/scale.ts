@@ -1,5 +1,5 @@
 // Small scale helpers for the hand-built SVG charts (no chart library: the grammar is fixed
-// in docs/design/dashboard.md and a few dozen lines cover it).
+// in docs/dashboard.md and a few dozen lines cover it).
 
 export function extent(values: number[]): [number, number] {
   let lo = Infinity;

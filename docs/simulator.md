@@ -1,13 +1,22 @@
-# Praxis Simulator (Phase 1)
+# Simulator
 
-**All output is synthetic.** Run it with
-`python -m praxis.simulator --customers 1000 --days 56 --seed 42 --validate --out data/sim`.
-Outputs: `events.ndjson` (canonical, one envelope per line), `ground_truth.npz`,
-`manifest.json` (provenance, checksum, config hash, numpy version, code revision).
+The simulator is the instrument every model is judged against. It generates a usage-billed API
+and compute business day by day from per-customer latent parameters that it keeps to itself.
+Models only ever see the events; `praxis.science` compares their estimates with the hidden
+truth afterwards. All of its output is synthetic.
+
+```bash
+python -m praxis.simulator --customers 1000 --days 56 --seed 42 --validate --out data/sim
+```
+
+A run writes `events.ndjson` (one event envelope per line, in canonical order),
+`ground_truth.npz`, and `manifest.json` with the config hash, NumPy version, code revision and
+a checksum of the stream. Runs are deterministic for a given seed and config; a golden checksum
+test catches any unintended change.
 
 ## World model
 
-Per customer *i*, product *p*, day *t* (served units are what is billed):
+For customer *i*, product *p* and day *t*:
 
 ```text
 lambda_ipt = base_load_i * mix_ip / load_weight_p
@@ -17,77 +26,52 @@ requested ~ Poisson(Gamma(shape = dispersion_i, mean = lambda))
 served    ~ Binomial(requested, throttle_ratio_region(t) * available_rp(t))
 ```
 
-* `season_i`: weekly cosine with per-customer amplitude and peak day (by industry).
-* `service_factor`: demand falls with the previous day's latency degradation, scaled by
-  `service_sensitivity`.
-* Regional utilisation = load / capacity, evaluated hourly with a diurnal profile.
-  Latency, error rate, throttling and marginal cost are functions of utilisation.
-  Capacity is provisioned once from expected load and `target_utilization`.
-* Churn hazard = tier base x exp(price, service and payment-failure terms scaled by the
-  customer's churn / service sensitivity). Payment failures raise the hazard; a final
-  failed retry causes involuntary churn.
-* Billing every 30 days; first attempt succeeds with the customer's reliability; retries
-  (days +3, +7) succeed with `0.35 + 0.5 * reliability`.
-* Elasticity is a ground-truth log-log slope. It is the *causal* parameter the simulator
-  applies, and the target for Phase 5 recovery.
+- Seasonality is a weekly cosine whose amplitude and peak day depend on the customer's
+  industry.
+- Regions have capacity. Utilisation drives latency, errors, throttling and marginal cost, and
+  a bad service day lowers the next day's demand in proportion to the customer's sensitivity.
+- Churn hazard depends on tier, price, service quality and payment failures. A final failed
+  retry causes involuntary churn.
+- Billing runs every 30 days. The first attempt succeeds with the customer's reliability, and
+  retries on days +3 and +7 succeed with `0.35 + 0.5 * reliability`.
+- Elasticity is a log-log slope applied causally, which is what makes it recoverable by a
+  randomised experiment.
 
-## Ground truth (latent, never in events)
+Latent parameters include base demand, elasticity, churn and service sensitivity, payment
+reliability, growth, seasonality, dispersion, product mix and payment method. Two difficult
+cohorts (`noisy_volume`, `risky_payer`) are built in deliberately.
 
-base demand, price elasticity, churn sensitivity, service sensitivity, payment
-reliability, growth trend, seasonal amplitude and peak, dispersion, compute intensity,
-product mix, payment method, tenure, and difficult-cohort flags (`noisy_volume`,
-`risky_payer`).
+## Events
 
-## Event catalogue (envelope v1, payload v1)
+| Event | Meaning |
+| --- | --- |
+| `customer.created` | A customer appears, at day 0 or later |
+| `price.exposed` | A customer sees a price, with experiment id and arm when in a test |
+| `conversion.observed` | A prospect converts or not |
+| `subscription.started` / `.changed` | Tier and product set, or a tier change |
+| `usage.observed` | Served and throttled units per product per day |
+| `request.completed` | Daily requests, errors and p50 / p95 latency per customer |
+| `invoice.created` | A monthly invoice in integer pence |
+| `payment.attempted` / `.failed` / `.succeeded` | The attempt lifecycle; the last failure is marked `final` |
+| `churn.observed` | Voluntary or involuntary churn |
+| `service.metric_observed` | Hourly regional utilisation, latency, errors, availability, cost |
 
-| Event | Entity | Meaning |
-| --- | --- | --- |
-| `customer.created` | customer | Customer appears (existing at day 0, or joins later) |
-| `price.exposed` | customer | Customer sees a unit price; carries experiment id and arm when in an experiment |
-| `conversion.observed` | customer | New customer converts or not |
-| `subscription.started` / `.changed` | customer | Tier and product set / tier change |
-| `usage.observed` | customer | Served and throttled units per product per day |
-| `request.completed` | customer | Daily request count, errors, p50 / p95 latency |
-| `invoice.created` | customer | Monthly invoice (integer pence) |
-| `payment.attempted` / `.failed` / `.succeeded` | customer | Attempt lifecycle, `final` flag on last failure |
-| `churn.observed` | customer | Voluntary or involuntary (payment) churn |
-| `service.metric_observed` | region | Hourly utilisation, latency, errors, availability, marginal cost |
-
-Causation: `payment.attempted.causation_id` is the invoice (or previous failure);
-results point at the attempt; involuntary churn points at the final failure.
-Trace / correlation IDs are shared by a business flow (customer lifecycle, usage day,
-invoice, region-day).
-
-## State machines
-
-See `src/praxis/domain/states.py`. Customer: `prospect -> converted -> active ->
-churned`, `prospect -> lost`, and `prospect -> active` for pre-existing customers.
-Invoice: `open -> attempting -> {open (retry), paid, uncollectible}`. Payment events may
-complete after a customer churns (settlement); usage may not. Exact dunning states for
-Phase 8 are left to a later ADR.
+Envelopes are versioned (schemas in `schemas/events/`). `causation_id` chains a payment attempt
+to its invoice, a result to its attempt, and involuntary churn to the final failure.
 
 ## Scenarios
 
-`pricing.interventions`, `pricing.price_changes`, `infrastructure.capacity_shocks`,
-`demand_spikes` and `product_outages` are empty in the default world; tests and later
-phases add them. Overlapping interventions on one product are rejected.
+Scenario files in `configs/simulator/scenarios/` add price changes, randomised price tests,
+capacity shocks, demand spikes and outages on top of the default world. Test arms come from
+`praxis.domain.experiments.assign_arm`, the same function the elasticity analysis uses to audit
+logged arms. A `contamination_fraction` charges part of the control arm the treatment price
+while logging it as control, to test the experiment-validity checks.
 
-`pricing.interventions` are randomised price tests: arms come from
-`praxis.domain.experiments.assign_arm(salt, customer_id, treated_fraction)`, the same function
-the Phase 5 analysis uses to audit logged arms. `contamination_fraction` (default 0, then
-excluded from the canonical JSON so existing `config_hash` values are unchanged) charges that
-share of control customers the treatment price while logging them as control: failure
-injection for the experiment-validity checks (ADR 0012). Pre-registered worlds:
-`forecast_eval.toml` (Phase 4), `elasticity_eval.toml` and `elasticity_contamination.toml`
-(Phase 5).
+## Simplifications
 
-## Known simplifications
-
-* Customer dynamics are daily; no intra-day price response.
-* `request.completed` is aggregated per customer-day, not per request.
-* The simulator itself emits a clean, ordered stream. Late, duplicate and out-of-order
-  delivery are injected by the Phase 3 transport (`praxis.streaming.memory.FaultPlan`).
-* Payment failures do not depend on invoice amount or time of month.
-* A single currency (GBP); customers do not move region.
-* Control-arm exposure is logged at experiment start; treated customers' price revert
-  is logged as an ordinary price change.
+- Customer dynamics are daily, with no intra-day price response.
+- The simulator emits a clean, ordered stream; late, duplicate and out-of-order delivery is
+  injected by the streaming layer's fault plan.
+- Payment failure does not depend on amount or time of month.
+- One currency (GBP), and customers never change region.
+- Elasticity is constant and there are no cross-price effects.

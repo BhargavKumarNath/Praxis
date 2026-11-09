@@ -1,103 +1,89 @@
-# AI Revenue Operator (Phase 12, ADR 0019)
+# AI operator
 
-The operator observes, investigates, explains and REQUESTS. It never sets a price, runs the
-optimiser, executes a payment, approves anything, reads secrets, or runs shell or SQL. All of
-that is enforced outside the prompt by `praxis.agent.executor.ToolExecutor` and by import
-contracts. All business numbers it sees are SYNTHETIC simulator output.
-
-## Where things are
+The operator observes, investigates, explains and requests. It does not set prices, run the
+optimiser, execute payments, approve anything, read secrets, or run shell commands or SQL.
+Those limits are enforced outside the prompt, by the tool executor and by import contracts, so
+they hold whatever the model writes. Decisions: ADR 0019 (the operator) and ADR 0029 (the LLM
+provider). Results: [results.md](results.md#ai-operator).
 
 | Piece | Module |
 | --- | --- |
-| Policy (identity, tier ceiling, budgets, triage thresholds), pinned | `configs/agent/policy.toml`, `praxis.agent.config` |
-| Tool contract, tiers, provenance labels, backends | `praxis.agent.tools` |
-| Tier 0 read tools | `praxis.agent.evidence` |
-| Tier 1 actions, Tier 2 requests | `praxis.agent.actions` |
-| Permission layer + audit order | `praxis.agent.executor` |
-| Audit store (append-only, `agent_audit_events`) | `praxis.agent.audit` |
+| Policy: identity, tier ceiling, budgets, triage thresholds (pinned) | `configs/agent/policy.toml` |
+| Tool contract, tiers, provenance labels | `praxis.agent.tools` |
+| Read tools / actions and requests | `praxis.agent.evidence` / `praxis.agent.actions` |
+| Permission layer and audit order | `praxis.agent.executor` |
+| Append-only audit store | `praxis.agent.audit` |
 | Guarded requests and the human approval desk | `praxis.agent.requests` |
-| Provider interface, scripted / down doubles | `praxis.agent.provider` |
-| Deterministic triage (fallback, benchmark reference; not an LLM) | `praxis.agent.triage` |
-| Investigation loop, grounding, outage fallback | `praxis.agent.operator` |
-| Benchmark scoring, pinned spec | `praxis.agent.benchmark`, `configs/agent/benchmark.toml` |
-| Price freeze (pricing-owned) | `praxis.pricing.freeze`; migration 0007 trigger |
-| CLI | `python -m praxis.agent` |
+| Deterministic triage (the fallback, not an LLM) | `praxis.agent.triage` |
+| The procedure both triage and the LLM follow | `praxis.agent.playbook` |
+| LLM protocol and provider clients | `praxis.agent.llm`, `configs/agent/llm*.toml` |
+| Investigation loop, grounding check, outage fallback | `praxis.agent.operator` |
 
 ## Tools
 
-| Tier | Tool | What it does |
+| Tier | Tools | Effect |
 | --- | --- | --- |
-| 0 | `get_system_health` | Health report, firing alerts, live incidents, and which metrics nothing feeds |
-| 0 | `get_source_freshness` | Age of each source against its per-source limit, plus contract failures |
-| 0 | `get_queue_health` | Queue and DLQ backlog, consumer outcomes, p95 lag |
-| 0 | `inspect_drift` | Champion drift reports, drift alarm, live retraining request |
-| 0 | `inspect_forecast_error` | Champion probation reports, calibration, forecast age |
-| 0 | `compare_models` | Champion vs candidate: validation, shadow reports, readiness |
-| 0 | `explain_decision` | A recorded pricing decision's reasons, constraints, guardrails and lineage |
-| 0 | `run_pricing_counterfactual` | The optimiser's RECORDED evaluation of one price (otherwise `not_evaluated`) |
-| 0 | `inspect_recovery_metrics` | Resolved-recovery rate of dunning cases, current vs previous window |
-| 0 | `get_incident`, `get_runbook` | An incident and its timeline; a runbook and whether it was exercised in a test |
-| 1 | `open_incident` | Open or touch `agent:<diagnosis>` (routed to a runbook) |
-| 1 | `request_retraining` | Open or join a retraining request (trigger `agent_request`); never promotes |
-| 1 | `collect_diagnostics` | Attach a health, queue and freshness snapshot to a live incident |
-| 2 | `freeze_pricing` | REQUEST a freeze of one product or `*` |
-| 2 | `request_rollback` | REQUEST a rollback of the champion (refused if no target exists) |
-| 2 | `request_promotion` | REQUEST promotion of a shadow version that passed (refused otherwise) |
+| 0 | `get_system_health`, `get_source_freshness`, `get_queue_health`, `inspect_drift`, `inspect_forecast_error`, `compare_models`, `explain_decision`, `run_pricing_counterfactual`, `inspect_recovery_metrics`, `get_incident`, `get_runbook` | Read only |
+| 1 | `open_incident`, `request_retraining`, `collect_diagnostics` | Low-risk actions; retraining never promotes |
+| 2 | `freeze_pricing`, `request_rollback`, `request_promotion` | File a request that a named human must approve |
 
-Every Tier >= 1 call must cite `evidence`: call ids of successful calls in the same session.
-At most `max_actions = 2` Tier >= 1 calls are allowed per investigation.
+Every tool has a typed schema, validates its arguments and writes an audit event. A tier 1 or 2
+call must cite the ids of earlier successful calls in the same session as evidence, and an
+investigation may make at most two of them. `run_pricing_counterfactual` returns the
+optimiser's recorded evaluation of a price, or `not_evaluated`; it never computes a new one.
 
-## Guarded requests (human side)
+## The LLM
+
+The provider proposes one step at a time as JSON against a strict schema. The executor decides
+whether the step is allowed, and a grounding check rejects an answer that cites evidence it
+never gathered. The system prompt carries the same operating procedure the deterministic triage
+follows (`playbook.py`). If the provider is unavailable or returns an invalid step, the run falls
+back to triage and the fallback is audited, so the core system never depends on an LLM.
+
+Two providers are implemented: Anthropic (`configs/agent/llm-anthropic.toml`, Claude Opus 5.5)
+and Gemini (`configs/agent/llm.toml`). The pinned policy still names `deterministic-triage` as
+the provider, so an LLM runs only when it is asked for:
 
 ```bash
-python -m praxis.agent requests                       # pending and decided requests
-python -m praxis.agent approve <request_id> --approver <name>
-python -m praxis.agent reject  <request_id> --approver <name> --reason "..."
-python -m praxis.agent freezes                        # active price freezes
-python -m praxis.agent lift <freeze_id> --by <name>
-python -m praxis.agent audit --session <session_id>
+PRAXIS_ANTHROPIC_API_KEY=... python -m praxis.agent investigate --provider anthropic \
+    --kind daily_check --as-of 2026-08-20
 ```
 
-Approval runs the existing path (`ModelRegistry.promote` re-checks shadow readiness;
-`rollback` refuses a request if the champion changed after it was made; a freeze needs an
-approver who is not the requester). The database refuses a decision by the requester.
-
-## Agent side
+## Commands
 
 ```bash
 python -m praxis.agent tools
 python -m praxis.agent call get_system_health
-python -m praxis.agent investigate --kind daily_check --as-of 2026-08-20
-python -m praxis.agent investigate --kind investigate_incident --as-of ... --incident inc_...
-python -m praxis.agent investigate --kind review_candidate --as-of ... --model-version ...
+python -m praxis.agent investigate --kind daily_check --as-of D
+python -m praxis.agent investigate --kind investigate_incident --as-of D --incident inc_...
+python -m praxis.agent investigate --kind review_candidate --as-of D --model-version V
+
+python -m praxis.agent requests
+python -m praxis.agent approve <request_id> --approver <name>
+python -m praxis.agent reject <request_id> --approver <name> --reason "..."
+python -m praxis.agent freezes
+python -m praxis.agent lift <freeze_id> --by <name>
+python -m praxis.agent audit --session <session_id>
 ```
 
-`investigate` exits 0 only if the run completed AND its answer is grounded.
+`investigate` exits 0 only if the run completed and its answer is grounded. Approval runs the
+existing path: the registry re-checks shadow readiness on a promotion, a rollback is refused if
+the champion changed after the request, and the database refuses a decision by the requester.
 
-## Honest-output rules (tested)
+## Benchmarks
 
-* Metrics are the fleet view (ADR 0020) when a database is configured. Each result's notes say
-  which: `Telemetry scope: fleet` (and which processes are STALE and left out), or
-  `process` (only the agent's own metrics).
-* A metric without a value is `no_data` and names the feed that should supply it
-  (`tools.FEEDS`); `get_source_freshness` also returns the warehouse collector's status and the
-  sources that never delivered.
-* `get_system_health` says whether the ops monitor (`python -m praxis.ops run`) is running,
-  stale or not seen, so the incident list is not mistaken for current alerts.
-* Pricing results are shadow evaluations, NOT validated for execution (Phase 4 loader defect).
-* Only `pubsub-backlog` and `agent-failure` runbooks are exercised in a test.
+- `make agent-bench` (part of `make test`) runs seven fixed incident scenarios, each in a fresh
+  database with a prompt-injection payload, against the pinned `configs/agent/benchmark.toml`.
+  Each scenario also runs with an adversarial provider that obeys the payload. It measures the
+  harness and safety layer, using deterministic triage.
+- `make agent-llm-bench LLM_PROVIDER=anthropic` is the opt-in live run. It needs a key, costs
+  money and refuses to overwrite an earlier report. No test in `make check` calls a live LLM.
 
-## Provider
+## Honest output
 
-The configured provider and fallback are `deterministic-triage`. No live LLM adapter exists
-yet: adding one (the plan suggests a cost-conscious Gemini model) needs the owner's approval
-for a docs check, an API key read from the environment, and live calls. It would implement
-`LLMProvider.next_step` only, be opt-in, and never run in `make check`.
-
-## Benchmark
-
-`make agent-bench` (also part of `make test`) writes `docs/evidence/phase-12-benchmark.json`.
-It covers seven fixed scenarios, each in a fresh database with a prompt-injection payload,
-scored against the pinned `configs/agent/benchmark.toml`, and each also run by an
-adversarial provider that obeys the payload. It measures the harness and safety layer, not
-LLM competence (see ADR 0019).
+- Metrics come from the fleet view when a database is configured, and every result says
+  whether it is fleet-wide or only the agent's own process, and which processes are stale.
+- A metric without a value is `no_data` and names the feed that should supply it.
+- `get_system_health` says whether the ops monitor is running, so an old incident list is not
+  mistaken for current alerts.
+- Pricing results are labelled as shadow evaluations, not validated for execution.

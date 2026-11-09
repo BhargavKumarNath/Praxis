@@ -1,113 +1,85 @@
-# MLOps: registry, continuous training, drift and safe promotion (Phase 10)
+# MLOps
 
-Decision record: [ADR 0017](adr/0017-model-registry-continuous-training-and-safe-promotion.md)
-(extends ADR 0005). Package: `src/praxis/mlops/`. Policy: `configs/mlops/demand.toml`
-(pre-registered, hash-pinned). All data is SYNTHETIC.
-
-## What runs
+The demand forecaster lives in a model registry with an explicit lifecycle. Every day the
+pipeline checks the champion on probation, runs shadow evaluations, monitors drift, and
+retrains and validates a candidate when it has to. It never promotes one. Promotion needs a
+named approver and a shadow comparison that passed. Decision: ADR 0017 (extending ADR 0005).
+Policy: `configs/mlops/demand.toml` (pinned). Results: [results.md](results.md#mlops-lifecycle).
 
 ```text
-            daily, one data day at a time (praxis.mlops.pipeline.DemandLifecycle.run_day)
- probation ──► shadow evaluation ──► drift monitor ──► retraining
-   │                │                     │                 │
-   │ worse than     │ failed ─► rejected  │ residual /      │ train Phase 4 recipe
-   │ previous ─►    │ passed ─► READY     │ segment /       │ register (candidate)
-   │ ROLLBACK       │  (waits for a       │ calibration /   │ validate ─► challenger | rejected
-   │ (restore)      │   named approver)   │ PSI / schedule /│ challenger ─► shadow (if free)
-   ▼                ▼                     │ labels ─► request
- audit rows     audit rows                ▼
-                                    retraining_requests
+                daily, one data day at a time (DemandLifecycle.run_day)
+ probation ──> shadow evaluation ──> drift monitor ──> retraining
+   │ worse than      │ failed -> rejected    │ alarm -> request    │ train, register (candidate)
+   │ previous ->     │ passed -> ready,      │                     │ validate -> challenger | rejected
+   │ ROLLBACK        │ waits for a person    │                     │ challenger -> shadow
+   ▼                 ▼                       ▼
+                          audit rows, retraining_requests
 ```
-
-Nothing in the loop promotes a new champion. `promote` needs a named approver and a passing
-shadow report against the current champion.
 
 | Stage | Who moves it there | Gate |
 | --- | --- | --- |
-| candidate | registration (training job or operator) | complete lineage |
-| challenger / rejected | automation | offline validation (every check) |
-| shadow | automation (one at a time) | a champion exists |
-| champion | named approver (bootstrap: validated challenger, no champion) | latest shadow passed vs the current champion |
-| retired | the promotion that replaced it | - |
-| rolled_back / champion again | probation (automatic) or operator rollback | probation: >= 7 matured origins, vWAPE > 1.05 x previous |
+| candidate | The training job or an operator | Complete lineage |
+| challenger / rejected | Automation | Every offline validation check |
+| shadow | Automation, one at a time | A champion exists |
+| champion | A named approver | The latest shadow passed against the current champion |
+| retired | The promotion that replaced it | |
+| rolled back | Probation (automatic) or an operator | At least 7 matured origins with vWAPE above 1.05x the previous champion |
+
+## Validation (candidate to challenger)
+
+Integrity and lineage, the feature contract, the dataset reference, two leakage checks, the
+pinned forecasting acceptance, the baseline comparison, 50 % and 80 % calibration, segment
+regression, non-inferiority to the champion's recipe on identical origins, latency and memory
+budgets, reproducibility, and serving parity. A failed integrity check stops the run; every
+other check always runs, so a report lists every reason for a rejection.
+
+## Drift
+
+A decision signal over its threshold on one day is a breach. It becomes an alarm, which can
+trigger retraining, only after two consecutive evaluated days of the same champion.
+
+| Signal | Kind | Breach (trailing 14 days of matured forecasts) |
+| --- | --- | --- |
+| residual_drift | decision | Pooled vWAPE > 1.30x the champion's backtest |
+| segment_drift | decision | Worst slice > 1.50x its backtest slice |
+| calibration_drift | decision | 80 % coverage outside [0.65, 0.95] |
+| feature_drift | investigation | A feature's PSI > 0.25 and above the no-change bound |
+| prediction_drift | investigation | The forecast's PSI > 0.25 and above the bound |
+
+Retraining is also requested on a schedule (data 28 days old) and when enough new labels have
+matured. One live request per model, with a 7-day cooldown.
 
 ## Commands
 
 ```bash
-make mlops-data ML_SEED=1                  # steady + drift worlds (1K customers, 252 days)
-make mlops-drill ML_SEED=1                 # the pre-registered lifecycle drill (local Postgres;
-                                           # 3 worlds in parallel processes, one registry each)
+make mlops-data ML_SEED=1     # steady and drift worlds (1K customers, 252 days)
+make mlops-drill ML_SEED=1    # the pre-registered lifecycle drill, about 100 min
 
 DB=postgresql+psycopg://praxis@127.0.0.1:55432/praxis_mlops
-.venv/bin/python -m praxis.mlops --database-url $DB migrate
-.venv/bin/python -m praxis.mlops --database-url $DB --warehouse W --models M \
+python -m praxis.mlops --database-url $DB migrate
+python -m praxis.mlops --database-url $DB --warehouse W --models M \
     register --artifact data/models/demand/<version> --backtest <backtest.json>
-.venv/bin/python -m praxis.mlops ... validate --version V --as-of 2026-07-20
-.venv/bin/python -m praxis.mlops ... --actor <you> promote --version V --as-of 2026-07-20
-.venv/bin/python -m praxis.mlops ... run-day --as-of 2026-07-21     # or operate --start --end
-.venv/bin/python -m praxis.mlops ... --actor <you> rollback --as-of D
-.venv/bin/python -m praxis.mlops ... status | history | sync-tracking
+python -m praxis.mlops ... validate --version V --as-of D
+python -m praxis.mlops ... --actor <you> promote --version V --as-of D
+python -m praxis.mlops ... run-day --as-of D         # or operate --start D --end D
+python -m praxis.mlops ... --actor <you> rollback --as-of D
+python -m praxis.mlops ... status | history | sync-tracking
 ```
 
-Serving from the registry: `PRAXIS_FORECAST_FROM_REGISTRY=true` + `PRAXIS_DATABASE_URL`;
-`/v1/forecasts/demand/model` shows `served_from`, `stage`, `shadow_version`; every response
-carries `X-Praxis-Model-Version`. MLflow mirror: `PRAXIS_MLFLOW_TRACKING_URI` (e.g.
-`sqlite:///data/mlflow/mlflow.db`; browse with `uvx mlflow ui --backend-store-uri ...`).
+To serve from the registry, set `PRAXIS_FORECAST_FROM_REGISTRY=true` and
+`PRAXIS_DATABASE_URL`. Every forecast response carries `X-Praxis-Model-Version`. An optional
+MLflow mirror is enabled with `PRAXIS_MLFLOW_TRACKING_URI`.
 
-## Validation checks (candidate -> challenger)
+In the cloud, the live loop runs this lifecycle once a day and files a pending promotion
+request when a shadow version passes; see [deployment.md](deployment.md#the-live-loop).
 
-`artifact_integrity`, `lineage_complete`, `feature_contract`, `dataset_reference`,
-`leakage_training_window`, `leakage_future_invariance`, `backtest_acceptance` (pinned Phase 4
-acceptance re-evaluated on the report's metrics), `baseline_comparison`, `calibration_80`,
-`calibration_50`, `segment_regression_vs_baseline`, `champion_non_inferiority` (the
-candidate's backtest skill, vWAPE / seasonal naive, at most 1.02 x the skill of the
-champion's RECIPE re-run on the candidate's identical rolling origins; the same recipe is
-the same backtest, so it is not re-run: artifacts are compared in shadow; amendments
-2026-10-17 and 2026-10-18, ADR 0017), `latency_budget`, `memory_budget`,
-`reproducibility`, `serving_parity`. A failed integrity check stops the run; every other
-check always runs, so a report lists every reason.
+## Limits
 
-## Drift signals
-
-A decision signal over its threshold on one day is a **breach** (reported). It is an
-**alarm** (a retraining trigger, and what the drill counts) only after 2 consecutive
-evaluated days of the same champion (`persistence_days`, amendment 2026-10-18, calibrated on
-development seeds 1 and 611-613, ADR 0017 "Calibration"): consecutive
-14-day windows share 13 days, so a single extreme day lifts one window, a real change keeps
-lifting them.
-
-| Signal | Kind | Breach when (trailing 14 days of matured out-of-sample forecasts) |
-| --- | --- | --- |
-| residual_drift | decision | pooled vWAPE > 1.30 x the champion's backtest vWAPE |
-| segment_drift | decision | worst region / product / segment slice > 1.50 x its backtest slice |
-| calibration_drift | decision | 80% interval coverage outside [0.65, 0.95] |
-| feature_drift | investigation | a monitored feature's PSI > 0.25 and above the no-change bound |
-| prediction_drift | investigation | the scaled point forecast's PSI > 0.25 and above the bound |
-
-Retraining triggers also include `scheduled` (data age >= 28 days) and `new_labels`
-(>= 1512 matured targets). Investigation-only triggers wait while a retrained version is
-still being evaluated; decision signals do not. One live request per model, 7-day cooldown.
-
-## Limits (read before relying on it)
-
-* The decision signals compare absolute error with the champion's own backtest. They cannot
-  tell real change from a world in which forecasting simply gets harder: on the pricing
-  shadow world, compounding heterogeneous per-customer growth concentrates demand in a few
-  fast-growing customers and a frozen champion's error rises 1.4x (eu_west 2.4x; the
-  seasonal naive's error rises 1.38x too), so the monitor raises sustained alarms that
-  retraining cannot fix. Normalising by the naive (skill) or by bias was measured and
-  rejected: it also hides the injected ramp (dev seed 1, ADR 0017 attempt 2). The drill's
-  steady world therefore switches organic growth off (`mlops_steady.toml`).
-* Detection is slow on a gradual ramp: on the drill's drift world the unchanged 1.30 / 1.50
-  thresholds on a 14-day window alarm 11-13 days after onset (dev seeds 1, 611-613 and
-  held-out 621), leaving 1 day of slack against the drill's 14-day deadline.
-* Only the demand forecaster is registered. Recovery / customer artifacts and the pricing
-  input builder still load fixed directories.
-* Production forecasts are re-scored point in time from the warehouse; no log of served
-  forecasts exists yet (Phase 11).
-* PSI's noise bound assumes independent distinct values; rolling-window features are
-  autocorrelated, so feature drift can fire on slow, real-but-harmless changes. That is why
-  it is an investigation signal.
-* Canary is refused by the policy loader (no canary evaluation exists).
-* The Pub/Sub, Cloud Run and Cloud Scheduler wiring of the daily job is not deployed
-  (local Postgres + DuckDB + MLflow on SQLite; cloud cost GBP 0).
+- The drift signals compare error with the champion's own backtest, so they cannot tell real
+  change from a world that simply becomes harder to forecast. Under compounding customer
+  growth a frozen champion's error rises 1.4x and the monitor alarms in a way retraining
+  cannot fix. That is why the drill's steady world has no organic growth.
+- Detection is slow on a gradual ramp: 11 to 13 days after onset, against a 14-day deadline.
+- Only the demand forecaster is registered. The recovery and customer models load fixed
+  directories.
+- Canary deployment is not implemented, and the policy loader refuses it.

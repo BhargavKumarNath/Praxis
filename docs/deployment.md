@@ -1,9 +1,11 @@
-# Deployment runbook (GCP, ADR 0026)
+# Deployment
 
-Environment: project `praxis-dev-510522`, compute in `us-central1`, BigQuery in
-`europe-west2`. All data is SYNTHETIC. Every command below is an owner action; CI never
-deploys. Costs and safeguards: `docs/cost-guard.md`; evidence:
-`docs/evidence/deployment-preflight.md` and `docs/evidence/deployment.md`.
+Praxis runs a dev environment on GCP in project `praxis-dev-510522`, with compute in
+`us-central1` and BigQuery in `europe-west2`. Infrastructure is Terraform
+(`infra/terraform/`, ADR 0024 and 0026). All data is synthetic. Every command below is an
+owner action; CI never deploys. Costs and spending safeguards are in
+[cost-guard.md](cost-guard.md); evidence is in [deployment-preflight.md](evidence/deployment-preflight.md)
+and [deployment.md](evidence/deployment.md).
 
 ```text
 owner (gcloud identity) ──IAM──> Cloud Run: praxis-dev-api        (private, max 2)
@@ -19,6 +21,7 @@ BigQuery praxis_dev_{raw,staging,marts} (europe-west2, 10 GiB/day quota)
 ```
 
 ## One-time bootstrap (done 2026-11-01)
+
 1. `gcloud billing projects link praxis-dev-510522 --billing-account=<id>`
 2. `gcloud services enable cloudresourcemanager.googleapis.com --project=praxis-dev-510522`
 3. State bucket: `gs://praxis-dev-510522-tfstate` (us-central1, versioned, uniform access,
@@ -29,6 +32,7 @@ BigQuery praxis_dev_{raw,staging,marts} (europe-west2, 10 GiB/day quota)
    three image digests.
 
 ## Deploy or update
+
 ```bash
 export CLOUD_PROJECT=praxis-dev-510522
 make cloud-init                  # once per checkout (GCS backend)
@@ -46,31 +50,30 @@ Secret values are added out of band and never enter Terraform:
 ```bash
 printf '%s' "$VALUE" | gcloud secrets versions add praxis-dev-<name> --data-file=- --project=$CLOUD_PROJECT
 ```
-Active versions: `database-url`, `postgres-password` and `console-approvers`
-(`owner=<48-hex token>`, no expiry yet). The Stripe, task-token and LLM secrets have no
-version, so no Stripe or LLM call is possible. After rotating `postgres-password` you must also change the
+Active versions: `database-url`, `postgres-password` and `console-approvers`. The Stripe,
+task-token and LLM secrets have no version, so the deployment makes no Stripe or LLM call. After rotating `postgres-password` you must also change the
 role's password in Postgres; `initdb` reads the password only on first boot.
 
-**Before deploying an image built after 2026-11-05** (ADR 0021 amendment 1): outside `local`
-every approver token must carry an expiry of at most 90 days (`name=token@YYYY-MM-DD`), or the
-console refuses to start. Rotate first, pipe to pipe (the value is never printed):
+**Rotating the approver token** (ADR 0021 amendment 1). Outside `local`, every approver token
+must expire within 90 days (`name=token@YYYY-MM-DD`), or the console refuses to start. Rotate
+pipe to pipe, so the value is never printed:
 ```bash
 gcloud secrets versions access latest --secret=praxis-dev-console-approvers --project=$CLOUD_PROJECT \
   | .venv/bin/python scripts/console_token.py rotate --name owner --days 90 --legacy-days 7 \
   | gcloud secrets versions add praxis-dev-console-approvers --data-file=- --project=$CLOUD_PROJECT
 ```
-Deploy the new console image straight after: the console deployed before 2026-11-05 rejects this
-format (the same name twice during the overlap) and would fail at its next cold start.
-This adds a new token, gives the old one 7 days of overlap, and drops expired ones. Read the
-new token with `gcloud secrets versions access latest ... | tr , '\n' | tail -1`, and repeat
-before the date (the console logs `console.approver_rotation_due` 14 days ahead).
+This adds a new token, keeps the old one for 7 days of overlap and drops expired ones. Read the
+new token with `gcloud secrets versions access latest ... | tr , '\n' | tail -1`. The console
+logs `console.approver_rotation_due` 14 days before a token expires. The token was last rotated
+on 2026-11-08.
 
-**LLM operator (optional, ADR 0029):** add a Gemini API key as a version of
-`praxis-dev-llm-api-key` (readable only by the agent identity). Locally, export
-`PRAXIS_GEMINI_API_KEY` and run `make agent-llm-bench` (about USD 0.05) before switching
-`configs/agent/policy.toml` `provider`. Without a key the operator stays deterministic.
+**LLM operator (optional, ADR 0029):** add a provider key as a version of
+`praxis-dev-llm-api-key` (readable only by the agent identity). Switching
+`configs/agent/policy.toml` `provider` is a reviewed config change. Without a key the operator
+stays deterministic.
 
 ## Use it
+
 * **Console UI (private):**
   `gcloud run services proxy praxis-dev-console --region us-central1 --project $CLOUD_PROJECT --port 3000`,
   then open http://localhost:3000. The approver token comes from
@@ -78,10 +81,9 @@ before the date (the console logs `console.approver_rotation_due` 14 days ahead)
   after `owner=`). Do not paste it anywhere else.
   * The proxy needs the `cloud-run-proxy` gcloud component (on apt installs:
     `sudo apt-get install google-cloud-cli-cloud-run-proxy`).
-  * **Verified 2026-11-05** (`docs/evidence/final-console-proxy.md`): through the proxy the
-    UI loads, the read panels answer 200, and `GET /api/console/whoami` with the approver token
-    answers `{"approver": "owner"}`. So the proxy passes `Authorization: Bearer <approver>`
-    through, and approve / reject work from the browser (no write was made in the check).
+  * Verified on 2026-11-05 ([final-console-proxy.md](evidence/final-console-proxy.md)): the
+    proxy passes the approver token through, so approve and reject work from the browser. The
+    first live promotion was approved from the console on 2026-11-08.
 * **API (private):** `curl -H "X-Serverless-Authorization: Bearer $(gcloud auth print-identity-token)" <url>/v1/ops/health`.
   `/healthz` cannot be reached on Cloud Run: the Google frontend reserves paths ending in
   `z`.
@@ -99,8 +101,10 @@ before the date (the console logs `console.approver_rotation_due` 14 days ahead)
 * **Ops monitor tick:** `gcloud run jobs execute praxis-dev-ops --region us-central1 --wait`
   (default args: one tick; it also runs daily at 03:50 UTC).
 
-## The live loop (ADR 0027)
-Once a day (03:10 UTC) Cloud Scheduler starts `praxis-dev-live`:
+## The live loop
+
+The live loop (ADR 0027) operates a synthetic world, seed 9001, one simulated day per real UTC
+day. At 03:10 UTC Cloud Scheduler starts `praxis-dev-live`:
 1. it rebuilds the SYNTHETIC world through yesterday;
 2. it publishes the warehouse to `gs://praxis-dev-live-<project>` (mounted at `/mnt/live`);
 3. it runs the model lifecycle for each new day: probation and automatic rollback, shadow
@@ -140,6 +144,7 @@ gcloud scheduler jobs list --location us-central1 --project $CLOUD_PROJECT
 * Never edit `state.json` by hand to skip days; the lifecycle needs every day in order.
 
 ## Inspect
+
 ```bash
 gcloud run services list --region us-central1 --project $CLOUD_PROJECT
 gcloud run jobs executions list --region us-central1 --project $CLOUD_PROJECT --limit 10
@@ -155,6 +160,7 @@ GBP 2 / 5 / 8 / 10. Guard decisions are in the `praxis-dev-spend-guard` logs
 (`jsonPayload.message="budget notification"` or `"spend guard unlinked billing"`).
 
 ## Stop (keep everything, stop spend-generating parts)
+
 * The services already scale to zero and cost nothing idle. Jobs run only when executed.
 * Pause the daily triggers: `gcloud scheduler jobs pause praxis-dev-live-tick --location us-central1`
   and the same for `praxis-dev-ops-tick`. With the VM stopped, a tick fails without
@@ -167,12 +173,14 @@ GBP 2 / 5 / 8 / 10. Guard decisions are in the `praxis-dev-spend-guard` logs
   is off. Re-link with `gcloud billing projects link`.
 
 ## If the spend guard has fired
+
 1. Read the guard log entry (cost and reason). Check the Billing report for the cause.
 2. Fix or remove the cause, then re-link billing (above). The VM restarts on `start`.
 3. A budget's actual cost resets on the 1st of the month; until then every notification at
    or above GBP 8 unlinks billing again. Re-link only once the cause is understood.
 
 ## Destroy (irreversible)
+
 ```bash
 make cloud-destroy CLOUD_PROJECT=praxis-dev-510522 CONFIRM=destroy-praxis-dev-510522
 ```
@@ -187,3 +195,23 @@ APIs stay enabled. Billing, the state bucket and the snapshots are outside Terra
 * unlink billing with `gcloud billing projects unlink`.
 
 A recreate is `make cloud-plan cloud-apply`, then the secrets, migrations and smoke.
+
+## Security posture
+
+Enforced and tested (`tests/security/` pins the route inventory and the Terraform posture):
+
+- **Nothing public.** No `allUsers` binding, no external IP, NAT or load balancer. Anonymous
+  requests get 403 on all three services. Postgres has a private IP only.
+- **Least privilege.** One service account per process with resource-level grants. The only
+  project-level grant is the spend guard's `roles/billing.projectManager`. No service-account
+  keys.
+- **Secrets** live in Secret Manager, each with its own reader list, and never appear in
+  Terraform, its state, logs or traces.
+- **Every route is classified.** A new API or console route fails CI until its protection is
+  declared. No route deletes data or carries a price.
+- **Supply chain.** Actions pinned by commit SHA, tool images pinned, nightly pip-audit, npm
+  audit, gitleaks and trivy.
+
+Known gaps: one Postgres VM without HA (recovery point is the daily snapshot), no WAF or rate
+limiting (needed before the API is made public for Stripe webhooks), and the dunning
+subscription has no cloud consumer yet, so cloud payment retries are not wired.

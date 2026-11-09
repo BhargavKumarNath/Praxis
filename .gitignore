@@ -1,0 +1,97 @@
+# --- Local working notes and agent config (never published) ---
+CLAUDE.md
+.claude/
+project_plan.md
+project.md
+required_test.md
+project_progress.md
+docs/checkpoints/
+
+# --- Secrets (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+*credentials*.json
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.import_linter_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+coverage.json
+dist/
+build/
+.ipynb_checkpoints/
+
+# --- Node / Next.js ---
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+*.tsbuildinfo
+npm-debug.log*
+
+# --- Frontend test output ---
+frontend/test-results/
+frontend/playwright-report/
+frontend/test-results-journey.json
+
+# --- dbt ---
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+
+# --- Terraform ---
+.terraform/
+.terraform-offline/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+# Plan files contain resolved configuration
+*.tfplan
+*.tfplan.txt
+# .terraform.lock.hcl is intentionally tracked
+
+# --- Data, models, MLflow (large or regenerable) ---
+/data/
+*.parquet
+mlruns/
+mlartifacts/
+*.ckpt
+
+# --- Logs and temporary files ---
+*.log
+tmp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# --- macOS ---
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# --- Editors and IDEs ---
+.idea/
+.vscode/
+*.code-workspace

@@ -1,116 +1,101 @@
-# Event Backbone (Phase 3)
+# Event backbone
 
-All events are **synthetic** (simulator output). Design rationale: ADR 0001 and ADR 0009.
-
-## Flow
+Events move over Pub/Sub, which delivers at least once, in no guaranteed order. The backbone is
+built on that assumption: every consumer is idempotent, out-of-order events wait until their
+predecessor arrives, and a message that keeps failing ends up in a dead-letter queue where an
+operator can redrive it after the fix. Design: ADR 0001, 0009 and 0025.
 
 ```mermaid
 flowchart LR
-    SIM[Simulator / services] --> P[EventProducer<br/>validate -> archive -> publish]
-    P --> A[(Event archive<br/>source=/date=/hour=)]
+    SRC[Simulator / services] --> P[EventProducer<br/>validate, archive, publish]
+    P --> A[(Event archive)]
     P --> T{{events topic}}
     T -- "stateful = true" --> OPS[operational consumer]
     T --> WH[warehouse consumer]
     T --> MON[monitoring consumer]
-    OPS --> PG[(Postgres control plane)]
-    WH --> DW[(DuckDB raw.sim_events<br/>BigQuery later)]
-    MON --> M[metrics + trace logs]
-    OPS & WH & MON -. "invalid now / poison after 5 attempts" .-> DLQ{{DLQ topic}}
+    OPS --> PG[(Postgres)]
+    WH --> DW[(Warehouse)]
+    OPS & WH & MON -. "invalid / poison" .-> DLQ{{DLQ}}
     DLQ --> INS[DLQ inspector] --> PG
     A -. replay .-> P
     PG -. redrive .-> T
 ```
 
-| Component | Module | Guarantee |
-| --- | --- | --- |
-| Codec | `praxis.events.codec` | Canonical JSON body; attributes carry IDs, type, version, `stateful`; stable decode-error reasons |
-| Topology | `praxis.streaming.topology` | Names, filter, retry and DLQ policy (mirrored by Terraform, checked by a test) |
-| Producer | `praxis.streaming.producer` | Rejects the whole batch on any invalid event; archives before publishing |
-| Archive | `praxis.streaming.archive` | Append-only, content-addressed, checksum verified on read |
-| Runtime | `praxis.streaming.runtime` | Decode, bind trace context, classify failures, DLQ routing, latency metrics |
-| Operational | `praxis.streaming.consumers.operational` + `praxis.control.store` | Exactly-once *effect*: idempotency row and refold in one transaction |
-| Warehouse | `praxis.streaming.consumers.warehouse` | Batched insert-if-absent on `event_id`: primary-key lookup, then a plain INSERT of new rows (same projection and result as the loader's `ON CONFLICT (event_id) DO NOTHING`, which stays the race fallback; ADR 0025 amendment 1) |
-| Monitoring | `praxis.streaming.consumers.monitoring` | Delivery telemetry; best-effort duplicate detection |
-| DLQ inspector | `praxis.streaming.consumers.dead_letter` | Every dead letter stored once, with reason, attempts and trace IDs |
-| Redrive | `praxis.streaming.redrive` | Operator-triggered republish of decodable dead letters; same `event_id`, fresh `praxis_sent_at` so latency counts from the redrive |
-| Transports | `praxis.streaming.memory`, `praxis.streaming.pubsub` | Same semantics; memory broker adds seeded faults |
+The producer rejects a whole batch if any event is invalid, and archives before it publishes.
+The archive is append-only and checksum-verified on read, so any history can be replayed.
 
-## Control plane (Postgres, Alembic `src/praxis/control/migrations`)
+## Consumers
+
+| Consumer | Guarantee |
+| --- | --- |
+| Operational (`praxis.streaming.consumers.operational`) | Exactly-once effect: the idempotency row and the state change commit in one transaction |
+| Warehouse | Insert-if-absent on `event_id` through the landing table (see [data-platform.md](data-platform.md)) |
+| Monitoring | Delivery telemetry and duplicate detection |
+| DLQ inspector | Stores every dead letter once, with reason, attempts and trace ids |
+
+Only events marked `stateful` reach Postgres. Each customer and invoice is an aggregate whose
+state is refolded from its own accepted events in canonical order, so arrival order does not
+matter.
+
+## Control plane tables
 
 | Table | Holds |
 | --- | --- |
-| `processed_events` | Idempotency store `(consumer, event_id)` + trace / correlation IDs |
-| `entity_events` | Accepted lifecycle events per aggregate (customer, invoice) |
-| `customers`, `subscriptions`, `invoices` | Projections (refolded); state moves guarded by trigger |
-| `payment_ledger` | Money collected, one row per invoice, BIGINT minor units |
-| `state_transitions` | Audit of applied transitions, keyed by causing event |
+| `processed_events` | Idempotency store, one row per (consumer, event) |
+| `entity_events` | Accepted lifecycle events per aggregate |
+| `customers`, `subscriptions`, `invoices` | Projections; state moves are guarded by trigger |
+| `payment_ledger` | Money collected, BIGINT minor units |
+| `state_transitions` | Audit of applied transitions |
 | `dead_letters` | Open and redriven dead letters |
-| `allowed_state_moves` | Reachability closure of the Python state machines |
+| `allowed_state_moves` | The Python state machines' reachable moves, enforced in SQL |
 
-State machines: customer `prospect -> converted -> active -> churned`, `prospect -> lost`;
-subscription `active -> cancelled`; invoice `open <-> attempting -> paid | uncollectible`.
+Migrations are Alembic, in `src/praxis/control/migrations`.
 
 ## Failure handling
 
 | Situation | What happens |
 | --- | --- |
-| Exact duplicate / redelivery / replay | `processed_events` hit, no-op, ack |
-| Out of order (e.g. payment before invoice) | Logged as pending; applied when the predecessor arrives |
-| Malformed / unsupported version / unknown type | DLQ immediately (attempt 1), ack |
-| Database down | `TransientError`, NACK, exponential backoff (10 s to 300 s) |
-| Crash after commit, before ack | Redelivered, then a no-op (idempotency row committed with the effect) |
-| Poison (always fails) | NACK x5, then Pub/Sub forwards it to the DLQ (`max_delivery_attempts_exceeded`) |
-| Crash storm | In-flight messages can exhaust attempts and be dead-lettered; redrive restores them |
+| Duplicate, redelivery or replay | Idempotency hit, no-op, ack |
+| Out of order (payment before invoice) | Stored as pending, applied when the predecessor arrives |
+| Malformed, unknown type or unsupported version | Dead-lettered on the first attempt |
+| Database down | Transient error, NACK, backoff from 10 s to 300 s |
+| Crash after commit, before ack | Redelivered, then a no-op |
+| Poison message | Five attempts, then the DLQ |
+
+**Crash isolation (ADR 0025).** Pub/Sub charges an attempt to every message in a lease that
+ends without an ack, so batch processing once let one crashing message dead-letter its healthy
+batch-mates. Every pull loop now goes through `FlowControl` / `process_pull`: slow start after a
+restart, first deliveries and redeliveries processed as separate groups, and any message
+redelivered twice processed on its own. A real poison message isolates itself.
 
 ## Commands
 
 ```bash
-make pg-up / pg-down            # local Postgres (Docker, 127.0.0.1:55432, trust auth)
-make pubsub-up / pubsub-down    # Pub/Sub emulator (127.0.0.1:8085)
-make test                       # includes control-plane + scenario tests (needs pg-up; done for you)
-make pubsub-verify              # producer + consumers over the emulator
-make events-check               # chaos smoke vs oracle (used by make check / CI)
-make events-local               # 1K x 28d chaos run -> data/events/run_local.json
-make events-bench               # live latency on the emulator -> data/events/emulator_bench.json
-make scale-archive scale-run SCALE=10k-sharded   # Phase 14 scale ladder (ADR 0022)
-
+make pg-up pubsub-up            # local Postgres and the Pub/Sub emulator
+make pubsub-verify              # producer and consumers over the emulator
+make events-local               # 1K customers x 28 days with injected faults vs the oracle
+make events-bench               # latency on the emulator
 python -m praxis.streaming --database-url URL migrate
-python -m praxis.streaming --database-url URL dlq                        # open dead letters
+python -m praxis.streaming --database-url URL dlq             # list open dead letters
 PUBSUB_EMULATOR_HOST=127.0.0.1:8085 python -m praxis.streaming --database-url URL dlq --redrive
-python -m praxis.streaming replay --archive data/events/archive          # emulator
+python -m praxis.streaming replay --archive data/events/archive
 ```
 
-## Observability
+`run-local` refuses a control plane that already holds processed events, because its oracle
+only covers the world it generates.
 
-`StreamMetrics` per subscription: `deliveries`, `redeliveries`, `status_*`,
-`nack_transient`, `nack_error`, `dead_lettered_<reason>`, `batch_fallback`, plus latency
-samples. `processing` is handler time. `end_to_end` is producer send time
-(`praxis_sent_at` attribute) to processed. The DLQ inspector counts `reason_<reason>`.
-Phase 11 exports these through OpenTelemetry and adds alerts (DLQ > 0, crash loops,
-`pending` older than a threshold). Counter increments are aggregated in `StreamMetrics` and
-pushed to OpenTelemetry in bulk (every 1,024 increments and before every snapshot, ADR 0022).
+## Scale
 
-## Scale (Phase 14, ADR 0022, `docs/evidence/phase-14.md`)
+Consumers scale out as independent shard processes over one Postgres, with messages assigned by
+`event_id` hash, so the idempotency and locking design runs under real contention. Postgres
+takes one transaction per stateful event (about 5 % of events), so throughput comes from more
+writers rather than bigger batches. Batch sinks wait up to a second to fill a batch. Measured
+results are in [results.md](results.md#performance-and-scale) and ADR 0022.
 
-* **Consumer concurrency** is K shard processes against one Postgres, each with its own
-  broker, consumers and DuckDB file; messages go to shards by `event_id` hash, so one
-  aggregate's events are applied concurrently and the idempotency / advisory-lock design is
-  exercised under contention. Final state equals the single-process oracle (measured).
-* **Sink micro-batching**: batch consumers (warehouse) wait up to `batch_wait_s` (1 s) for a
-  batch to fill when nothing is ready; without it, spread-out arrivals were written one row
-  per DuckDB insert (3.7x slower at 3K). In Pub/Sub this is streaming-pull flow control.
-* **Postgres**: one transaction per stateful event (~5% of events); a single writer is
-  commit-latency-bound, so throughput comes from more writers (shards), not bigger batches.
-* **Memory**: replay streams from the archive in chunks (`chunk` events per drain); each
-  shard caps DuckDB at `duckdb_memory_limit_mb`.
+## Known limits
 
-## Known limitations
-
-* `processed_events` has no retention job yet (must exceed the redelivery and replay window).
-* `run-local` keeps every event in memory (oracle included); use `scale-run` above ~10K.
-* The warehouse consumer writes DuckDB (single writer). BigQuery streaming is deliberately
-  not used (cost); the cloud path is GCS archive plus batch loads (ADR 0008).
-* Cross-aggregate rules (invoice only for an active customer) are analytical checks (dbt),
-  not control-plane constraints, because aggregates may arrive in either order.
-* A permanently invalid lifecycle event stays `pending` (visible in `pending_summary`), not
-  dead-lettered: online, "never" and "not yet" are indistinguishable.
+- `processed_events` has no retention job yet.
+- Cross-aggregate rules (an invoice only for an active customer) are dbt checks, not
+  control-plane constraints, because aggregates can arrive in either order.
+- A permanently invalid lifecycle event stays pending rather than dead-lettered: online,
+  "never" and "not yet" look the same.

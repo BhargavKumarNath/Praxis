@@ -1,120 +1,86 @@
-# Demand forecasting (Phase 4)
+# Demand forecasting
 
-**All data is SYNTHETIC** (Phase 1 simulator). Decisions: ADR 0010 (method, leakage rules,
-pre-registered acceptance), ADR 0011 (hybrid champion). Evidence: `docs/evidence/phase-4.md`.
-
-```text
-dbt marts (fct_usage_daily, dim_customer, feat_region_daily, fct_price_exposures,
-           fct_service_metrics_hourly)
-   |  praxis.forecasting.warehouse: dense panel (72 series x days) + price plan
-   v
-features.build_features(panel, origin, horizons, plan)   <- outcomes <= origin only
-   |
-   +--> baselines: seasonal naive, seasonal moving average, ridge   (residual quantiles)
-   +--> LightGBM: point (challenger) + 7 calibrated quantile models
-   |
-   +--> backtest: expanding window, weekly origins, slices, block bootstrap, acceptance
-   +--> artifact: hybrid champion (ridge mean + LightGBM quantiles), checksummed lineage
-   +--> service / API: freshness policy, stale fallback, metrics, /v1/forecasts/demand
-```
+The forecaster predicts daily demand one to seven days ahead, with calibrated intervals, for
+every region x product x segment series (72 in the default world). It feeds pricing and drift
+monitoring. Decisions: ADR 0010 (method, leakage rules, acceptance) and ADR 0011 (the hybrid
+champion). Results: [results.md](results.md#forecasting).
 
 ## What is forecast
 
 | Item | Choice |
 | --- | --- |
-| Series | region x product x segment; segment = tier at signup (static) |
-| Target | requested units per UTC day = served + throttled (unconstrained demand) |
-| Horizons | 1..7 days after the feature date |
-| Outputs | expected demand (point) and quantiles 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95 |
-| Scale | each series divided by its own 28-day mean at the origin; one pooled model |
+| Target | Requested units per UTC day, served plus throttled, so demand is not capped by capacity |
+| Segment | The customer's tier at signup, never the current tier (that would leak later changes) |
+| Horizons | 1 to 7 days after the feature date |
+| Outputs | Expected demand and quantiles 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95 |
+| Model | Ridge for the mean, LightGBM for the quantiles, calibrated out of sample on 28 days and rearranged so they never cross |
 
-Features (`demand_features.v1`): same-weekday lags (`y[D-7k]`, k = 1..4) and their mean,
-last value, 7-day mean, exponentially weighted mean, 28-day std, log scale, served ratio,
-active-customer ratio, regional service context at the origin (utilisation, latency, errors),
-planned-price changes (target vs origin, last week, vs first price), day of week, horizon, and
-region / product / segment codes. Optional `ext_*` features (real weather, carbon, grid demand,
-CPI at the origin) exist for the ablation and are off by default.
+Features (`demand_features.v1`) are same-weekday lags, rolling means and spread, regional
+service context at the origin, planned-price changes, calendar, horizon and series codes.
+Optional external features (weather, carbon, grid demand, CPI) exist for an ablation and are off
+by default, because they gave no lift.
 
-Loading is deterministic: service context is recomputed from the hourly mart with exact DECIMAL sums
-(same definition as `feat_region_daily`, parity tested), so rebuilding a world from its seed gives a
-bit-identical panel and `data_version`. A float `avg` would depend on physical row order.
+## Leakage rules
 
-## Leakage rules (tested)
+- Every outcome-derived feature comes from data up to the origin. A Hypothesis test rewrites
+  everything after the origin at 40 random origins and requires bit-identical features; a
+  deliberately leaky feature makes the same test fail.
+- The planned price on the target day is the only input about the future.
+- Backtest folds assert that every training target precedes the origin.
+- FRED values respect their 45-day publication lag.
 
-* Every outcome-derived feature is computed from `panel.history(origin)`.
-  `tests/forecasting/test_leakage.py` rewrites everything after the origin (Hypothesis, 40
-  random origins and seeds) and requires bit-identical features; a deliberately leaky feature
-  makes the same check fail.
-* The planned price is the only future input, and only its value on the target day matters.
-* Backtest folds assert `max(train target day) <= origin < min(test target day)`.
-* `initial_tier`, never `current_tier`; FRED values respect the 45-day release lag (Phase 2).
+Validation is a rolling-origin backtest with weekly origins and a block bootstrap. There is no
+random split anywhere.
 
-## Run it
+## Commands
 
 ```bash
-make forecast-data                       # evaluation world: scenario + seed 42, 1K customers (~25 s)
-make forecast-backtest                   # rolling-origin backtest + acceptance (exit 1 on FAIL)
-make forecast-train                      # train twice (must be identical), save artifact
-make forecast-data FC_SEED=1             # development world for method work (never seed 42)
-make forecast-signals                    # ablation input: ingest real signals for the world's dates
-
-.venv/bin/python -m praxis.forecasting --db DB backtest [--external] [--scenario S] [--report R]
-.venv/bin/python -m praxis.forecasting --db DB train --backtest-report R [--out DIR]
-.venv/bin/python -m praxis.forecasting --db DB predict --model DIR [--as-of DATE]
+make forecast-data FC_SEED=1        # development world (the default seed 42 is held out)
+make forecast-backtest FC_SEED=1    # backtest and pre-registered acceptance; exit 1 on FAIL
+make forecast-train FC_SEED=1       # trains twice, refuses to save unless both runs match
+python -m praxis.forecasting --db DB predict --model DIR [--as-of DATE]
 ```
 
-`train` refuses to save unless the supplied backtest report passed acceptance on the same
-config hash and data version, and unless a second training run reproduces the model
-exactly. `--allow-unvalidated` exists for development only and is recorded in the manifest
-(`backtest: null`).
+`train` refuses to save unless the backtest report it is given passed acceptance on the same
+config hash and data version.
 
 ## Serving
 
-`PRAXIS_FORECAST_MODEL_DIR=<artifact dir>` and `PRAXIS_WAREHOUSE_PATH=<duckdb>`, then `make run`.
+Set `PRAXIS_FORECAST_MODEL_DIR` and `PRAXIS_WAREHOUSE_PATH`, or
+`PRAXIS_FORECAST_FROM_REGISTRY=true` with a database to serve the registry's champion, then
+`make run`.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /v1/forecasts/demand` | `{series?, horizons?, planned_prices_micros?}` -> forecasts |
-| `GET /v1/forecasts/demand/model` | model version, champion, data / feature version, code revision |
-| `GET /v1/forecasts/demand/metrics` | request / outcome / source / freshness counters, latency |
+| `POST /v1/forecasts/demand` | Forecasts for some or all series, optionally at planned prices |
+| `GET /v1/forecasts/demand/model` | Model version, stage, data and feature version, code revision |
+| `GET /v1/forecasts/demand/metrics` | Request, outcome and freshness counters, latency |
 
-Every response carries `model_version`, `forecast_created_at`, `feature_date`,
-`feature_timestamp` (all data used is strictly before it), `feature_lag_days`,
-`freshness_status`, `source` and `is_synthetic: true`.
+Every response names the model version and the feature date, and says whether the features
+were fresh.
 
-| Feature lag (today UTC - feature date) | Behaviour |
+| Feature age | Behaviour |
 | --- | --- |
-| <= 1 day | `fresh`, hybrid model |
-| 2..7 days | `stale`, seasonal moving average, `fallback_reason: stale_features` |
-| > 7 days, or no complete day | `503 features_unavailable` |
+| up to 1 day | `fresh`: the hybrid model |
+| 2 to 7 days | `stale`: a seasonal moving average, labelled as a fallback |
+| older, or no complete day | `503 features_unavailable` |
 
-A *complete* day has all 24 hourly service rows for every region. Errors are explicit:
-`422 invalid_request`, `404 unknown_series`, `400 planned_price_out_of_range` /
-`unknown_product` / `invalid_horizon` / `too_many_series`, `503 forecast_unavailable`
-(no model loaded) / `warehouse_unavailable`. Planned prices must lie within x1.5 of the
-current list price (the model has no evidence outside it). Each call is logged as
-`forecast.served` / `forecast.unavailable` / `forecast.rejected_request` with the model
-version and latency, and counted in `ForecastMetrics` (OpenTelemetry export is Phase 11).
+Pricing only moves a price on a fresh forecast. Planned prices must lie within 1.5x of the
+current list price, because the model has no evidence beyond that. Errors are explicit
+(`422`, `404 unknown_series`, `400` for an out-of-range price or horizon, `503` when no model
+or warehouse is available).
 
-### Lifecycle (Phase 10)
+## A defect worth knowing about
 
-With `PRAXIS_FORECAST_FROM_REGISTRY=true` the API serves the control-plane registry's
-champion instead of `PRAXIS_FORECAST_MODEL_DIR`, and names the served version in every
-response (`X-Praxis-Model-Version`). Validation, shadow, drift monitoring, probation and
-rollback: `docs/mlops.md`, ADR 0017.
+Before Phase 10, loading an artifact rebuilt the ridge's one-hot blocks in sorted key order
+instead of fit order, so every loaded model applied its categorical coefficients to the wrong
+columns. Training and the backtest were unaffected, but the API and the Phase 6 and 9 pricing
+runs loaded artifacts. It was fixed, a regression test now compares predictions, and every
+candidate is checked for `serving_parity`. The affected pricing results stand as measured.
 
-**Fixed 2026-10-11 (found by Phase 10):** loading an artifact rebuilt the ridge's categorical
-one-hot blocks in the JSON key order of `ridge.json` (sorted) instead of the fit order, so
-every LOADED artifact applied its categorical coefficients to the wrong columns. Training, the
-backtest acceptance and the checksums were unaffected; the API and the Phase 6 / 9 pricing
-inputs (which load artifacts) were. Dev world seed 1, 8-week pricing window: vWAPE 0.1623
-(loaded, before) vs 0.1558 (after). A regression test now compares predictions, and the
-Phase 10 gate checks `serving_parity` for every candidate.
+## Limits
 
-## Limitations
-
-* The forecaster's price features are predictive, not causal; elasticity is Phase 5.
-* Unannounced spikes cannot be predicted before they start (reported as a separate slice).
-* Demand is censored when a product is unavailable (no usage event when nothing is served).
-* Daily grain only; the simulator has no intra-day customer demand.
-* The model directory is local; MLflow registry, champion pointer and GCS artifacts are Phase 10.
+- The price features are predictive, not causal. The causal response comes from
+  [elasticity.md](elasticity.md).
+- Unannounced spikes cannot be forecast before they start.
+- Demand is censored when a product is unavailable.

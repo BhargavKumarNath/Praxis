@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Shell } from "../components/Shell";
 import "./globals.css";
 
-// Type pairing from docs/design/dashboard.md: Newsreader for view titles only,
+// Type pairing from docs/dashboard.md: Newsreader for view titles only,
 // Inter for everything else (tabular figures, optical sizes), Plex Mono for identifiers that are code.
 const newsreader = Newsreader({
   subsets: ["latin"],
